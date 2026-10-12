@@ -123,6 +123,9 @@ class PortfolioService:
         recs: List[StrategyStockRecommendation] = []
         total_allocated = 0.0
 
+        from app.services.pipeline_service import FALLBACK_FINANCIAL_PROFILES, CURATED_UNIVERSE
+        universe_by_sym = {c["symbol"]: c for c in CURATED_UNIVERSE}
+
         for item in strat["stocks"]:
             symbol = item["symbol"]
             weight = item["weight"]
@@ -130,6 +133,36 @@ class PortfolioService:
 
             company = db.query(Company).filter(Company.symbol == symbol).first()
             if not company:
+                fallback_prof = FALLBACK_FINANCIAL_PROFILES.get(symbol, {})
+                u_info = universe_by_sym.get(symbol, {})
+                current_price = float(fallback_prof.get("price", 100.0))
+                stock_currency = "EUR" if symbol.endswith(".PA") else currency
+                target_amount = total_capital * weight
+                if current_price <= target_amount:
+                    shares = math.floor(target_amount / current_price)
+                    if shares == 0:
+                        shares = 1.0
+                else:
+                    shares = round(target_amount / current_price, 2)
+                allocated = round(shares * current_price, 2)
+                total_allocated += allocated
+                recs.append(
+                    StrategyStockRecommendation(
+                        symbol=symbol,
+                        name=u_info.get("name", symbol),
+                        sector=u_info.get("sector", "Diversifié"),
+                        target_weight_pct=round(weight * 100.0, 1),
+                        current_price=round(current_price, 2),
+                        currency=stock_currency,
+                        suggested_shares=shares,
+                        allocated_amount=allocated,
+                        pe_ratio=fallback_prof.get("pe"),
+                        dividend_yield=fallback_prof.get("yield"),
+                        piotroski_score=8,
+                        quality_score=85.0,
+                        thesis=thesis
+                    )
+                )
                 continue
 
             current_price = company.current_price or 100.0

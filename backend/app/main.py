@@ -30,11 +30,21 @@ def scheduled_daily_pipeline_job():
 async def lifespan(app: FastAPI):
     # Startup: create tables and seed universe
     logger.info("Initializing database tables...")
+    import app.models  # ensure models are registered
     Base.metadata.create_all(bind=engine)
     
     db = SessionLocal()
     try:
-        DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=True)
+        from app.models.stock import Company
+        count = db.query(Company).count()
+        if count == 0:
+            logger.info("Database is empty. Seeding initial universe with baseline profiles...")
+            DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=False)
+            logger.info("Initial universe seeding completed.")
+        else:
+            logger.info(f"Database already populated with {count} companies.")
+    except Exception as e:
+        logger.error(f"Error during startup universe verification: {e}")
     finally:
         db.close()
     

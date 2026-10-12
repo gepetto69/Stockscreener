@@ -33,15 +33,21 @@ export const PortfolioManager: React.FC<Props> = ({
   // Fetch current portfolio state and strategy recommendations
   const fetchPortfolioData = async () => {
     try {
-      const [portRes, stratRes] = await Promise.all([
+      const [portRes, stratRes] = await Promise.allSettled([
         axios.get(`${API_BASE}/portfolio`),
         axios.get(`${API_BASE}/portfolio/strategies?capital=10000&currency=EUR`)
       ]);
-      setPortfolio(portRes.data);
-      if (onPortfolioStatusChange) {
-        onPortfolioStatusChange(portRes.data);
+
+      if (portRes.status === 'fulfilled' && portRes.value.data) {
+        setPortfolio(portRes.value.data);
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(portRes.value.data);
+        }
       }
-      setStrategies(stratRes.data);
+
+      if (stratRes.status === 'fulfilled' && Array.isArray(stratRes.value.data) && stratRes.value.data.length > 0) {
+        setStrategies(stratRes.value.data);
+      }
     } catch (err) {
       console.error("Error loading portfolio data", err);
     } finally {

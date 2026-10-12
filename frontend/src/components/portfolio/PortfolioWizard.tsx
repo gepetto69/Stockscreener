@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import axios from 'axios';
 import type { StrategyProfile, PositionCreatePayload, StrategyStockRecommendation } from '../../types/portfolio';
+import { buildDefaultStrategies } from '../../data/defaultStrategies';
 import {
   ShieldCheck,
   TrendingUp,
@@ -40,12 +42,73 @@ export const PortfolioWizard: React.FC<Props> = ({
   // Custom mode state: map of symbol -> { shares, buy_price }
   const [customPicks, setCustomPicks] = useState<Record<string, { shares: number; buy_price: number }>>({});
 
-  const activeStrategy = strategies.find(s => s.id === selectedStrategyId) || strategies[0];
+  // Fallback strategies computed dynamically based on current capital & currency
+  const fallbackStrategies = useMemo(
+    () => buildDefaultStrategies(capital, currency),
+    [capital, currency]
+  );
+
+  // Live strategies fetched for updated capital / currency
+  const [liveStrategies, setLiveStrategies] = useState<StrategyProfile[] | null>(null);
+
+  // When capital or currency changes, fetch updated strategy allocations from backend
+  useEffect(() => {
+    let active = true;
+    const fetchLive = async () => {
+      try {
+        const res = await axios.get<StrategyProfile[]>(
+          `/api/portfolio/strategies?capital=${capital}&currency=${currency}`
+        );
+        if (active && Array.isArray(res.data) && res.data.length > 0) {
+          setLiveStrategies(res.data);
+        }
+      } catch {
+        // Fallback strategies will be used seamlessly
+      }
+    };
+    fetchLive();
+    return () => {
+      active = false;
+    };
+  }, [capital, currency]);
+
+  // Determine effective strategies: live > prop strategies > fallback
+  const effectiveStrategies = useMemo(() => {
+    if (liveStrategies && liveStrategies.length > 0) {
+      return liveStrategies;
+    }
+    if (strategies && strategies.length > 0) {
+      return strategies;
+    }
+    return fallbackStrategies;
+  }, [liveStrategies, strategies, fallbackStrategies]);
+
+  const activeStrategy = useMemo(() => {
+    return (
+      effectiveStrategies.find(s => s.id === selectedStrategyId) ||
+      effectiveStrategies[0] ||
+      fallbackStrategies[0]
+    );
+  }, [effectiveStrategies, selectedStrategyId, fallbackStrategies]);
+
+  // Initialize or update custom picks when active strategy changes
+  useEffect(() => {
+    if (activeStrategy && Object.keys(customPicks).length === 0) {
+      const initialPicks: Record<string, { shares: number; buy_price: number }> = {};
+      activeStrategy.recommendations.forEach(r => {
+        initialPicks[r.symbol] = {
+          shares: r.suggested_shares || 1,
+          buy_price: r.current_price
+        };
+      });
+      setCustomPicks(initialPicks);
+    }
+  }, [activeStrategy]);
 
   const handleSelectStrategy = (stratId: string) => {
     setSelectedStrategyId(stratId);
     // Preset custom picks with empty or default 1 share for each stock in that strategy
-    const strat = strategies.find(s => s.id === stratId);
+    const strat = effectiveStrategies.find(s => s.id === stratId) || fallbackStrategies.find(s => s.id === stratId);
     if (strat) {
       const initialPicks: Record<string, { shares: number; buy_price: number }> = {};
       strat.recommendations.forEach(r => {
@@ -203,7 +266,7 @@ export const PortfolioWizard: React.FC<Props> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {strategies.map((strat) => {
+          {effectiveStrategies.map((strat) => {
             const isSelected = selectedStrategyId === strat.id;
             return (
               <div
@@ -426,8 +489,8 @@ export const PortfolioWizard: React.FC<Props> = ({
           <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950/40">
             <div>
               <div className="font-bold text-sm text-white flex items-center gap-2">
-                <span>Actions éligibles pour : {activeStrategy?.title}</span>
-                <span className="text-xs text-slate-400 font-normal">({activeStrategy?.recommendations.length} valeurs)</span>
+                <span>Actions éligibles pour : {activeStrategy?.title || 'Stratégie sélectionnée'}</span>
+                <span className="text-xs text-slate-400 font-normal">({activeStrategy?.recommendations?.length || 0} valeurs)</span>
               </div>
               <div className="text-xs text-slate-400 mt-0.5">
                 {mode === 'auto'
@@ -574,7 +637,7 @@ export const PortfolioWizard: React.FC<Props> = ({
           <div className="text-sm font-bold text-white flex items-center gap-2">
             <span>Prêt à activer votre portefeuille ?</span>
             <span className="text-xs text-emerald-400 font-mono">
-              ({activeStrategy?.recommendations.length} lignes • {capital.toLocaleString()} {currency})
+              ({activeStrategy?.recommendations?.length || 0} lignes • {capital.toLocaleString()} {currency})
             </span>
           </div>
           <div className="text-xs text-slate-400 mt-0.5">
