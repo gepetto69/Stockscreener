@@ -3,6 +3,7 @@
 :root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -10,4 +11,14 @@ body {
   background-color: #0b0f19;
   color: #f3f4f6;
   min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar for mobile overflow */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

@@ -182,49 +182,57 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-4 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-6xl h-[92vh] sm:max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         
         {/* TOP BAR / HEADER (Matching Databourse layout) */}
-        <div className="p-5 border-b border-slate-800 bg-slate-950/80">
+        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/80">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             
-            {/* Left: Company Identity */}
-            <div className="flex items-start gap-4">
-              <div className="w-13 h-13 px-3 py-2 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center font-black text-xl text-white shadow-lg shadow-sky-500/20">
-                {company.symbol.slice(0, 4)}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                    {company.name} <span className="text-slate-400 font-normal">({company.symbol})</span>
-                  </h2>
+            {/* Top row on mobile: Company Identity + Close Button */}
+            <div className="flex items-start justify-between w-full lg:w-auto">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-11 h-11 sm:w-13 sm:h-13 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center font-black text-lg sm:text-xl text-white shadow-lg shadow-sky-500/20 shrink-0">
+                  {company.symbol.slice(0, 4)}
                 </div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  {company.industry || company.sector || 'Hardware, Equipment & Parts'}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
+                      {company.name} <span className="text-slate-400 font-normal text-sm sm:text-base">({company.symbol})</span>
+                    </h2>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    {company.industry || company.sector || 'Hardware, Equipment & Parts'}
+                  </div>
                 </div>
               </div>
+
+              {/* Close Button on mobile */}
+              <button
+                onClick={onClose}
+                className="lg:hidden p-2 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Middle: Live Stats Cards (Cours Actuel, Piotroski, Quality Score) */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
               {/* Cours Actuel */}
-              <div className="bg-slate-850/90 border border-slate-800 px-4 py-2 rounded-xl min-w-[110px]">
-                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cours Actuel</div>
-                <div className="text-xl font-black text-emerald-400">
+              <div className="bg-slate-850/90 border border-slate-800 p-2.5 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
+                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cours Actuel</div>
+                <div className="text-base sm:text-xl font-black text-emerald-400">
                   {company.current_price?.toFixed(2) || '205.79'}
-                  <span className="text-xs font-normal text-slate-400 ml-1">{company.currency || 'USD'}</span>
+                  <span className="text-[10px] sm:text-xs font-normal text-slate-400 ml-1">{company.currency || 'USD'}</span>
                 </div>
               </div>
 
               {/* Score de Piotroski */}
-              <div className="bg-slate-850/90 border border-slate-800 px-4 py-2 rounded-xl min-w-[125px]">
-                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
-                  <span>Score de Piotroski</span>
-                </div>
-                <div className="text-xl font-black text-white flex items-baseline gap-1.5">
-                  {piotroskiScore} <span className="text-xs font-medium text-slate-400">/ 9</span>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+              <div className="bg-slate-850/90 border border-slate-800 p-2.5 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
+                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Piotroski</div>
+                <div className="text-base sm:text-xl font-black text-white flex items-baseline justify-center sm:justify-start gap-1">
+                  {piotroskiScore} <span className="text-[10px] sm:text-xs font-medium text-slate-400">/ 9</span>
+                  <span className={`text-[9px] sm:text-[10px] font-bold px-1 py-0.2 rounded border hidden sm:inline ${
                     piotroskiScore >= 6
                       ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80'
                       : piotroskiScore >= 4
@@ -237,19 +245,19 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
               </div>
 
               {/* Quality Score (PE / Qualité) */}
-              <div className="bg-slate-850/90 border border-slate-800 px-4 py-2 rounded-xl min-w-[115px]">
-                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Quality Score</div>
-                <div className="text-xl font-black text-white flex items-baseline gap-1.5">
+              <div className="bg-slate-850/90 border border-slate-800 p-2.5 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
+                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Quality Score</div>
+                <div className="text-base sm:text-xl font-black text-white flex items-baseline justify-center sm:justify-start gap-1">
                   {qualityRatio.toFixed(2)}
-                  <span className="text-[10px] font-bold text-amber-400 flex items-center gap-0.5">
+                  <span className="text-[9px] font-bold text-amber-400 hidden sm:inline">
                     ▲ Moyen
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Right: Close button */}
-            <div className="flex items-center gap-2 self-end lg:self-center">
+            {/* Desktop Close button */}
+            <div className="hidden lg:flex items-center gap-2">
               <button
                 onClick={onClose}
                 className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
@@ -261,11 +269,11 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
         </div>
 
         {/* NAVIGATION TABS (Databourse navigation bar with badges) */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-6 bg-slate-950/60 overflow-x-auto text-xs sm:text-sm font-medium">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between border-b border-slate-800 px-3 sm:px-6 bg-slate-950/60 overflow-x-auto text-xs sm:text-sm font-medium scrollbar-thin scrollbar-thumb-slate-700">
+          <div className="flex items-center gap-1 shrink-0 py-1">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`py-3 px-3.5 border-b-2 transition whitespace-nowrap ${
+              className={`py-2 sm:py-3 px-2.5 sm:px-3.5 border-b-2 transition whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -276,7 +284,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
             <button
               onClick={() => setActiveTab('health')}
-              className={`py-3 px-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
+              className={`py-2 sm:py-3 px-2.5 sm:px-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'health'
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -290,7 +298,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
             <button
               onClick={() => setActiveTab('profitability')}
-              className={`py-3 px-3.5 border-b-2 transition whitespace-nowrap ${
+              className={`py-2 sm:py-3 px-2.5 sm:px-3.5 border-b-2 transition whitespace-nowrap ${
                 activeTab === 'profitability'
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -301,7 +309,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
             <button
               onClick={() => setActiveTab('valuation')}
-              className={`py-3 px-3.5 border-b-2 transition whitespace-nowrap ${
+              className={`py-2 sm:py-3 px-2.5 sm:px-3.5 border-b-2 transition whitespace-nowrap ${
                 activeTab === 'valuation'
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -312,7 +320,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
             <button
               onClick={() => setActiveTab('technical')}
-              className={`py-3 px-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
+              className={`py-2 sm:py-3 px-2.5 sm:px-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'technical'
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -323,7 +331,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
             <button
               onClick={() => setActiveTab('analysts')}
-              className={`py-3 px-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
+              className={`py-2 sm:py-3 px-2.5 sm:px-3.5 border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${
                 activeTab === 'analysts'
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -337,7 +345,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
             <button
               onClick={() => setActiveTab('news')}
-              className={`py-3 px-3.5 border-b-2 transition whitespace-nowrap ${
+              className={`py-2 sm:py-3 px-2.5 sm:px-3.5 border-b-2 transition whitespace-nowrap ${
                 activeTab === 'news'
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -348,7 +356,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
           </div>
 
           {/* Golden highlight button for "Analyse complète" */}
-          <div className="py-2 pl-2">
+          <div className="py-2 pl-2 shrink-0">
             <button
               onClick={() => setActiveTab('full_analysis')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition shadow-sm ${

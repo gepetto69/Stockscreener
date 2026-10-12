@@ -11,12 +11,14 @@ import {
   RefreshCw,
   Sparkles,
   ShieldCheck,
-  Award
+  Award,
+  Filter
 } from 'lucide-react';
 
 const API_BASE = '/api';
 
 export const App: React.FC = () => {
+  const [showMobileFilters, setShowMobileFilters] = useState<boolean>(false);
   const [filters, setFilters] = useState<FilterParams>({
     page: 1,
     page_size: 20,
@@ -216,28 +218,39 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
-        {/* Search bar & quick filters */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-96">
+        {/* Mobile Filter Toggle & Search Bar */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Rechercher par ticker ou entreprise (ex: GLW, MSFT, L'Oréal)..."
+              placeholder="Rechercher par ticker ou nom (ex: GLW, MSFT)..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
             />
           </form>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400 w-full sm:w-auto justify-end">
-            <span>{screenerData.total} résultat{screenerData.total > 1 ? 's' : ''} trouvé{screenerData.total > 1 ? 's' : ''}</span>
-            {loading && <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-ping ml-1" />}
+          <div className="flex items-center justify-between sm:justify-end gap-3">
+            {/* Mobile Filter Drawer Button */}
+            <button
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className="lg:hidden flex items-center gap-2 bg-slate-900 hover:bg-slate-850 text-indigo-400 border border-slate-800 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition"
+            >
+              <Filter className="w-4 h-4 text-indigo-400" />
+              <span>{showMobileFilters ? 'Masquer filtres' : 'Filtres & Ratios'}</span>
+            </button>
+
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span>{screenerData.total} résultat{screenerData.total > 1 ? 's' : ''}</span>
+              {loading && <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-ping ml-1" />}
+            </div>
           </div>
         </div>
 
         {/* 2-Column Layout: Sidebar Filters & Results Table */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-          <div className="lg:col-span-1">
+          <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block lg:col-span-1`}>
             <FilterSidebar
               filters={filters}
               onChange={setFilters}

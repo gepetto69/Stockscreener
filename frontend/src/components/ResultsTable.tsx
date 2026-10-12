@@ -84,37 +84,37 @@ export const ResultsTable: React.FC<Props> = ({
                   {renderSortIndicator('current_price')}
                 </div>
               </th>
-              <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('latest_roe')}>
+              <th className="py-3.5 px-4 cursor-pointer group hidden md:table-cell" onClick={() => onSort('latest_roe')}>
                 <div className="flex items-center">
                   <span>ROE (%)</span>
                   {renderSortIndicator('latest_roe')}
                 </div>
               </th>
-              <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('latest_roic')}>
+              <th className="py-3.5 px-4 cursor-pointer group hidden md:table-cell" onClick={() => onSort('latest_roic')}>
                 <div className="flex items-center">
                   <span>ROIC (%)</span>
                   {renderSortIndicator('latest_roic')}
                 </div>
               </th>
-              <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('latest_operating_margin')}>
+              <th className="py-3.5 px-4 cursor-pointer group hidden lg:table-cell" onClick={() => onSort('latest_operating_margin')}>
                 <div className="flex items-center">
                   <span>Marge Op.</span>
                   {renderSortIndicator('latest_operating_margin')}
                 </div>
               </th>
-              <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('latest_debt_to_ebitda')}>
+              <th className="py-3.5 px-4 cursor-pointer group hidden sm:table-cell" onClick={() => onSort('latest_debt_to_ebitda')}>
                 <div className="flex items-center">
                   <span>Dette/EBITDA</span>
                   {renderSortIndicator('latest_debt_to_ebitda')}
                 </div>
               </th>
-              <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('revenue_growth_5y')}>
+              <th className="py-3.5 px-4 cursor-pointer group hidden lg:table-cell" onClick={() => onSort('revenue_growth_5y')}>
                 <div className="flex items-center">
                   <span>CAGR CA 5A</span>
                   {renderSortIndicator('revenue_growth_5y')}
                 </div>
               </th>
-              <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('pe_ratio')}>
+              <th className="py-3.5 px-4 cursor-pointer group hidden sm:table-cell" onClick={() => onSort('pe_ratio')}>
                 <div className="flex items-center">
                   <span>P/E</span>
                   {renderSortIndicator('pe_ratio')}
@@ -199,26 +199,26 @@ export const ResultsTable: React.FC<Props> = ({
                     </td>
 
                     {/* ROE */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 hidden md:table-cell">
                       <span className={`font-semibold ${c.latest_roe && c.latest_roe >= 15 ? 'text-emerald-400' : 'text-slate-300'}`}>
                         {c.latest_roe ? `${c.latest_roe.toFixed(1)}%` : '—'}
                       </span>
                     </td>
 
                     {/* ROIC */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 hidden md:table-cell">
                       <span className={`font-semibold ${c.latest_roic && c.latest_roic >= 12 ? 'text-emerald-400' : 'text-slate-300'}`}>
                         {c.latest_roic ? `${c.latest_roic.toFixed(1)}%` : '—'}
                       </span>
                     </td>
 
                     {/* Operating Margin */}
-                    <td className="py-3.5 px-4 text-slate-300">
+                    <td className="py-3.5 px-4 text-slate-300 hidden lg:table-cell">
                       {c.latest_operating_margin ? `${c.latest_operating_margin.toFixed(1)}%` : '—'}
                     </td>
 
                     {/* Net Debt / EBITDA */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 hidden sm:table-cell">
                       {c.latest_debt_to_ebitda !== undefined && c.latest_debt_to_ebitda !== null ? (
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                           c.latest_debt_to_ebitda <= 0
@@ -235,7 +235,7 @@ export const ResultsTable: React.FC<Props> = ({
                     </td>
 
                     {/* Revenue Growth 5Y */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 hidden lg:table-cell">
                       {c.revenue_growth_5y !== undefined && c.revenue_growth_5y !== null ? (
                         <div className="flex items-center gap-1 text-slate-300 font-medium text-xs">
                           {c.revenue_growth_5y >= 0 ? (
@@ -251,7 +251,7 @@ export const ResultsTable: React.FC<Props> = ({
                     </td>
 
                     {/* P/E */}
-                    <td className="py-3.5 px-4">
+                    <td className="py-3.5 px-4 hidden sm:table-cell">
                       <span className="text-slate-300 font-medium">
                         {c.pe_ratio ? `${c.pe_ratio.toFixed(1)}x` : '—'}
                       </span>
