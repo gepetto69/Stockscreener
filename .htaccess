@@ -1,10 +1,25 @@
+Options -Indexes +FollowSymLinks
+DirectoryIndex dist/index.html index.html index.htm
+
 RewriteEngine On
 
-# 1. Rediriger les appels API vers le backend Python si configuré localement sur le port 8000
-RewriteCond %{REQUEST_URI} ^/api/(.*)$
-RewriteRule ^api/(.*)$ http://127.0.0.1:8000/api/$1 [P,L]
+# 1. Reverse proxy vers l'application Node.js si gérée par proxy interne ou port d'écoute
+# (Fallback pour les environnements Apache/LiteSpeed devant Node.js)
+<IfModule mod_proxy.c>
+  RewriteCond %{REQUEST_URI} ^/api/(.*)$ [OR]
+  RewriteCond %{REQUEST_URI} ^/health$
+  RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+</IfModule>
 
-# 2. Gestion du Single Page Application (SPA) React / Vite
+# 2. Servir directement les fichiers statiques de dist/ si existants
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
+RewriteRule ^(.*)$ dist/$1 [L]
+
+# 3. Servir assets depuis dist/assets/
+RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
+RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+# 4. Gestion du Single Page Application (SPA) React / Vite
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.html [QSA,L]
+RewriteRule ^.*$ dist/index.html [L]

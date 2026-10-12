@@ -2,11 +2,12 @@
   "name": "stockscreener",
   "version": "1.0.0",
   "private": true,
+  "main": "server.js",
   "workspaces": [
     "frontend"
   ],
   "scripts": {
-    "build": "npm --prefix frontend install && npm --prefix frontend run build && (cp -r frontend/dist ./dist 2>/dev/null || true)",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && rm -rf dist && cp -r frontend/dist ./dist",
     "start": "node server.js",
     "test": "node --test server/test/*.test.js",
     "preview": "npm --prefix frontend run preview"
