@@ -81,11 +81,11 @@ export interface PortfolioPerformance {
   total_pnl_pct: number;
   daily_pnl: number;
   daily_pnl_pct: number;
-  weighted_quality_score?: number;
-  weighted_piotroski_score?: number;
-  average_roe?: number;
-  average_roic?: number;
-  average_dividend_yield?: number;
+  weighted_quality_score?: number | null;
+  weighted_piotroski_score?: number | null;
+  average_roe?: number | null;
+  average_roic?: number | null;
+  average_dividend_yield?: number | null;
   positions_count: number;
   positions: PortfolioPositionDetail[];
   sectors: SectorAllocation[];
@@ -140,7 +140,7 @@ export interface PortfolioAuditReport {
   portfolio_id: number;
   strategy: string;
   health_score: number;
-  overall_verdict: 'Excellent' | 'Solide' | 'À Rééquilibrer' | 'Vulnérable';
+  overall_verdict: 'Excellent' | 'Solide' | 'À Rééquilibrer' | 'Vulnérable' | string;
   weighted_quality_score: number;
   average_piotroski: number;
   average_roe: number;

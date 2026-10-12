@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../config/api';
+import { LocalEngine } from '../services/localEngine';
 import type {
   Company,
   AbigailAnalysis,
@@ -217,9 +218,16 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     if (!company?.symbol) return;
     setAbigailLoading(true);
     setShowAbigailModal(true);
+    // Immediately set local opinion if available
+    try {
+      const localAbi = LocalEngine.getAbigailAnalysis(company as any);
+      if (localAbi) setAbigailData(localAbi);
+    } catch {
+      // ignore
+    }
     try {
       const res = await axios.get(`${API_BASE}/companies/${company.symbol}/copilot/abigail`);
-      setAbigailData(res.data);
+      if (res.data) setAbigailData(res.data);
     } catch (err) {
       console.error('Error fetching Abigail analysis', err);
     } finally {
@@ -231,9 +239,16 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const handleLoadWarren = async () => {
     if (!company?.symbol) return;
     setWarrenLoading(true);
+    // Immediately set local opinion if available
+    try {
+      const localWar = LocalEngine.getWarrenAnalysis(company as any);
+      if (localWar) setWarrenData(localWar);
+    } catch {
+      // ignore
+    }
     try {
       const res = await axios.get(`${API_BASE}/companies/${company.symbol}/copilot/warren`);
-      setWarrenData(res.data);
+      if (res.data) setWarrenData(res.data);
     } catch (err) {
       console.error('Error fetching Warren analysis', err);
     } finally {
@@ -246,9 +261,16 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     if (!company?.symbol) return;
     setEinsteinLoading(true);
     setShowEinsteinModal(true);
+    // Immediately set local ranking if available
+    try {
+      const localEin = LocalEngine.getEinsteinRanking(company as any);
+      if (localEin) setEinsteinData(localEin);
+    } catch {
+      // ignore
+    }
     try {
       const res = await axios.get(`${API_BASE}/companies/${company.symbol}/copilot/einstein`);
-      setEinsteinData(res.data);
+      if (res.data) setEinsteinData(res.data);
     } catch (err) {
       console.error('Error fetching Einstein analysis', err);
     } finally {
@@ -279,8 +301,16 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
       handleLoadWarren();
     }
     if (activeTab === 'health' && !abigailData) {
+      try {
+        const localAbi = LocalEngine.getAbigailAnalysis(company as any);
+        if (localAbi) setAbigailData(localAbi);
+      } catch {
+        // ignore
+      }
       axios.get(`${API_BASE}/companies/${company.symbol}/copilot/abigail`)
-        .then(res => setAbigailData(res.data))
+        .then(res => {
+          if (res.data) setAbigailData(res.data);
+        })
         .catch(e => console.error(e));
     }
     if (activeTab === 'news' && newsList.length === 0 && !newsLoading) {
