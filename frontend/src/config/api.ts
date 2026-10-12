@@ -13,6 +13,22 @@ export { handleLocally };
 
 // Handle API requests locally if remote server is unreachable, 403, 404, or 503
 function handleLocally(method: string, urlPath: string, data?: any, params?: any): any {
+  // Extract query parameters from urlPath if any
+  const effectiveParams: any = { ...params };
+  if (urlPath && urlPath.includes('?')) {
+    try {
+      const queryString = urlPath.split('?')[1];
+      const searchParams = new URLSearchParams(queryString);
+      searchParams.forEach((val, key) => {
+        if (effectiveParams[key] === undefined) {
+          effectiveParams[key] = val;
+        }
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   const cleanPath = urlPath.replace(/^(?:https?:\/\/[^/]+)?(?:\/api|\/?api)/, '').replace(/\?.*$/, '');
 
   // 1. /sectors
@@ -77,8 +93,8 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
 
   // 10. /portfolio/strategies
   if (cleanPath === '/portfolio/strategies' || cleanPath.startsWith('/portfolio/strategies')) {
-    const capital = Number(params?.capital || 10000);
-    const currency = params?.currency || 'EUR';
+    const capital = Number(effectiveParams?.capital || 10000);
+    const currency = effectiveParams?.currency || 'EUR';
     return LocalEngine.getAllStrategies(capital, currency);
   }
 
@@ -96,7 +112,7 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
   // 13. /portfolio/positions
   if (cleanPath === '/portfolio/positions' || cleanPath === 'portfolio/positions') {
     if (method.toUpperCase() === 'POST') {
-      const portId = params?.portfolio_id ? Number(params.portfolio_id) : null;
+      const portId = effectiveParams?.portfolio_id ? Number(effectiveParams.portfolio_id) : LocalEngine.getActivePortfolioId();
       return LocalEngine.addOrUpdatePosition(data || {}, portId);
     }
   }
@@ -110,20 +126,20 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
 
   // 14. /portfolio/reset
   if (cleanPath === '/portfolio/reset' || cleanPath === 'portfolio/reset') {
-    const portId = params?.portfolio_id ? Number(params.portfolio_id) : null;
+    const portId = effectiveParams?.portfolio_id ? Number(effectiveParams.portfolio_id) : LocalEngine.getActivePortfolioId();
     LocalEngine.resetPortfolio(portId);
     return { status: 'success', message: 'Portfolio reset' };
   }
 
   // 15. /portfolio/analyze
   if (cleanPath === '/portfolio/analyze' || cleanPath === 'portfolio/analyze') {
-    const portId = params?.portfolio_id ? Number(params.portfolio_id) : null;
+    const portId = effectiveParams?.portfolio_id ? Number(effectiveParams.portfolio_id) : LocalEngine.getActivePortfolioId();
     return LocalEngine.analyzePortfolio(portId);
   }
 
   // 16. /portfolio
   if (cleanPath === '/portfolio' || cleanPath === 'portfolio') {
-    const portId = params?.portfolio_id ? Number(params.portfolio_id) : null;
+    const portId = effectiveParams?.portfolio_id ? Number(effectiveParams.portfolio_id) : LocalEngine.getActivePortfolioId();
     return LocalEngine.getPortfolioPerformance(portId);
   }
 

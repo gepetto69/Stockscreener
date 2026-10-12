@@ -25,7 +25,8 @@ export const App: React.FC = () => {
   // Immediately populate active portfolio from LocalEngine so UI is instantaneous (<1ms)
   const [activePortfolio, setActivePortfolio] = useState<PortfolioPerformance | null>(() => {
     try {
-      return LocalEngine.getPortfolioPerformance(null);
+      const activeId = LocalEngine.getActivePortfolioId();
+      return LocalEngine.getPortfolioPerformance(activeId);
     } catch {
       return null;
     }
@@ -78,10 +79,15 @@ export const App: React.FC = () => {
       })
       .catch(err => console.error("Could not fetch sectors", err));
 
-    axios.get(`${API_BASE}/portfolio`)
+    const activeId = LocalEngine.getActivePortfolioId();
+    const portfolioUrl = activeId ? `${API_BASE}/portfolio?portfolio_id=${activeId}` : `${API_BASE}/portfolio`;
+    axios.get(portfolioUrl, { params: activeId ? { portfolio_id: activeId } : undefined })
       .then(res => {
         if (res.data) {
           setActivePortfolio(res.data);
+          if (res.data.id) {
+            LocalEngine.setActivePortfolioId(res.data.id);
+          }
         }
       })
       .catch(err => console.error("Could not fetch initial portfolio", err));
@@ -411,6 +417,7 @@ export const App: React.FC = () => {
           <PortfolioManager
             onOpenStockDetail={handleSelectCompany}
             onPortfolioStatusChange={setActivePortfolio}
+            initialPortfolioId={activePortfolio?.id}
           />
         )}
       </main>

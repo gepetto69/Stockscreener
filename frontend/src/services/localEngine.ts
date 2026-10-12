@@ -75,6 +75,7 @@ for (const c of companies) {
 // Portfolio LocalStorage Persistence
 const PORTFOLIO_STORAGE_KEY = 'stockscreener_portfolios_v1';
 const POSITIONS_STORAGE_KEY = 'stockscreener_positions_v1';
+const ACTIVE_PORTFOLIO_KEY = 'stockscreener_active_portfolio_id_v1';
 
 function getStoredPortfolios(): any[] {
   try {
@@ -89,6 +90,31 @@ function getStoredPortfolios(): any[] {
 function saveStoredPortfolios(portfolios: any[]) {
   try {
     localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(portfolios));
+  } catch {
+    // ignore
+  }
+}
+
+function getStoredActivePortfolioId(): number | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_PORTFOLIO_KEY);
+    if (raw) {
+      const num = Number(raw);
+      if (!isNaN(num) && num > 0) return num;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveStoredActivePortfolioId(id: number | null): void {
+  try {
+    if (id !== null && id !== undefined && id > 0) {
+      localStorage.setItem(ACTIVE_PORTFOLIO_KEY, String(id));
+    } else {
+      localStorage.removeItem(ACTIVE_PORTFOLIO_KEY);
+    }
   } catch {
     // ignore
   }
@@ -793,16 +819,33 @@ export class LocalEngine {
     return result;
   }
 
+  static getActivePortfolioId(): number | null {
+    return getStoredActivePortfolioId();
+  }
+
+  static setActivePortfolioId(id: number | null): void {
+    saveStoredActivePortfolioId(id);
+  }
+
   static getPortfolioPerformance(portfolioId: number | null = null) {
     const portfolios = getStoredPortfolios();
     if (portfolios.length === 0) return null;
 
+    let targetId = portfolioId;
+    if (!targetId) {
+      targetId = getStoredActivePortfolioId();
+    }
+
     let portfolio: any;
-    if (portfolioId) {
-      portfolio = portfolios.find((p) => p.id === Number(portfolioId));
+    if (targetId) {
+      portfolio = portfolios.find((p) => p.id === Number(targetId));
     }
     if (!portfolio) {
       portfolio = portfolios[0];
+    }
+
+    if (portfolio) {
+      saveStoredActivePortfolioId(portfolio.id);
     }
 
     const stratDef = STRATEGY_DEFINITIONS[portfolio.strategy] || STRATEGY_DEFINITIONS.balanced;
@@ -1080,6 +1123,7 @@ export class LocalEngine {
     portfolio.cash_balance = Math.max(0.0, Math.round((setupData.initial_capital - totalSpent) * 100) / 100);
     saveStoredPortfolios(portfolios);
     saveStoredPositions(positions);
+    saveStoredActivePortfolioId(portfolio.id);
 
     return portfolio;
   }
@@ -1088,7 +1132,8 @@ export class LocalEngine {
     const portfolios = getStoredPortfolios();
     const positions = getStoredPositions();
 
-    let portfolio = portfolioId ? portfolios.find((p) => p.id === Number(portfolioId)) : portfolios[0];
+    const targetId = portfolioId || getStoredActivePortfolioId();
+    let portfolio = targetId ? portfolios.find((p) => p.id === Number(targetId)) : portfolios[0];
     if (!portfolio) {
       portfolio = {
         id: 1,
@@ -1170,12 +1215,18 @@ export class LocalEngine {
     let portfolios = getStoredPortfolios();
     let positions = getStoredPositions();
 
-    const targetId = portfolioId ? Number(portfolioId) : (portfolios[0]?.id || 1);
+    const activeId = getStoredActivePortfolioId();
+    const targetId = portfolioId ? Number(portfolioId) : (activeId || portfolios[0]?.id || 1);
     portfolios = portfolios.filter((p) => p.id !== targetId);
     positions = positions.filter((p) => p.portfolio_id !== targetId);
 
     saveStoredPortfolios(portfolios);
     saveStoredPositions(positions);
+
+    if (activeId === targetId || portfolioId === null) {
+      const nextId = portfolios[0]?.id || null;
+      saveStoredActivePortfolioId(nextId);
+    }
     return true;
   }
 
