@@ -168,6 +168,18 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const [einsteinLoading, setEinsteinLoading] = useState<boolean>(false);
   const [showEinsteinModal, setShowEinsteinModal] = useState<boolean>(false);
 
+  // Reset tab to overview whenever a new company is opened
+  useEffect(() => {
+    if (company?.symbol) {
+      setActiveTab('overview');
+      setAbigailData(null);
+      setWarrenData(null);
+      setEinsteinData(null);
+      setShowAbigailModal(false);
+      setShowEinsteinModal(false);
+    }
+  }, [company?.symbol]);
+
   if (!company) return null;
 
   const stmts = company.financial_statements
@@ -361,7 +373,12 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-4 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-6xl h-[92vh] sm:max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         
         {/* TOP BAR / HEADER (Matching Databourse layout) */}
@@ -979,7 +996,9 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
                   <div className="text-[10px] uppercase font-bold text-slate-400">Current Ratio</div>
                   <div className="text-2xl font-bold text-white mt-1">
-                    {company.financial_statements?.[0]?.current_ratio?.toFixed(2) || '1.61'}x
+                    {company.financial_statements?.[0]?.current_ratio != null
+                      ? `${company.financial_statements[0].current_ratio.toFixed(2)}x`
+                      : '1.61x'}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">Médiane sect. : 1.38x</div>
                 </div>

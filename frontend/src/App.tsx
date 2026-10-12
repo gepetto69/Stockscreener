@@ -36,6 +36,7 @@ export const App: React.FC = () => {
 
   const [sectors, setSectors] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [detailLoadingSymbol, setDetailLoadingSymbol] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [searchInput, setSearchInput] = useState<string>('');
@@ -70,13 +71,30 @@ export const App: React.FC = () => {
     setFilters(prev => ({ ...prev, search: searchInput || undefined, page: 1 }));
   };
 
-  // Open Company details
-  const handleSelectCompany = async (symbol: string) => {
+  // Open Company details immediately with fallback data, then enrich with full financial history
+  const handleSelectCompany = async (companyOrSymbol: Company | string) => {
+    const symbol = typeof companyOrSymbol === 'string' ? companyOrSymbol : companyOrSymbol.symbol;
+    const initialCompany: Company = typeof companyOrSymbol === 'string'
+      ? screenerData.items.find(c => c.symbol === symbol) || { id: 0, symbol, name: symbol }
+      : companyOrSymbol;
+
+    // Immediately open modal with existing summary data
+    setSelectedCompany(initialCompany);
+    setDetailLoadingSymbol(symbol);
+
     try {
       const res = await axios.get(`${API_BASE}/companies/${symbol}`);
-      setSelectedCompany(res.data);
+      // Merge with detailed data when received
+      setSelectedCompany(prev => {
+        if (prev && prev.symbol === symbol) {
+          return res.data;
+        }
+        return prev;
+      });
     } catch (err) {
-      console.error("Error loading company detail", err);
+      console.error("Error loading company detail, using initial data", err);
+    } finally {
+      setDetailLoadingSymbol(null);
     }
   };
 
@@ -269,6 +287,7 @@ export const App: React.FC = () => {
               sortOrder={filters.sort_order}
               onSort={handleSort}
               onSelectCompany={handleSelectCompany}
+              loadingSymbol={detailLoadingSymbol}
               onPageChange={(p) => setFilters(prev => ({ ...prev, page: p }))}
             />
           </div>
