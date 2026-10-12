@@ -99,42 +99,42 @@ export const PortfolioDashboard: React.FC<Props> = ({
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
       {/* Top Banner / Strategy Header */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950/40 border border-slate-800 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">{portfolio.name}</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
+      <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950/40 border border-slate-800 p-4 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+        <div className="space-y-1 min-w-0 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight truncate">{portfolio.name}</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
               {portfolio.strategy_title}
             </span>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-[11px] sm:text-xs text-slate-400">
             Portefeuille actif constitué le {new Date(portfolio.created_at).toLocaleDateString()} • {portfolio.positions_count} positions ouvertes
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-2 sm:gap-3 w-full md:w-auto">
           {/* AI AUDIT BUTTON */}
           <button
             onClick={onOpenAudit}
-            className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition hover:scale-[1.02]"
+            className="flex-1 md:flex-initial px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5 sm:gap-2 transition hover:scale-[1.02]"
           >
             <Brain className="w-4 h-4 text-cyan-300" />
-            <span>Analyser mon portefeuille IA</span>
+            <span className="truncate">Audit IA</span>
           </button>
 
           {/* ADD POSITION BUTTON */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
+            className="px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition shrink-0"
           >
             <Plus className="w-4 h-4 text-emerald-400" />
-            <span className="hidden sm:inline">Ajouter Titre</span>
+            <span className="hidden xs:inline">Ajouter Titre</span>
           </button>
 
           {/* RESET / DELETE PORTFOLIO BUTTON */}
           <button
             onClick={onRequestResetPortfolio}
-            className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700/80 transition"
+            className="p-2 sm:p-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700/80 transition shrink-0"
             title="Supprimer ou réinitialiser ce portefeuille"
           >
             <RotateCcw className="w-4 h-4" />
@@ -232,8 +232,85 @@ export const PortfolioDashboard: React.FC<Props> = ({
               <span className="text-xs text-slate-400">Cliquez sur une ligne pour ouvrir l'analyse</span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            {/* Mobile Card View for Positions */}
+            <div className="sm:hidden divide-y divide-slate-850">
+              {portfolio.positions.map((pos) => {
+                const posProfitable = pos.unrealized_pnl >= 0;
+                return (
+                  <div
+                    key={pos.id}
+                    className="p-3.5 hover:bg-slate-800/40 transition cursor-pointer"
+                    onClick={() => onOpenStockDetail(pos.symbol)}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white font-mono text-sm">
+                            {pos.symbol}
+                          </span>
+                          {pos.quality_score && (
+                            <span className="text-[10px] px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 rounded border border-indigo-500/30 font-bold">
+                              {pos.quality_score}/100
+                            </span>
+                          )}
+                          <span className="text-[10px] bg-slate-800 text-slate-400 px-1 py-0.2 rounded font-mono">
+                            {pos.weight_pct}%
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400 truncate max-w-[190px]">{pos.name}</div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <div className={`font-mono font-bold text-xs ${posProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {posProfitable ? '+' : ''}{pos.unrealized_pnl.toFixed(2)} {portfolio.currency === 'EUR' ? '€' : '$'}
+                          </div>
+                          <div className={`text-[10px] font-mono font-semibold ${posProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {posProfitable ? '+' : ''}{pos.unrealized_pnl_pct.toFixed(1)}%
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Supprimer la position ${pos.symbol} (${pos.shares} actions) ?`)) {
+                              onDeletePosition(pos.id);
+                            }
+                          }}
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition"
+                          title="Supprimer la position"
+                          aria-label={`Supprimer la position ${pos.symbol}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 bg-slate-950/50 p-2 rounded-lg border border-slate-800/60 text-center">
+                      <div>
+                        <div className="text-[10px] text-slate-400">Titres</div>
+                        <div className="text-xs font-bold text-slate-200 font-mono mt-0.5">{pos.shares}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-400">Cours Live</div>
+                        <div className="text-xs font-bold text-white font-mono mt-0.5">{pos.current_price.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-400">Valeur Ligne</div>
+                        <div className="text-xs font-bold text-white font-mono mt-0.5">
+                          {pos.current_value.toLocaleString(undefined, { maximumFractionDigits: 0 })} {portfolio.currency === 'EUR' ? '€' : '$'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left text-xs min-w-[640px]">
                 <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 font-semibold uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="px-3.5 py-3">Actif</th>

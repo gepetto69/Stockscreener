@@ -76,12 +76,12 @@ export const PortfolioResetModal: React.FC<Props> = ({
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-2 border-t border-slate-800">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition text-center"
           >
             Annuler
           </button>
@@ -89,14 +89,14 @@ export const PortfolioResetModal: React.FC<Props> = ({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-rose-900/30 disabled:opacity-50"
+            className="w-full sm:w-auto px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-rose-900/30 disabled:opacity-50"
           >
             {loading ? (
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <Trash2 className="w-4 h-4" />
             )}
-            <span>Oui, réinitialiser le portefeuille</span>
+            <span>Oui, réinitialiser</span>
           </button>
         </div>
       </div>

@@ -19,7 +19,9 @@ import {
   Filter,
   Briefcase,
   LogOut,
-  LogIn
+  LogIn,
+  MoreVertical,
+  X
 } from 'lucide-react';
 import { API_BASE } from './config/api';
 import { LocalEngine } from './services/localEngine';
@@ -81,6 +83,7 @@ export const App: React.FC = () => {
   });
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Verify auth on mount if token exists
   useEffect(() => {
@@ -289,68 +292,72 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white w-full max-w-full overflow-x-hidden">
       {/* Top Navbar */}
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <TrendingUp className="w-6 h-6 text-white" />
+      <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40 w-full max-w-full">
+        <div className="max-w-[1600px] mx-auto px-2.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2 w-full">
+          {/* Logo & Brand */}
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 shrink">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+              <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <div className="font-extrabold text-lg text-white tracking-tight flex items-center gap-2">
-                QualityScreener <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-1.5 py-0.5 rounded font-mono">PRO</span>
+            <div className="min-w-0">
+              <div className="font-extrabold text-xs sm:text-lg text-white tracking-tight flex items-center gap-1 sm:gap-1.5 truncate">
+                <span className="hidden xs:inline truncate">QualityScreener</span>
+                <span className="xs:hidden">QS</span>
+                <span className="text-[9px] sm:text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-1 py-0.2 rounded font-mono shrink-0">PRO</span>
               </div>
-              <div className="text-[11px] text-slate-400">Scanner d'Actions Fondamentales & Création de Valeur</div>
+              <div className="text-[10px] sm:text-[11px] text-slate-400 truncate hidden md:block">Scanner Fondamental & Copilotes IA</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-2">
-            {/* Navigation Tabs: Screener vs Portfolio */}
-            <nav className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl mr-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('screener')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  activeTab === 'screener'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-850'
-                }`}
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Screener & Cotations</span>
-                <span className="sm:hidden">Screener</span>
-              </button>
+          {/* Center Tabs: Screener vs Portfolio */}
+          <nav className="flex items-center p-0.5 sm:p-1 bg-slate-900 border border-slate-800 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('screener')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'screener'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-850'
+              }`}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Screener & Cotations</span>
+              <span className="sm:hidden">Screener</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('portfolio')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition relative ${
-                  activeTab === 'portfolio'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-850'
-                }`}
-              >
-                <Briefcase className="w-3.5 h-3.5 text-cyan-300" />
-                <span className="hidden sm:inline">Mon Portefeuille IA</span>
-                <span className="sm:hidden">Portefeuille</span>
+            <button
+              type="button"
+              onClick={() => setActiveTab('portfolio')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition relative ${
+                activeTab === 'portfolio'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-850'
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5 text-cyan-300" />
+              <span className="hidden sm:inline">Mon Portefeuille IA</span>
+              <span className="sm:hidden">Portefeuille</span>
 
-                {/* Live P&L badge if portfolio is active */}
-                {activePortfolio && (
-                  <span
-                    className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
-                      activePortfolio.total_pnl >= 0
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                    }`}
-                  >
-                    {activePortfolio.total_pnl >= 0 ? '+' : ''}
-                    {activePortfolio.total_pnl_pct.toFixed(1)}%
-                  </span>
-                )}
-              </button>
-            </nav>
+              {/* Live P&L badge if portfolio is active */}
+              {activePortfolio && (
+                <span
+                  className={`ml-0.5 sm:ml-1 px-1 py-0.2 rounded text-[9px] sm:text-[10px] font-mono font-bold ${
+                    activePortfolio.total_pnl >= 0
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  }`}
+                >
+                  {activePortfolio.total_pnl >= 0 ? '+' : ''}
+                  {activePortfolio.total_pnl_pct.toFixed(1)}%
+                </span>
+              )}
+            </button>
+          </nav>
 
+          {/* Desktop Right Actions */}
+          <div className="hidden lg:flex items-center gap-2">
             <button
               onClick={handleRefreshUniverse}
               disabled={refreshing}
@@ -358,7 +365,7 @@ export const App: React.FC = () => {
               title="Rafraîchir les cours et recalculer les scores"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-400' : ''}`} />
-              <span className="hidden sm:inline">Rafraîchir Données</span>
+              <span>Rafraîchir Données</span>
             </button>
 
             <button
@@ -369,8 +376,7 @@ export const App: React.FC = () => {
               <span>Exporter CSV</span>
             </button>
 
-            {/* User Account / Auth Section */}
-            <div className="h-6 w-px bg-slate-800 mx-1 hidden sm:block" />
+            <div className="h-6 w-px bg-slate-800 mx-1" />
 
             {currentUser ? (
               <div className="flex items-center gap-2">
@@ -378,7 +384,7 @@ export const App: React.FC = () => {
                   <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-[11px] font-bold text-indigo-300">
                     {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <div className="hidden md:flex flex-col text-left">
+                  <div className="flex flex-col text-left">
                     <span className="text-xs font-semibold text-white leading-tight">
                       {currentUser.name || currentUser.email.split('@')[0]}
                     </span>
@@ -416,7 +422,7 @@ export const App: React.FC = () => {
                     setAuthModalMode('signup');
                     setAuthModalOpen(true);
                   }}
-                  className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 px-3 py-2 rounded-lg shadow-md shadow-indigo-600/20 transition"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 px-3 py-2 rounded-lg shadow-md shadow-indigo-600/20 transition"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Inscription</span>
@@ -424,50 +430,166 @@ export const App: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Mobile Right Menu Button */}
+          <div className="flex lg:hidden items-center gap-1">
+            {currentUser ? (
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(prev => !prev)}
+                className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-xs font-bold text-indigo-300"
+                aria-label="Menu profil utilisateur"
+              >
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalMode('login');
+                  setAuthModalOpen(true);
+                }}
+                className="p-1.5 text-slate-300 hover:text-white bg-slate-900 border border-slate-800 rounded-lg text-xs flex items-center gap-1"
+                aria-label="Connexion"
+              >
+                <LogIn className="w-4 h-4 text-indigo-400" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              className="p-1.5 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-lg"
+              aria-label="Menu principal"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <MoreVertical className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-800 bg-slate-950 px-4 py-3 space-y-3 animate-fade-in">
+            {currentUser ? (
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-xs font-bold text-indigo-300">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">{currentUser.name || currentUser.email}</div>
+                    <div className="text-[10px] text-emerald-400 font-mono">Connecté</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 border border-rose-900/60 px-2.5 py-1 rounded-lg"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Déconnexion</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 pb-2 border-b border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalMode('login');
+                    setAuthModalOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-200 bg-slate-900 hover:bg-slate-850 p-2 rounded-xl border border-slate-800"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Connexion</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalMode('signup');
+                    setAuthModalOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-cyan-600 p-2 rounded-xl shadow-sm"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Inscription</span>
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  handleRefreshUniverse();
+                  setMobileMenuOpen(false);
+                }}
+                disabled={refreshing}
+                className="flex-1 flex items-center justify-center gap-2 text-xs bg-slate-900 hover:bg-slate-850 text-slate-300 p-2 rounded-xl border border-slate-800"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-400' : ''}`} />
+                <span>Rafraîchir Cours</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleExportCSV();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium p-2 rounded-xl"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exporter CSV</span>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Stats Ribbon (Only on Screener tab) */}
       {activeTab === 'screener' && (
-        <div className="bg-slate-900/50 border-b border-slate-800/80 py-4 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-[1600px] mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <ShieldCheck className="w-5 h-5" />
+        <div className="bg-slate-900/50 border-b border-slate-800/80 py-2.5 sm:py-4 px-2.5 sm:px-6 lg:px-8 w-full max-w-full overflow-hidden">
+          <div className="max-w-[1600px] mx-auto grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-0 rounded-xl bg-slate-950/40 sm:bg-transparent border border-slate-800/40 sm:border-0 min-w-0">
+              <div className="p-1.5 sm:p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <div className="text-xs text-slate-400">Solvabilité & Bilans</div>
-                <div className="text-sm font-bold text-slate-200">Dette/EBITDA &lt; 2.5x</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs text-slate-400">Rentabilité Supérieure</div>
-                <div className="text-sm font-bold text-slate-200">ROE &gt; 15% & ROIC &gt; 12%</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] sm:text-xs text-slate-400 truncate">Solvabilité & Bilans</div>
+                <div className="text-[11px] sm:text-sm font-bold text-slate-200 truncate">Dette/Eb &lt; 2.5x</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                <Sparkles className="w-5 h-5" />
+            <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-0 rounded-xl bg-slate-950/40 sm:bg-transparent border border-slate-800/40 sm:border-0 min-w-0">
+              <div className="p-1.5 sm:p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <div className="text-xs text-slate-400">Piotroski F-Score</div>
-                <div className="text-sm font-bold text-slate-200">Score 0 à 9 & Ratios</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] sm:text-xs text-slate-400 truncate">Rentabilité</div>
+                <div className="text-[11px] sm:text-sm font-bold text-slate-200 truncate">ROE &gt; 15%</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <Award className="w-5 h-5" />
+            <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-0 rounded-xl bg-slate-950/40 sm:bg-transparent border border-slate-800/40 sm:border-0 min-w-0">
+              <div className="p-1.5 sm:p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <div className="text-xs text-slate-400">Copilotes IA Intégrés</div>
-                <div className="text-sm font-bold text-slate-200">Abigail, Warren, Einstein</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] sm:text-xs text-slate-400 truncate">Piotroski Score</div>
+                <div className="text-[11px] sm:text-sm font-bold text-slate-200 truncate">F-Score 0 à 9</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-0 rounded-xl bg-slate-950/40 sm:bg-transparent border border-slate-800/40 sm:border-0 min-w-0">
+              <div className="p-1.5 sm:p-2.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+                <Award className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] sm:text-xs text-slate-400 truncate">Copilotes IA</div>
+                <div className="text-[11px] sm:text-sm font-bold text-slate-200 truncate">Warren, Einstein</div>
               </div>
             </div>
           </div>
@@ -475,11 +597,11 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
+      <main className="max-w-[1600px] mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6 w-full flex-1 min-w-0">
         {activeTab === 'screener' ? (
           <>
             {/* Mobile Filter Toggle & Search Bar */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
               <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -487,29 +609,30 @@ export const App: React.FC = () => {
                   placeholder="Rechercher par ticker ou nom (ex: GLW, MSFT)..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
                 />
               </form>
 
-              <div className="flex items-center justify-between sm:justify-end gap-3">
+              <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
                 {/* Mobile Filter Drawer Button */}
                 <button
                   onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="lg:hidden flex items-center gap-2 bg-slate-900 hover:bg-slate-850 text-indigo-400 border border-slate-800 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition"
+                  className="lg:hidden flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 text-indigo-400 border border-slate-800 px-3 py-2 rounded-xl text-xs font-semibold shadow-sm transition active:scale-95"
                 >
-                  <Filter className="w-4 h-4 text-indigo-400" />
+                  <Filter className="w-3.5 h-3.5 text-indigo-400" />
                   <span>{showMobileFilters ? 'Masquer filtres' : 'Filtres & Ratios'}</span>
                 </button>
 
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <span>{screenerData.total} résultat{screenerData.total > 1 ? 's' : ''}</span>
+                <div className="flex items-center gap-1 text-xs text-slate-400">
+                  <span className="font-medium text-slate-300">{screenerData.total}</span>
+                  <span>résultat{screenerData.total > 1 ? 's' : ''}</span>
                   {loading && <span className="inline-block w-2 h-2 rounded-full bg-indigo-500 animate-ping ml-1" />}
                 </div>
               </div>
             </div>
 
             {/* 2-Column Layout: Sidebar Filters & Results Table */}
-            <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start w-full min-w-0">
               {/* Sidebar */}
               <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block w-full lg:w-80 shrink-0`}>
                 <FilterSidebar
@@ -517,11 +640,12 @@ export const App: React.FC = () => {
                   onChange={setFilters}
                   onReset={handleResetFilters}
                   sectorsList={sectors}
+                  onCloseMobile={() => setShowMobileFilters(false)}
                 />
               </div>
 
               {/* Results Table container */}
-              <div className="w-full min-w-0 flex-1">
+              <div className="w-full min-w-0 flex-1 overflow-hidden">
                 <ResultsTable
                   companies={screenerData.items}
                   total={screenerData.total}

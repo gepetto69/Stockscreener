@@ -441,98 +441,101 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-1.5 sm:p-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[96vh] sm:max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         
-        {/* TOP BAR / HEADER (Matching Databourse layout) */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/80">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            
-            {/* Top row on mobile: Company Identity + Close Button */}
-            <div className="flex items-start justify-between w-full lg:w-auto">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="w-11 h-11 sm:w-13 sm:h-13 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center font-black text-lg sm:text-xl text-white shadow-lg shadow-sky-500/20 shrink-0">
-                  {company.symbol.slice(0, 4)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
-                      {company.name} <span className="text-slate-400 font-normal text-sm sm:text-base">({company.symbol})</span>
-                    </h2>
+          {/* Top row on mobile: Company Identity + Close Button */}
+          <div className="p-3 sm:p-5 border-b border-slate-800 bg-slate-950/80">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+              
+              {/* Identity + Close Button */}
+              <div className="flex items-start justify-between w-full lg:w-auto">
+                <div className="flex items-center sm:items-start gap-2.5 sm:gap-4 min-w-0">
+                  <div className="w-10 h-10 sm:w-13 sm:h-13 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center font-black text-base sm:text-xl text-white shadow-lg shadow-sky-500/20 shrink-0">
+                    {company.symbol.slice(0, 4)}
                   </div>
-                  <div className="text-xs text-slate-400 mt-0.5">
-                    {company.industry || company.sector || 'Hardware, Equipment & Parts'}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <h2 className="text-base sm:text-2xl font-bold text-white tracking-tight truncate">
+                        {company.name}
+                      </h2>
+                      <span className="text-slate-400 font-mono text-xs sm:text-base shrink-0">({company.symbol})</span>
+                    </div>
+                    <div className="text-[11px] sm:text-xs text-slate-400 truncate mt-0.5">
+                      {company.industry || company.sector || 'Hardware, Equipment & Parts'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Close Button on mobile */}
+                <button
+                  onClick={onClose}
+                  className="lg:hidden p-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition shrink-0 ml-2"
+                  aria-label="Fermer la modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Middle: Live Stats Cards (Cours Actuel, Piotroski, Quality Score) */}
+              <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-3 w-full lg:w-auto">
+                {/* Cours Actuel */}
+                <div className="bg-slate-850/90 border border-slate-800 p-2 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
+                  <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-center sm:justify-start gap-1">
+                    <span>Cours</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Cours live" />
+                  </div>
+                  <div className="text-sm sm:text-xl font-black text-emerald-400 font-mono truncate">
+                    {currentPrice > 0 ? currentPrice.toFixed(1) : '—'}
+                    <span className="text-[9px] sm:text-xs font-normal text-slate-400 ml-0.5">{currency === 'EUR' ? '€' : '$'}</span>
+                  </div>
+                </div>
+
+                {/* Score de Piotroski */}
+                <div className="bg-slate-850/90 border border-slate-800 p-2 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
+                  <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Piotroski</div>
+                  <div className="text-sm sm:text-xl font-black text-white flex items-baseline justify-center sm:justify-start gap-1 font-mono">
+                    {piotroskiScore} <span className="text-[9px] sm:text-xs font-medium text-slate-400">/9</span>
+                    <span className={`text-[9px] sm:text-[10px] font-bold px-1 py-0.2 rounded border hidden sm:inline ${
+                      piotroskiScore >= 6
+                        ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80'
+                        : piotroskiScore >= 4
+                        ? 'bg-amber-950/60 text-amber-400 border-amber-800/80'
+                        : 'bg-rose-950/60 text-rose-400 border-rose-800/80'
+                    }`}>
+                      {piotroskiStatus}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quality Score (PE / Qualité) */}
+                <div className="bg-slate-850/90 border border-slate-800 p-2 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
+                  <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Qualité</div>
+                  <div className="text-sm sm:text-xl font-black text-white flex items-baseline justify-center sm:justify-start gap-1 font-mono">
+                    {qualityRatio.toFixed(2)}
+                    <span className="text-[9px] font-bold text-amber-400 hidden sm:inline">
+                      ▲
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Close Button on mobile */}
-              <button
-                onClick={onClose}
-                className="lg:hidden p-2 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Middle: Live Stats Cards (Cours Actuel, Piotroski, Quality Score) */}
-            <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
-              {/* Cours Actuel */}
-              <div className="bg-slate-850/90 border border-slate-800 p-2.5 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
-                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-center sm:justify-start gap-1">
-                  <span>Cours Actuel</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Cours live" />
-                </div>
-                <div className="text-base sm:text-xl font-black text-emerald-400">
-                  {currentPrice > 0 ? currentPrice.toFixed(2) : '—'}
-                  <span className="text-[10px] sm:text-xs font-normal text-slate-400 ml-1">{currency}</span>
-                </div>
+              {/* Desktop Close button */}
+              <div className="hidden lg:flex items-center gap-2">
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                  aria-label="Fermer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-
-              {/* Score de Piotroski */}
-              <div className="bg-slate-850/90 border border-slate-800 p-2.5 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
-                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Piotroski</div>
-                <div className="text-base sm:text-xl font-black text-white flex items-baseline justify-center sm:justify-start gap-1">
-                  {piotroskiScore} <span className="text-[10px] sm:text-xs font-medium text-slate-400">/ 9</span>
-                  <span className={`text-[9px] sm:text-[10px] font-bold px-1 py-0.2 rounded border hidden sm:inline ${
-                    piotroskiScore >= 6
-                      ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80'
-                      : piotroskiScore >= 4
-                      ? 'bg-amber-950/60 text-amber-400 border-amber-800/80'
-                      : 'bg-rose-950/60 text-rose-400 border-rose-800/80'
-                  }`}>
-                    {piotroskiStatus}
-                  </span>
-                </div>
-              </div>
-
-              {/* Quality Score (PE / Qualité) */}
-              <div className="bg-slate-850/90 border border-slate-800 p-2.5 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
-                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Quality Score</div>
-                <div className="text-base sm:text-xl font-black text-white flex items-baseline justify-center sm:justify-start gap-1">
-                  {qualityRatio.toFixed(2)}
-                  <span className="text-[9px] font-bold text-amber-400 hidden sm:inline">
-                    ▲ Moyen
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Desktop Close button */}
-            <div className="hidden lg:flex items-center gap-2">
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
           </div>
-        </div>
 
         {/* TAB NAVIGATION: ON MOBILE DROPDOWN + ON DESKTOP HORIZONTAL TABS */}
         <div className="border-b border-slate-800 bg-slate-950/95">
@@ -1740,18 +1743,18 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                   </div>
 
                   {/* FICHE RÉSUMÉ (Exact match to Databourse screenshot 5) */}
-                  <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-6 shadow-2xl space-y-6">
+                  <div className="bg-slate-950 border border-amber-500/30 rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-6">
                     <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
                       <FileText className="w-4 h-4 text-amber-400" />
-                      <h4 className="text-sm font-bold text-white uppercase tracking-wider">
+                      <h4 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider truncate">
                         FICHE RÉSUMÉ {warrenData.company_name} ({warrenData.symbol})
                       </h4>
                     </div>
 
                     {/* Top Row: Moat, Sentiment, Analyse Technique */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                       {/* Moat */}
-                      <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+                      <div className="bg-slate-900/90 border border-slate-800 p-3.5 sm:p-4 rounded-xl">
                         <div className="text-[10px] uppercase font-bold text-slate-400 mb-2">
                           MOAT (AVANTAGE CONCURRENTIEL)
                         </div>
@@ -1759,7 +1762,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Flame
                               key={i}
-                              className={`w-5 h-5 ${
+                              className={`w-4 h-4 sm:w-5 sm:h-5 ${
                                 i < warrenData.moat_score
                                   ? 'text-amber-400 fill-amber-400'
                                   : 'text-slate-700'
@@ -1771,7 +1774,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       </div>
 
                       {/* Sentiment de marché */}
-                      <div className="bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+                      <div className="bg-slate-900/90 border border-slate-800 p-3.5 sm:p-4 rounded-xl">
                         <div className="text-[10px] uppercase font-bold text-slate-400 mb-2">
                           SENTIMENT DE MARCHÉ
                         </div>
@@ -1956,17 +1959,18 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
         {/* MODAL: AVIS DE ABIGAIL (Screenshot 3) */}
         {showAbigailModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl relative max-h-[85vh] flex flex-col overflow-hidden">
               <button
                 onClick={() => setShowAbigailModal(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white"
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg"
+                aria-label="Fermer"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">
+              <div className="flex items-center gap-3 mb-4 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl shrink-0">
                   👩‍💼
                 </div>
                 <div>
@@ -1981,9 +1985,9 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                   <p className="text-xs text-slate-300">Abigail fait ses recherches...</p>
                 </div>
               ) : abigailData ? (
-                <div className="space-y-4">
-                  <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl p-4">
-                    <div className="text-sm font-bold text-amber-400 mb-2">
+                <div className="space-y-4 flex-1 overflow-y-auto">
+                  <div className="bg-amber-950/40 border border-amber-800/60 rounded-xl p-3.5 sm:p-4">
+                    <div className="text-sm font-bold text-amber-400 mb-1.5">
                       Verdict : {abigailData.verdict}
                     </div>
                     <p className="text-xs text-slate-200 leading-relaxed">
@@ -1997,10 +2001,10 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                     </h5>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       {abigailData.metrics.map((m, idx) => (
-                        <div key={idx} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                          <div className="text-slate-400 text-[10px]">{m.name}</div>
-                          <div className="text-sm font-bold text-white">{m.value}</div>
-                          <div className="text-[10px] text-slate-500">Pairs : {m.peer_average}</div>
+                        <div key={idx} className="bg-slate-950 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                          <div className="text-slate-400 text-[10px] truncate">{m.name}</div>
+                          <div className="text-xs sm:text-sm font-bold text-white font-mono">{m.value}</div>
+                          <div className="text-[10px] text-slate-500 font-mono truncate">Pairs : {m.peer_average}</div>
                         </div>
                       ))}
                     </div>
@@ -2013,39 +2017,40 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
         {/* MODAL: EINSTEIN CLASSEMENT DES CONCURRENTS (Screenshot 4) */}
         {showEinsteinModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 shadow-2xl relative max-h-[85vh] flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl relative max-h-[85vh] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg sm:text-xl shrink-0">
                     🧠
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">Classement des Concurrents par Einstein</h3>
-                    <span className="text-xs text-slate-400">Benchmark fondamental multi-critères</span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-white truncate">Classement Einstein</h3>
+                    <span className="text-[11px] sm:text-xs text-slate-400 truncate block">Benchmark sectoriel</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowEinsteinModal(false)}
-                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white shrink-0 ml-2"
+                  aria-label="Fermer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {einsteinLoading ? (
-                <div className="py-16 flex flex-col items-center justify-center space-y-3">
+                <div className="py-12 sm:py-16 flex flex-col items-center justify-center space-y-3">
                   <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
                   <p className="text-xs text-slate-300">Einstein calibre les modèles et compare les comparables...</p>
                 </div>
               ) : einsteinData ? (
-                <div className="overflow-y-auto space-y-4 pt-4">
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-slate-300">
+                <div className="overflow-y-auto space-y-4 pt-4 flex-1">
+                  <div className="bg-slate-950 p-3 sm:p-4 rounded-xl border border-slate-800 text-xs text-slate-300">
                     {einsteinData.verdict}
                   </div>
 
-                  <div className="overflow-x-auto border border-slate-800 rounded-xl">
-                    <table className="w-full text-left text-xs border-collapse">
+                  <div className="overflow-x-auto border border-slate-800 rounded-xl custom-scrollbar">
+                    <table className="w-full text-left text-xs border-collapse min-w-[620px]">
                       <thead>
                         <tr className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
                           <th className="p-3">Rang</th>

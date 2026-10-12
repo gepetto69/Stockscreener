@@ -527,7 +527,7 @@ export const PortfolioWizard: React.FC<Props> = ({
           <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-950/40">
             <div>
               <div className="font-bold text-sm text-white flex items-center gap-2">
-                <span>Actions éligibles pour : {activeStrategy?.title || 'Stratégie sélectionnée'}</span>
+                <span>Actions éligibles : {activeStrategy?.title || 'Stratégie sélectionnée'}</span>
                 <span className="text-xs text-slate-400 font-normal">({activeStrategy?.recommendations?.length || 0} valeurs)</span>
               </div>
               <div className="text-xs text-slate-400 mt-0.5">
@@ -537,9 +537,9 @@ export const PortfolioWizard: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-xs bg-slate-900 px-3.5 py-1.5 rounded-lg border border-slate-800 font-mono">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs bg-slate-900 px-3.5 py-1.5 rounded-lg border border-slate-800 font-mono w-full sm:w-auto justify-between sm:justify-start">
               <div>
-                <span className="text-slate-400">Total Alloué: </span>
+                <span className="text-slate-400">Total: </span>
                 <span className="font-bold text-white">
                   {mode === 'auto'
                     ? (activeStrategy?.total_allocated || 0).toLocaleString()
@@ -548,7 +548,7 @@ export const PortfolioWizard: React.FC<Props> = ({
                 </span>
               </div>
               <div className="border-l border-slate-700 pl-3">
-                <span className="text-slate-400">Cash Restant: </span>
+                <span className="text-slate-400">Cash: </span>
                 <span className="font-bold text-emerald-400">
                   {mode === 'auto'
                     ? (activeStrategy?.cash_remaining || 0).toLocaleString()
@@ -559,8 +559,79 @@ export const PortfolioWizard: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          {/* Mobile Card list for wizard recommendations */}
+          <div className="sm:hidden divide-y divide-slate-800/80">
+            {activeStrategy?.recommendations.map((rec) => {
+              const isSelected = mode === 'auto' || (customPicks[rec.symbol] && customPicks[rec.symbol].shares > 0);
+              const shares = mode === 'auto' ? rec.suggested_shares : (customPicks[rec.symbol]?.shares || 0);
+              const allocated = mode === 'auto' ? rec.allocated_amount : (shares * rec.current_price);
+
+              return (
+                <div
+                  key={rec.symbol}
+                  className={`p-3.5 transition ${!isSelected ? 'opacity-40 bg-slate-950/20' : 'bg-slate-900/40'}`}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      {mode === 'custom' && (
+                        <input
+                          type="checkbox"
+                          checked={!!isSelected}
+                          onChange={() => handleToggleStockPick(rec)}
+                          className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-indigo-500 shrink-0"
+                        />
+                      )}
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenStockDetail && onOpenStockDetail(rec.symbol)}
+                            className="font-bold text-white hover:text-indigo-400 transition font-mono text-sm"
+                          >
+                            {rec.symbol}
+                          </button>
+                          <span className="text-[10px] px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 rounded border border-indigo-500/30 font-bold">
+                            {rec.quality_score ? `${rec.quality_score}/100` : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400 truncate max-w-[180px]">{rec.name}</div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-white font-mono">
+                        {allocated.toLocaleString(undefined, { maximumFractionDigits: 0 })} {currency === 'EUR' ? '€' : '$'}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        {shares} {shares > 1 ? 'actions' : 'action'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {mode === 'custom' && isSelected && (
+                    <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs">
+                      <span className="text-slate-400 text-[11px]">Ajuster actions :</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={shares}
+                          onChange={(e) => handleCustomShareChange(rec.symbol, parseFloat(e.target.value) || 0)}
+                          className="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-right text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+                        />
+                        <span className="text-slate-400 text-xs">actions</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs min-w-[700px]">
               <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
                   {mode === 'custom' && <th className="px-4 py-3 w-10 text-center">Sélection</th>}
