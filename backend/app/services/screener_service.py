@@ -54,6 +54,8 @@ class ScreenerEngine:
                 "profitability_score": qs.profitability_score if qs else 0.0,
                 "cash_growth_score": qs.cash_growth_score if qs else 0.0,
                 "valuation_score": qs.valuation_score if qs else 0.0,
+                "piotroski_score": qs.piotroski_score if qs else 0,
+                "piotroski_status": qs.piotroski_status if qs else "Faible",
                 "latest_roe": latest.roe if latest else None,
                 "latest_roic": latest.roic if latest else None,
                 "latest_debt_to_ebitda": latest.net_debt_to_ebitda if latest else None,
@@ -125,6 +127,8 @@ class ScreenerEngine:
             df = df[(df["market_cap"].notna()) & (df["market_cap"] >= filters.min_market_cap)]
         if filters.min_quality_score is not None:
             df = df[df["total_score"] >= filters.min_quality_score]
+        if filters.min_piotroski_score is not None:
+            df = df[df["piotroski_score"] >= filters.min_piotroski_score]
 
         total_count = len(df)
 
@@ -165,6 +169,8 @@ class ScreenerEngine:
                     pfcf_ratio=row["pfcf_ratio"] if pd.notna(row["pfcf_ratio"]) else None,
                     dividend_yield=row["dividend_yield"] if pd.notna(row["dividend_yield"]) else None,
                     quality_score=qs_schema,
+                    piotroski_score=row["piotroski_score"] if pd.notna(row["piotroski_score"]) else None,
+                    piotroski_status=row["piotroski_status"] if pd.notna(row["piotroski_status"]) else None,
                     latest_roe=row["latest_roe"] if pd.notna(row["latest_roe"]) else None,
                     latest_roic=row["latest_roic"] if pd.notna(row["latest_roic"]) else None,
                     latest_debt_to_ebitda=row["latest_debt_to_ebitda"] if pd.notna(row["latest_debt_to_ebitda"]) else None,

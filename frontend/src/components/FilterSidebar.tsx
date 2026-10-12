@@ -23,6 +23,7 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
       ...filters,
       page: 1,
       min_quality_score: 75,
+      min_piotroski_score: 6,
       min_roe: 15,
       min_roic: 12,
       max_net_debt_to_ebitda: 2.5,
@@ -105,6 +106,30 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
           <span>0 (Tous)</span>
           <span>50 (Moyen)</span>
           <span>75+ (Haute Qualité)</span>
+        </div>
+      </div>
+
+      {/* Piotroski F-Score Filter */}
+      <div className="bg-slate-800/40 p-3.5 rounded-lg border border-slate-700/50 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="font-medium text-slate-200">Score de Piotroski (F-Score)</span>
+          <span className="text-emerald-400 font-bold">
+            {filters.min_piotroski_score ? `≥ ${filters.min_piotroski_score}/9` : 'Tous (0-9)'}
+          </span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="9"
+          step="1"
+          value={filters.min_piotroski_score || 0}
+          onChange={(e) => handleInputChange('min_piotroski_score', Number(e.target.value) || undefined)}
+          className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-700 rounded-lg appearance-none"
+        />
+        <div className="flex justify-between text-[11px] text-slate-400">
+          <span>0 (Tous)</span>
+          <span>4+ (Modéré)</span>
+          <span>6+ (Solide)</span>
         </div>
       </div>
 

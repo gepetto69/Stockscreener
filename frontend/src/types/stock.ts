@@ -14,6 +14,10 @@ export interface QualityScore {
   eps_growth_pass: number;
   fcf_conversion_pass: number;
   pe_reasonable_pass: number;
+  piotroski_score?: number;
+  piotroski_status?: string;
+  piotroski_details?: string;
+  quality_score_ratio?: number;
   strengths?: string;
   weaknesses?: string;
   calculated_at?: string;
@@ -53,6 +57,88 @@ export interface StockPrice {
   volume?: number;
 }
 
+export interface AbigailMetric {
+  category: string;
+  name: string;
+  value: string;
+  peer_average: string;
+  sector_median: string;
+  status: string;
+}
+
+export interface AbigailAnalysis {
+  copilot: string;
+  symbol: string;
+  company_name: string;
+  verdict: string;
+  verdict_badge: string;
+  summary_text: string;
+  metrics: AbigailMetric[];
+  analyzed_at: string;
+}
+
+export interface WarrenRadarScore {
+  axis: string;
+  value: number;
+}
+
+export interface WarrenSection {
+  number: string;
+  title: string;
+  content: string;
+}
+
+export interface WarrenAnalysis {
+  copilot: string;
+  symbol: string;
+  company_name: string;
+  date: string;
+  disclaimer: string;
+  moat_score: number;
+  moat_label: string;
+  sentiment_score: number;
+  sentiment_label: string;
+  technical_point: number;
+  technical_label: string;
+  potential_pct: number;
+  risk_level_pct: number;
+  risk_reward_pct: number;
+  radar_scores: WarrenRadarScore[];
+  strengths: string[];
+  risks: string[];
+  thesis_one_liner: string;
+  investment_profile: string;
+  recommended_horizon: string;
+  report_title: string;
+  sections: WarrenSection[];
+}
+
+export interface EinsteinCompetitor {
+  rank: number;
+  symbol: string;
+  name: string;
+  industry: string;
+  einstein_score: number;
+  roe: number;
+  roic: number;
+  operating_margin: number;
+  fcf_margin: number;
+  debt_to_ebitda: string;
+  pe_ratio: string;
+  is_target: boolean;
+}
+
+export interface EinsteinAnalysis {
+  copilot: string;
+  target_symbol: string;
+  target_name: string;
+  sector: string;
+  target_rank: number;
+  total_evaluated: number;
+  verdict: string;
+  competitors: EinsteinCompetitor[];
+}
+
 export interface Company {
   id: number;
   symbol: string;
@@ -62,12 +148,16 @@ export interface Company {
   country?: string;
   currency?: string;
   description?: string;
+  business_summary?: string;
+  business_model?: string;
   market_cap?: number;
   current_price?: number;
   pe_ratio?: number;
   pfcf_ratio?: number;
   dividend_yield?: number;
   quality_score?: QualityScore;
+  piotroski_score?: number;
+  piotroski_status?: string;
   latest_roe?: number;
   latest_roic?: number;
   latest_debt_to_ebitda?: number;
@@ -81,6 +171,7 @@ export interface FilterParams {
   search?: string;
   sectors?: string[];
   min_quality_score?: number;
+  min_piotroski_score?: number;
   max_net_debt_to_ebitda?: number;
   min_current_ratio?: number;
   min_interest_coverage?: number;

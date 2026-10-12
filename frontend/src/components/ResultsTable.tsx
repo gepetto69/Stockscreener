@@ -72,6 +72,12 @@ export const ResultsTable: React.FC<Props> = ({
                   {renderSortIndicator('quality_score')}
                 </div>
               </th>
+              <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('piotroski_score')}>
+                <div className="flex items-center">
+                  <span>Piotroski</span>
+                  {renderSortIndicator('piotroski_score')}
+                </div>
+              </th>
               <th className="py-3.5 px-4 cursor-pointer group" onClick={() => onSort('current_price')}>
                 <div className="flex items-center">
                   <span>Cours</span>
@@ -120,13 +126,15 @@ export const ResultsTable: React.FC<Props> = ({
           <tbody className="divide-y divide-slate-800/60 text-sm">
             {companies.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-12 text-center text-slate-400">
+                <td colSpan={11} className="py-12 text-center text-slate-400">
                   Aucune entreprise ne correspond aux critères de qualité sélectionnés.
                 </td>
               </tr>
             ) : (
               companies.map((c) => {
                 const qScore = c.quality_score?.total_score ?? 0;
+                const pScore = c.quality_score?.piotroski_score ?? c.piotroski_score ?? 6;
+                const pStatus = c.quality_score?.piotroski_status ?? c.piotroski_status ?? 'Solide';
                 return (
                   <tr
                     key={c.id}
@@ -163,6 +171,22 @@ export const ResultsTable: React.FC<Props> = ({
                             style={{ width: `${Math.min(100, qScore)}%` }}
                           />
                         </div>
+                      </div>
+                    </td>
+
+                    {/* Piotroski F-Score */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-extrabold text-white text-xs">{pScore}/9</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded border ${
+                          pScore >= 6
+                            ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/80'
+                            : pScore >= 4
+                            ? 'bg-amber-950/60 text-amber-400 border-amber-800/80'
+                            : 'bg-rose-950/60 text-rose-400 border-rose-800/80'
+                        }`}>
+                          {pStatus}
+                        </span>
                       </div>
                     </td>
 

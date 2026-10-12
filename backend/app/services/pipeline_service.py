@@ -11,6 +11,17 @@ logger = logging.getLogger(__name__)
 
 # Representative list of US and European Quality / Blue-chip / Compounder & Diversified stocks
 CURATED_UNIVERSE = [
+    # Corning Inc (GLW) - Featured in Databourse screenshots
+    {
+        "symbol": "GLW",
+        "name": "Corning Inc",
+        "sector": "Technology",
+        "industry": "Hardware, Equipment & Parts",
+        "country": "USA",
+        "business_summary": "Corning Incorporated est un leader mondial en science des matériaux avec 175 ans d'histoire. L'entreprise conçoit et fabrique des produits innovants à base de verre, céramique et physique optique. Son activité principale tourne autour des communications optiques pour les data centers et réseaux, des verres protecteurs comme Gorilla Glass pour smartphones, des substrats pour écrans, des composants automobiles, des produits solaires et des solutions pour sciences de la vie et semi-conducteurs. Elle développe des innovations comme des fibres optiques multicoeurs et câbles haute densité optimisés pour l'IA. Ces produits transforment des industries en résolvant des problèmes techniques complexes grâce à une expertise unique en fabrication de précision.",
+        "business_model": "Corning gagne de l'argent en vendant des produits à haute valeur ajoutée à des clients leaders mondiaux (comme Meta, Amazon, NVIDIA) via des contrats pluriannuels couvrant des besoins critiques d'infrastructures en data centers IA et optique avancée."
+    },
+
     # US Mega-cap Tech & High Quality
     {"symbol": "MSFT", "name": "Microsoft Corporation", "sector": "Technology", "industry": "Software—Infrastructure", "country": "USA"},
     {"symbol": "AAPL", "name": "Apple Inc.", "sector": "Technology", "industry": "Consumer Electronics", "country": "USA"},
@@ -42,6 +53,16 @@ CURATED_UNIVERSE = [
 
 # High quality synthetic data fallback for robust local demonstrations & tests
 FALLBACK_FINANCIAL_PROFILES = {
+    "GLW": {
+        "pe": 34.2, "pfcf": 28.5, "price": 205.79, "mcap": 175000000000, "yield": 1.45,
+        "years": [
+            {"year": 2020, "rev": 11300, "op_inc": 1550, "ebitda": 2350, "ni": 1050, "eps": 1.25, "fcf": 950, "debt": 7900, "cash": 2200, "assets": 27500, "equity": 11800, "cur_a": 6200, "cur_l": 4100, "div": 720},
+            {"year": 2021, "rev": 14082, "op_inc": 2240, "ebitda": 3200, "ni": 1906, "eps": 2.07, "fcf": 1780, "debt": 7700, "cash": 2400, "assets": 29800, "equity": 12600, "cur_a": 6900, "cur_l": 4400, "div": 810},
+            {"year": 2022, "rev": 14805, "op_inc": 2180, "ebitda": 3100, "ni": 1316, "eps": 1.54, "fcf": 1240, "debt": 7800, "cash": 2100, "assets": 30200, "equity": 12900, "cur_a": 6700, "cur_l": 4300, "div": 920},
+            {"year": 2023, "rev": 13578, "op_inc": 1820, "ebitda": 2750, "ni": 1180, "eps": 1.38, "fcf": 1100, "debt": 7900, "cash": 2150, "assets": 30400, "equity": 13200, "cur_a": 6800, "cur_l": 4350, "div": 950},
+            {"year": 2024, "rev": 15450, "op_inc": 2480, "ebitda": 3450, "ni": 1420, "eps": 1.70, "fcf": 1420, "debt": 10032, "cash": 2200, "assets": 32000, "equity": 13200, "cur_a": 7000, "cur_l": 4350, "div": 980},
+        ]
+    },
     "MSFT": {
         "pe": 32.5, "pfcf": 28.0, "price": 420.0, "mcap": 3120000000000, "yield": 0.75,
         "years": [
@@ -179,13 +200,20 @@ class DataPipelineService:
                     industry=item["industry"],
                     country=item["country"],
                     currency="EUR" if symbol.endswith(".PA") else "USD",
-                    description=f"Leader mondial dans le secteur {item['sector']} ({item['industry']})."
+                    description=f"Leader mondial dans le secteur {item['sector']} ({item['industry']}).",
+                    business_summary=item.get("business_summary"),
+                    business_model=item.get("business_model")
                 )
                 db.add(company)
                 db.commit()
                 db.refresh(company)
             else:
                 company = existing
+                if item.get("business_summary"):
+                    company.business_summary = item.get("business_summary")
+                if item.get("business_model"):
+                    company.business_model = item.get("business_model")
+                db.commit()
 
             # Check if statements already exist
             existing_stmts = db.query(FinancialStatement).filter(FinancialStatement.company_id == company.id).count()
@@ -291,25 +319,48 @@ class DataPipelineService:
             )
             db.add(stmt)
 
-        # Historical prices (past 90 days)
+        # Historical prices (past 180 days)
         db.query(StockPrice).filter(StockPrice.company_id == company.id).delete()
         base_price = company.current_price or 100.0
         now = datetime.utcnow()
-        for i in range(90, 0, -2):
-            dt = now - timedelta(days=i)
-            # small realistic pseudo random variation
-            var = math.sin(i / 5.0) * 0.04 + (90 - i) * 0.001
-            p = round(base_price * (1.0 + var), 2)
-            price_row = StockPrice(
-                company_id=company.id,
-                date=dt,
-                open=p * 0.995,
-                high=p * 1.01,
-                low=p * 0.99,
-                close=p,
-                volume=1500000.0
-            )
-            db.add(price_row)
+
+        if company.symbol == "GLW":
+            # Generate realistic upward momentum curve matching Databourse screenshots (47.10 to 209.83)
+            start_price = 47.10
+            target_price = company.current_price or 205.79
+            for i in range(180, 0, -2):
+                dt = now - timedelta(days=i)
+                fraction = (180 - i) / 180.0
+                # Momentum curve + realistic stock volatility
+                curve = start_price + (target_price - start_price) * (fraction ** 1.35)
+                noise = math.sin(i / 6.0) * 3.5 + math.cos(i / 11.0) * 2.0
+                price_val = round(max(42.0, min(212.0, curve + noise)), 2)
+                price_row = StockPrice(
+                    company_id=company.id,
+                    date=dt,
+                    open=round(price_val * 0.995, 2),
+                    high=round(price_val * 1.018, 2),
+                    low=round(price_val * 0.985, 2),
+                    close=price_val,
+                    volume=3200000.0
+                )
+                db.add(price_row)
+        else:
+            for i in range(90, 0, -2):
+                dt = now - timedelta(days=i)
+                # small realistic pseudo random variation
+                var = math.sin(i / 5.0) * 0.04 + (90 - i) * 0.001
+                p = round(base_price * (1.0 + var), 2)
+                price_row = StockPrice(
+                    company_id=company.id,
+                    date=dt,
+                    open=p * 0.995,
+                    high=p * 1.01,
+                    low=p * 0.99,
+                    close=p,
+                    volume=1500000.0
+                )
+                db.add(price_row)
 
         db.commit()
 

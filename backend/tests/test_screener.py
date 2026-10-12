@@ -101,4 +101,59 @@ def test_export_csv(client):
     assert response.headers["content-type"] == "text/csv; charset=utf-8"
     content = response.text
     assert "Symbol,Name,Sector" in content
+    assert "Piotroski Score" in content
     assert "MSFT" in content
+
+
+def test_corning_glw_detail_and_piotroski(client):
+    # Verify Corning Inc (GLW) as seen on the user's Databourse screenshots
+    response = client.get("/api/companies/GLW")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["symbol"] == "GLW"
+    assert data["name"] == "Corning Inc"
+    assert data["current_price"] == 205.79
+    assert data["piotroski_score"] == 6 # 6/9 Solide as shown on screenshot
+    assert data["piotroski_status"] == "Solide"
+    assert data["quality_score"]["quality_score_ratio"] == 2.43
+    assert data["business_summary"] is not None
+    assert "175 ans" in data["business_summary"]
+    assert data["business_model"] is not None
+
+
+def test_copilot_abigail_endpoint(client):
+    response = client.get("/api/companies/GLW/copilot/abigail")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["copilot"] == "Abigail"
+    assert data["symbol"] == "GLW"
+    assert data["verdict"] == "Saine"
+    assert len(data["metrics"]) >= 5
+    assert "Corning Inc affiche une santé financière solide" in data["summary_text"]
+
+
+def test_copilot_warren_endpoint(client):
+    response = client.get("/api/companies/GLW/copilot/warren")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["copilot"] == "Warren"
+    assert data["symbol"] == "GLW"
+    assert data["moat_score"] == 4
+    assert data["moat_label"] == "Solide"
+    assert data["sentiment_label"] == "Euphorie"
+    assert data["technical_label"] is not None
+    assert len(data["radar_scores"]) == 5
+    assert len(data["sections"]) >= 3
+    assert "Corning (GLW) — Le verre qui s'est transformé en infrastructure de l'IA" in data["report_title"]
+    assert "Champion de la fibre optique pour l'IA" in data["thesis_one_liner"]
+
+
+def test_copilot_einstein_endpoint(client):
+    response = client.get("/api/companies/GLW/copilot/einstein")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["copilot"] == "Einstein"
+    assert data["target_symbol"] == "GLW"
+    assert len(data["competitors"]) > 0
+    assert "rank" in data["competitors"][0]
+    assert "einstein_score" in data["competitors"][0]

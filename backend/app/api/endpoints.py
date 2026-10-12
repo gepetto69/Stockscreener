@@ -14,6 +14,7 @@ from app.schemas.screener import (
 )
 from app.services.screener_service import ScreenerEngine
 from app.services.pipeline_service import DataPipelineService
+from app.services.copilot_service import CopilotService
 
 router = APIRouter()
 
@@ -47,6 +48,8 @@ def get_company_detail(symbol: str, db: Session = Depends(get_db)):
     if latest and earliest_5y and earliest_5y.revenue and latest.revenue and earliest_5y.revenue > 0 and latest.revenue > 0:
         rev_cagr = round(((latest.revenue / earliest_5y.revenue) ** (1.0 / periods) - 1.0) * 100.0, 2)
 
+    qs = company.quality_score
+
     return CompanyDetailSchema(
         id=company.id,
         symbol=company.symbol,
@@ -56,12 +59,16 @@ def get_company_detail(symbol: str, db: Session = Depends(get_db)):
         country=company.country,
         currency=company.currency,
         description=company.description,
+        business_summary=company.business_summary,
+        business_model=company.business_model,
         market_cap=company.market_cap,
         current_price=company.current_price,
         pe_ratio=company.pe_ratio,
         pfcf_ratio=company.pfcf_ratio,
         dividend_yield=company.dividend_yield,
-        quality_score=company.quality_score,
+        quality_score=qs,
+        piotroski_score=qs.piotroski_score if qs else None,
+        piotroski_status=qs.piotroski_status if qs else None,
         latest_roe=latest.roe if latest else None,
         latest_roic=latest.roic if latest else None,
         latest_debt_to_ebitda=latest.net_debt_to_ebitda if latest else None,
@@ -70,6 +77,44 @@ def get_company_detail(symbol: str, db: Session = Depends(get_db)):
         financial_statements=stmts,
         historical_prices=prices
     )
+
+
+@router.get("/companies/{symbol}/copilot/abigail")
+def get_abigail_opinion(symbol: str, db: Session = Depends(get_db)):
+    """
+    Abigail AI Copilot: Instant, focused financial health & solvency diagnosis
+    comparing balance sheet and cash flow metrics to peers and sector medians.
+    """
+    company = db.query(Company).filter(Company.symbol == symbol.upper()).first()
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Company with symbol '{symbol}' not found")
+    return CopilotService.get_abigail_analysis(company)
+
+
+@router.get("/companies/{symbol}/copilot/warren")
+def get_warren_analysis(symbol: str, db: Session = Depends(get_db)):
+    """
+    Warren AI Copilot: Complete enterprise value & investment thesis analysis,
+    Moat scoring, market sentiment, technical entry gauge, risk/reward,
+    fundamental radar chart, and detailed investment report.
+    """
+    company = db.query(Company).filter(Company.symbol == symbol.upper()).first()
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Company with symbol '{symbol}' not found")
+    return CopilotService.get_warren_analysis(company)
+
+
+@router.get("/companies/{symbol}/copilot/einstein")
+def get_einstein_ranking(symbol: str, db: Session = Depends(get_db)):
+    """
+    Einstein AI Copilot: 10-year fundamental peer comparison & competitor ranking
+    evaluating profitability, P&L, free cash flow, CAPEX efficiency, debt, and valuation.
+    """
+    company = db.query(Company).filter(Company.symbol == symbol.upper()).first()
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Company with symbol '{symbol}' not found")
+    all_companies = db.query(Company).all()
+    return CopilotService.get_einstein_ranking(company, all_companies)
 
 
 @router.get("/sectors", response_model=List[str])
@@ -92,7 +137,8 @@ def export_screened_csv(filters: ScreenerFilterParams, db: Session = Depends(get
     writer = csv.writer(output)
     writer.writerow([
         "Symbol", "Name", "Sector", "Industry", "Country", "Price", "Market Cap",
-        "Quality Score", "Solvency (25)", "Profitability (30)", "Growth/Cash (25)", "Valuation (20)",
+        "Quality Score", "Piotroski Score (0-9)", "Piotroski Status",
+        "Solvency (25)", "Profitability (30)", "Growth/Cash (25)", "Valuation (20)",
         "ROE (%)", "ROIC (%)", "Operating Margin (%)", "Net Debt / EBITDA", "P/E", "P/FCF", "5Y Rev CAGR (%)"
     ])
 
@@ -107,6 +153,8 @@ def export_screened_csv(filters: ScreenerFilterParams, db: Session = Depends(get
             it.current_price or "",
             it.market_cap or "",
             qs.total_score if qs else "",
+            qs.piotroski_score if qs and qs.piotroski_score is not None else (it.piotroski_score or ""),
+            qs.piotroski_status if qs and qs.piotroski_status else (it.piotroski_status or ""),
             qs.solvency_score if qs else "",
             qs.profitability_score if qs else "",
             qs.cash_growth_score if qs else "",

@@ -197,8 +197,8 @@ export const App: React.FC = () => {
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs text-slate-400">Génération de Cash</div>
-              <div className="text-sm font-bold text-slate-200">Conversion FCF &gt; 80%</div>
+              <div className="text-xs text-slate-400">Piotroski F-Score</div>
+              <div className="text-sm font-bold text-slate-200">Score 0 à 9 & Ratios</div>
             </div>
           </div>
 
@@ -207,8 +207,8 @@ export const App: React.FC = () => {
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs text-slate-400">Algorithme Noté</div>
-              <div className="text-sm font-bold text-slate-200">Score Qualité sur 100</div>
+              <div className="text-xs text-slate-400">Copilotes IA Intégrés</div>
+              <div className="text-sm font-bold text-slate-200">Abigail, Warren, Einstein</div>
             </div>
           </div>
         </div>
@@ -222,7 +222,7 @@ export const App: React.FC = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Rechercher par ticker ou entreprise (ex: MSFT, L'Oréal)..."
+              placeholder="Rechercher par ticker ou entreprise (ex: GLW, MSFT, L'Oréal)..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"

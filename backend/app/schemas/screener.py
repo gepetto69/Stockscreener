@@ -52,6 +52,12 @@ class QualityScoreSchema(BaseModel):
     fcf_conversion_pass: int
     pe_reasonable_pass: int
     
+    # Piotroski F-Score & Quality Ratio
+    piotroski_score: Optional[int] = 0
+    piotroski_status: Optional[str] = "Moyen"
+    piotroski_details: Optional[str] = None
+    quality_score_ratio: Optional[float] = 2.5
+    
     strengths: Optional[str] = None
     weaknesses: Optional[str] = None
     calculated_at: Optional[datetime] = None
@@ -81,6 +87,8 @@ class CompanyListSchema(BaseModel):
     
     # Quality summary
     quality_score: Optional[QualityScoreSchema] = None
+    piotroski_score: Optional[int] = None
+    piotroski_status: Optional[str] = None
     latest_roe: Optional[float] = None
     latest_roic: Optional[float] = None
     latest_debt_to_ebitda: Optional[float] = None
@@ -91,6 +99,8 @@ class CompanyListSchema(BaseModel):
 class CompanyDetailSchema(CompanyListSchema):
     model_config = ConfigDict(from_attributes=True)
     description: Optional[str] = None
+    business_summary: Optional[str] = None
+    business_model: Optional[str] = None
     financial_statements: List[FinancialStatementSchema] = []
     historical_prices: List[StockPriceSchema] = []
 
@@ -118,6 +128,7 @@ class ScreenerFilterParams(BaseModel):
     sectors: Optional[List[str]] = Field(None, description="Filter by sector")
     min_market_cap: Optional[float] = Field(None, description="Min Market Cap in USD")
     min_quality_score: Optional[float] = Field(None, description="Min Quality Score out of 100")
+    min_piotroski_score: Optional[int] = Field(None, description="Min Piotroski F-Score (0-9)")
     
     # Search & Pagination / Sort
     search: Optional[str] = Field(None, description="Search symbol or name")

@@ -14,6 +14,8 @@ class Company(Base):
     country = Column(String(50))
     currency = Column(String(10), default="USD")
     description = Column(Text)
+    business_summary = Column(Text)  # Activité principale
+    business_model = Column(Text)    # Modèle économique
     market_cap = Column(Float)  # Current market cap in USD
     current_price = Column(Float)
     pe_ratio = Column(Float)
@@ -136,6 +138,14 @@ class QualityScore(Base):
     fcf_conversion_pass = Column(Integer, default=0)
     pe_reasonable_pass = Column(Integer, default=0)
     
+    # Piotroski F-Score (0 to 9)
+    piotroski_score = Column(Integer, default=0, index=True)
+    piotroski_status = Column(String(50), default="Moyen") # "Solide", "Moyen", "Faible"
+    piotroski_details = Column(Text) # JSON of the 9 criteria results
+    
+    # Normalized Quality Score Ratio (e.g. 2.43 as shown in screenshots)
+    quality_score_ratio = Column(Float, default=2.5)
+
     # Summary & highlights
     strengths = Column(Text)  # JSON or comma-separated list of strengths
     weaknesses = Column(Text) # JSON or comma-separated list of weaknesses
