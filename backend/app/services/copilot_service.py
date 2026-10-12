@@ -254,8 +254,12 @@ class CopilotService:
             {"axis": "Moat & Momentum", "value": min(95, max(50, int((profitability + solvency) * 1.8)))}
         ]
 
+        stmts = sorted(company.financial_statements, key=lambda s: s.fiscal_year) if company.financial_statements else []
+        latest_stmt = stmts[-1] if stmts else None
+        latest_roe = latest_stmt.roe if latest_stmt and latest_stmt.roe else (getattr(company, 'latest_roe', None) or 20.0)
+
         strengths = [
-            f"Forte rentabilité des capitaux (ROE {company.latest_roe or 20:.1f}%)",
+            f"Forte rentabilité des capitaux (ROE {latest_roe:.1f}%)",
             "Bilan robuste avec levier financier sous contrôle",
             "Génération pérenne de Free Cash Flow"
         ]
@@ -330,9 +334,9 @@ class CopilotService:
             qs = c.quality_score
             total_qs = qs.total_score if qs else 60.0
 
-            roe = latest.roe if latest and latest.roe else (c.latest_roe or 15.0)
-            roic = latest.roic if latest and latest.roic else (c.latest_roic or 12.0)
-            op_margin = latest.operating_margin if latest and latest.operating_margin else (c.latest_operating_margin or 15.0)
+            roe = latest.roe if latest and latest.roe else (getattr(c, 'latest_roe', None) or 15.0)
+            roic = latest.roic if latest and latest.roic else (getattr(c, 'latest_roic', None) or 12.0)
+            op_margin = latest.operating_margin if latest and latest.operating_margin else (getattr(c, 'latest_operating_margin', None) or 15.0)
             fcf_margin = round((latest.free_cash_flow / latest.revenue * 100), 1) if (latest and latest.free_cash_flow and latest.revenue and latest.revenue > 0) else 10.0
             debt_ebitda = latest.net_debt_to_ebitda if latest and latest.net_debt_to_ebitda is not None else 1.5
             pe = c.pe_ratio or 25.0

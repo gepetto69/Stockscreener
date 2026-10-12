@@ -23,32 +23,112 @@ CURATED_UNIVERSE = [
     },
 
     # US Mega-cap Tech & High Quality
-    {"symbol": "MSFT", "name": "Microsoft Corporation", "sector": "Technology", "industry": "Software—Infrastructure", "country": "USA"},
-    {"symbol": "AAPL", "name": "Apple Inc.", "sector": "Technology", "industry": "Consumer Electronics", "country": "USA"},
-    {"symbol": "GOOGL", "name": "Alphabet Inc.", "sector": "Communication Services", "industry": "Internet Content & Information", "country": "USA"},
-    {"symbol": "NVDA", "name": "NVIDIA Corporation", "sector": "Technology", "industry": "Semiconductors", "country": "USA"},
-    {"symbol": "ASML", "name": "ASML Holding N.V.", "sector": "Technology", "industry": "Semiconductor Equipment", "country": "Netherlands"},
+    {
+        "symbol": "MSFT", "name": "Microsoft Corporation", "sector": "Technology", "industry": "Software—Infrastructure", "country": "USA",
+        "business_summary": "Microsoft Corporation est le géant mondial des logiciels d'entreprise, du cloud computing (Azure) et des solutions de productivité (Office 365, LinkedIn, GitHub). L'entreprise est un pionnier de l'intégration de l'intelligence artificielle générative à travers son partenariat stratégique avec OpenAI et le déploiement de Copilot dans tous ses écosystèmes applicatifs.",
+        "business_model": "Modèle économique récurrent d'abonnements logiciels en SaaS (Software as a Service), consommation d'infrastructures cloud Azure à l'usage, licences d'exploitation et ventes de jeux/consoles Xbox."
+    },
+    {
+        "symbol": "AAPL", "name": "Apple Inc.", "sector": "Technology", "industry": "Consumer Electronics", "country": "USA",
+        "business_summary": "Apple Inc. conçoit, fabrique et commercialise des smartphones haut de gamme (iPhone), des tablettes (iPad), des ordinateurs personnels (Mac), des montres connectées (Apple Watch) et des accessoires. Elle opère également l'un des écosystèmes de services numériques les plus rentables au monde (App Store, Apple Music, iCloud, Apple Pay).",
+        "business_model": "Vente de matériel haut de gamme à marges brutes élevées couplée à la monétisation croissante de sa base installée active de plus de 2 milliards d'appareils via des abonnements et commissions de services numériques."
+    },
+    {
+        "symbol": "GOOGL", "name": "Alphabet Inc.", "sector": "Communication Services", "industry": "Internet Content & Information", "country": "USA",
+        "business_summary": "Alphabet Inc. est la maison mère de Google, leader mondial absolu de la recherche en ligne, de la vidéo (YouTube), des systèmes d'exploitation mobiles (Android) et des services cloud (Google Cloud Platform). L'entreprise investit massivement dans les modèles de fondation IA (Gemini) et la conduite autonome (Waymo).",
+        "business_model": "Monétisation d'un trafic mondial inégalé par la publicité numérique ciblée (Google Search, YouTube Ads, Réseau Display), complétée par les abonnements cloud d'entreprise (GCP) et services payants (YouTube Premium, Workspace)."
+    },
+    {
+        "symbol": "NVDA", "name": "NVIDIA Corporation", "sector": "Technology", "industry": "Semiconductors", "country": "USA",
+        "business_summary": "NVIDIA est le leader mondial incontesté des processeurs graphiques (GPU) et plateformes de calcul accéléré pour l'entraînement et l'inférence des modèles d'intelligence artificielle, les centres de données hyperscale, la simulation scientifique et le gaming haute performance.",
+        "business_model": "Vente de puces ultra haute performance (H100, B200 Blackwell) avec un pricing power exceptionnel, architecture réseau complète (InfiniBand) et verrouillage logiciel propriétaire via l'écosystème CUDA."
+    },
+    {
+        "symbol": "ASML", "name": "ASML Holding N.V.", "sector": "Technology", "industry": "Semiconductor Equipment", "country": "Netherlands",
+        "business_summary": "ASML est le fabricant mondial exclusif de systèmes de lithographie extrême ultraviolet (EUV) indispensables à la gravure des puces semi-conductrices les plus avancées (TSMC, Intel, Samsung). L'entreprise dispose d'un monopole technologique absolu sur le segment le plus stratégique de l'électronique moderne.",
+        "business_model": "Vente de machines industrielles ultra complexes à plusieurs centaines de millions d'euros par unité, assortie de contrats de maintenance, de mise à niveau logicielle et de pièces détachées pluriannuels à marges très élevées."
+    },
     
     # Healthcare & Pharma
-    {"symbol": "JNJ", "name": "Johnson & Johnson", "sector": "Healthcare", "industry": "Drug Manufacturers—General", "country": "USA"},
-    {"symbol": "NVO", "name": "Novo Nordisk A/S", "sector": "Healthcare", "industry": "Biotechnology", "country": "Denmark"},
-    {"symbol": "UNH", "name": "UnitedHealth Group Incorporated", "sector": "Healthcare", "industry": "Healthcare Plans", "country": "USA"},
+    {
+        "symbol": "JNJ", "name": "Johnson & Johnson", "sector": "Healthcare", "industry": "Drug Manufacturers—General", "country": "USA",
+        "business_summary": "Johnson & Johnson est un conglomérat de santé de premier plan mondial, spécialisé dans les médicaments innovants (oncologie, immunologie, neurosciences) et les technologies médicales de pointe (chirurgie robotique, implants orthopédiques, cardiologie interventionnelle).",
+        "business_model": "Ventes de traitements brevetés sous prescription médicale à forte valeur ajoutée et fournitures hospitalières spécialisées assurant des flux de trésorerie défensifs insensibles aux cycles macroéconomiques."
+    },
+    {
+        "symbol": "NVO", "name": "Novo Nordisk A/S", "sector": "Healthcare", "industry": "Biotechnology", "country": "Denmark",
+        "business_summary": "Novo Nordisk est le leader mondial historique et incontesté des traitements du diabète et des thérapies contre l'obésité grâce à ses molécules révolutionnaires agonistes GLP-1 (Ozempic et Wegovy).",
+        "business_model": "Vente de traitements injectables et oraux pour maladies chroniques avec un taux d'adhésion patient à très long terme, garantissant une croissance soutenue et des marges nettes exceptionnelles."
+    },
+    {
+        "symbol": "UNH", "name": "UnitedHealth Group Incorporated", "sector": "Healthcare", "industry": "Healthcare Plans", "country": "USA",
+        "business_summary": "UnitedHealth Group est le premier assureur et gestionnaire de soins de santé aux États-Unis. Il opère à travers deux piliers : UnitedHealthcare (couverture d'assurance santé) et Optum (services technologiques de santé, pharmacies spécialisées et cliniques de soins).",
+        "business_model": "Primes d'assurance santé récurrentes prélevées sur des dizaines de millions de bénéficiaires intégrées à la prestation directe de soins et de données cliniques via la division Optum."
+    },
     
     # Consumer & Retail Compounders
-    {"symbol": "COST", "name": "Costco Wholesale Corporation", "sector": "Consumer Defensive", "industry": "Discount Stores", "country": "USA"},
-    {"symbol": "PG", "name": "The Procter & Gamble Company", "sector": "Consumer Defensive", "industry": "Household & Personal Products", "country": "USA"},
-    {"symbol": "KO", "name": "The Coca-Cola Company", "sector": "Consumer Defensive", "industry": "Beverages—Non-Alcoholic", "country": "USA"},
-    {"symbol": "MCD", "name": "McDonald's Corporation", "sector": "Consumer Cyclical", "industry": "Restaurants", "country": "USA"},
-    {"symbol": "OR.PA", "name": "L'Oréal S.A.", "sector": "Consumer Defensive", "industry": "Household & Personal Products", "country": "France"},
-    {"symbol": "MC.PA", "name": "LVMH Moët Hennessy Louis Vuitton", "sector": "Consumer Cyclical", "industry": "Luxury Goods", "country": "France"},
-    {"symbol": "RMS.PA", "name": "Hermès International S.A.", "sector": "Consumer Cyclical", "industry": "Luxury Goods", "country": "France"},
+    {
+        "symbol": "COST", "name": "Costco Wholesale Corporation", "sector": "Consumer Defensive", "industry": "Discount Stores", "country": "USA",
+        "business_summary": "Costco Wholesale est le premier opérateur mondial de magasins-entrepôts sur abonnement. Il propose une sélection resserrée de produits de qualité à prix quasi-coûtant pour fidéliser une communauté de membres fidèles.",
+        "business_model": "Génération de la quasi-totalité de son résultat d'exploitation via les cotisations annuelles d'adhésion (taux de renouvellement supérieur à 92%), vendant les marchandises avec des marges réduites pour garantir le volume."
+    },
+    {
+        "symbol": "PG", "name": "The Procter & Gamble Company", "sector": "Consumer Defensive", "industry": "Household & Personal Products", "country": "USA",
+        "business_summary": "Procter & Gamble est le géant mondial des biens de grande consommation courante, propriétaire de marques iconiques mondiales (Gillette, Ariel, Pampers, Oral-B, Head & Shoulders).",
+        "business_model": "Distribution mondiale à très grande échelle de produits du quotidien avec un fort pouvoir de fixation des prix (pricing power) et une fidélité de marque transgénérationnelle."
+    },
+    {
+        "symbol": "KO", "name": "The Coca-Cola Company", "sector": "Consumer Defensive", "industry": "Beverages—Non-Alcoholic", "country": "USA",
+        "business_summary": "The Coca-Cola Company est la plus grande entreprise mondiale de boissons sans alcool, détenant plus de 200 marques de sodas, eaux, jus, thés et cafés vendus dans plus de 200 pays.",
+        "business_model": "Modèle d'embouteillage franchisé capital-light : vente de concentrés et sirops à des embouteilleurs partenaires indépendants avec d'immenses marges d'exploitation et un dividende croissant depuis plus de 60 ans."
+    },
+    {
+        "symbol": "MCD", "name": "McDonald's Corporation", "sector": "Consumer Cyclical", "industry": "Restaurants", "country": "USA",
+        "business_summary": "McDonald's est la chaîne de restauration rapide la plus puissante au monde avec plus de 40 000 restaurants répartis sur tous les continents.",
+        "business_model": "Modèle hybride franchise et foncière immobilière : McDonald's possède les terrains et murs des restaurants et encaisse des loyers indexés sur le chiffre d'affaires ainsi que des redevances de franchise récurrentes."
+    },
+    {
+        "symbol": "OR.PA", "name": "L'Oréal S.A.", "sector": "Consumer Defensive", "industry": "Household & Personal Products", "country": "France",
+        "business_summary": "L'Oréal est le champion mondial absolu de la beauté et des cosmétiques (soins de la peau, maquillage, parfums, soins capillaires) à travers un portefeuille d'exception (Lancôme, Yves Saint Laurent, La Roche-Posay, CeraVe).",
+        "business_model": "Recherche dermatologique de pointe et marketing d'influence mondial permettant d'imposer des prix premium et d'enregistrer des marges opérationnelles constamment supérieures à 20%."
+    },
+    {
+        "symbol": "MC.PA", "name": "LVMH Moët Hennessy Louis Vuitton", "sector": "Consumer Cyclical", "industry": "Luxury Goods", "country": "France",
+        "business_summary": "LVMH est le numéro un mondial incontesté du luxe, fédérant 75 Maisons prestigieuses dans les vins & spiritueux, la mode & maroquinerie (Louis Vuitton, Christian Dior), les parfums, et les montres & joaillerie (Tiffany & Co., Bulgari).",
+        "business_model": "Désirabilité absolue et contrôle total de la chaîne de distribution artisanale permettant une absence totale de remises commerciales et des marges brutes de niveau mondial."
+    },
+    {
+        "symbol": "RMS.PA", "name": "Hermès International S.A.", "sector": "Consumer Cyclical", "industry": "Luxury Goods", "country": "France",
+        "business_summary": "Hermès International incarne le sommet du luxe ultra-exclusif artisanal français, célèbre dans le monde entier pour ses sacs iconiques Birkin et Kelly, sa sellerie et ses carrés de soie.",
+        "business_model": "Rareté méticuleusement entretenue avec listes d'attente pluriannuelles, production 100% artisanale en France et marges opérationnelles record supérieures à 40% sans jamais recourir aux promotions."
+    },
 
     # Industrials & Payments
-    {"symbol": "V", "name": "Visa Inc.", "sector": "Financial Services", "industry": "Credit Services", "country": "USA"},
-    {"symbol": "MA", "name": "Mastercard Incorporated", "sector": "Financial Services", "industry": "Credit Services", "country": "USA"},
-    {"symbol": "AIR.PA", "name": "Airbus SE", "sector": "Industrials", "industry": "Aerospace & Defense", "country": "France"},
-    {"symbol": "SU.PA", "name": "Schneider Electric S.E.", "sector": "Industrials", "industry": "Specialty Industrial Machinery", "country": "France"},
-    {"symbol": "SAN.PA", "name": "Sanofi S.A.", "sector": "Healthcare", "industry": "Drug Manufacturers—General", "country": "France"}
+    {
+        "symbol": "V", "name": "Visa Inc.", "sector": "Financial Services", "industry": "Credit Services", "country": "USA",
+        "business_summary": "Visa Inc. exploite le plus grand réseau mondial de paiement électronique (VisaNet), connectant consommateurs, commerçants, institutions financières et gouvernements dans plus de 200 pays.",
+        "business_model": "Péage numérique sans risque de crédit : prélèvement d'une fraction de centime ou d'un pourcentage fixe sur chaque transaction électronique validée, dégageant une marge d'exploitation de plus de 65%."
+    },
+    {
+        "symbol": "MA", "name": "Mastercard Incorporated", "sector": "Financial Services", "industry": "Credit Services", "country": "USA",
+        "business_summary": "Mastercard est le duopole mondial du paiement dématérialisé aux côtés de Visa, offrant des infrastructures de compensation de paiement et des solutions avancées de cybersécurité et de scoring bancaire.",
+        "business_model": "Modèle de réseau à rendements d'échelle croissants où chaque transaction supplémentaire génère un profit marginal presque pur."
+    },
+    {
+        "symbol": "AIR.PA", "name": "Airbus SE", "sector": "Industrials", "industry": "Aerospace & Defense", "country": "France",
+        "business_summary": "Airbus SE est le premier constructeur aéronautique mondial d'avions commerciaux (familles A320neo, A350), d'hélicoptères et de systèmes de défense et spatiaux.",
+        "business_model": "Carnet de commandes pluriannuel garanti sur plus de 10 ans de production (plus de 8 000 avions en carnet), vendant des appareils à forte intensité technologique assortis de services de maintenance."
+    },
+    {
+        "symbol": "SU.PA", "name": "Schneider Electric S.E.", "sector": "Industrials", "industry": "Specialty Industrial Machinery", "country": "France",
+        "business_summary": "Schneider Electric est le leader mondial de la gestion de l'énergie électrique et des automatismes industriels, au coeur des méga-tendances de l'électrification mondiale et des data centers IA.",
+        "business_model": "Vente combinée d'équipements électriques critiques et de suites logicielles industrielles (EcoStruxure) assurant une efficacité énergétique maximale pour les industries et data centers."
+    },
+    {
+        "symbol": "SAN.PA", "name": "Sanofi S.A.", "sector": "Healthcare", "industry": "Drug Manufacturers—General", "country": "France",
+        "business_summary": "Sanofi est un laboratoire pharmaceutique mondial innovant, propulsé par son blockbuster d'immunologie Dupixent et un portefeuille leader en vaccins et thérapies ciblées.",
+        "business_model": "Commercialisation mondiale de traitements brevetés pour maladies chroniques et immunologiques avec un déploiement continu dans de nouvelles indications thérapeutiques."
+    }
 ]
 
 # High quality synthetic data fallback for robust local demonstrations & tests
@@ -215,9 +295,10 @@ class DataPipelineService:
                     company.business_model = item.get("business_model")
                 db.commit()
 
-            # Check if statements already exist
+            # Check if statements or prices already exist
             existing_stmts = db.query(FinancialStatement).filter(FinancialStatement.company_id == company.id).count()
-            if existing_stmts < 3:
+            existing_prices = db.query(StockPrice).filter(StockPrice.company_id == company.id).count()
+            if existing_stmts < 3 or existing_prices < 10:
                 cls.populate_company_data(db, company, fetch_live_yfinance=fetch_live_yfinance)
 
     @classmethod
@@ -420,6 +501,25 @@ class DataPipelineService:
                 fcf_conversion_rate=95.0
             )
             db.add(stmt)
+
+        # Generate historical prices for generic profiles as well
+        db.query(StockPrice).filter(StockPrice.company_id == company.id).delete()
+        base_price = company.current_price or 150.0
+        now = datetime.utcnow()
+        for i in range(90, 0, -2):
+            dt = now - timedelta(days=i)
+            var = math.sin(i / 5.0) * 0.04 + (90 - i) * 0.001
+            p = round(base_price * (1.0 + var), 2)
+            price_row = StockPrice(
+                company_id=company.id,
+                date=dt,
+                open=round(p * 0.995, 2),
+                high=round(p * 1.01, 2),
+                low=round(p * 0.99, 2),
+                close=p,
+                volume=1500000.0
+            )
+            db.add(price_row)
 
         db.commit()
 
