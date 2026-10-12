@@ -19,8 +19,7 @@ import {
   ChevronDown, 
   Check
 } from 'lucide-react';
-
-const API_BASE = '/api';
+import { API_BASE } from '../../config/api';
 
 interface Props {
   onOpenStockDetail: (symbol: string) => void;

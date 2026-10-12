@@ -17,8 +17,7 @@ import {
   Filter,
   Briefcase
 } from 'lucide-react';
-
-const API_BASE = '/api';
+import { API_BASE } from './config/api';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'screener' | 'portfolio'>('screener');

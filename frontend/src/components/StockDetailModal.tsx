@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../config/api';
 import type {
   Company,
   AbigailAnalysis,
@@ -217,7 +218,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     setAbigailLoading(true);
     setShowAbigailModal(true);
     try {
-      const res = await axios.get(`/api/companies/${company.symbol}/copilot/abigail`);
+      const res = await axios.get(`${API_BASE}/companies/${company.symbol}/copilot/abigail`);
       setAbigailData(res.data);
     } catch (err) {
       console.error('Error fetching Abigail analysis', err);
@@ -231,7 +232,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     if (!company?.symbol) return;
     setWarrenLoading(true);
     try {
-      const res = await axios.get(`/api/companies/${company.symbol}/copilot/warren`);
+      const res = await axios.get(`${API_BASE}/companies/${company.symbol}/copilot/warren`);
       setWarrenData(res.data);
     } catch (err) {
       console.error('Error fetching Warren analysis', err);
@@ -246,7 +247,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     setEinsteinLoading(true);
     setShowEinsteinModal(true);
     try {
-      const res = await axios.get(`/api/companies/${company.symbol}/copilot/einstein`);
+      const res = await axios.get(`${API_BASE}/companies/${company.symbol}/copilot/einstein`);
       setEinsteinData(res.data);
     } catch (err) {
       console.error('Error fetching Einstein analysis', err);
@@ -261,7 +262,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     setNewsLoading(true);
     setNewsError(false);
     try {
-      const res = await axios.get(`/api/companies/${company.symbol}/news?limit=8`);
+      const res = await axios.get(`${API_BASE}/companies/${company.symbol}/news?limit=8`);
       setNewsList(res.data);
     } catch (err) {
       console.error('Error fetching newsfeed', err);
@@ -278,7 +279,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
       handleLoadWarren();
     }
     if (activeTab === 'health' && !abigailData) {
-      axios.get(`/api/companies/${company.symbol}/copilot/abigail`)
+      axios.get(`${API_BASE}/companies/${company.symbol}/copilot/abigail`)
         .then(res => setAbigailData(res.data))
         .catch(e => console.error(e));
     }
