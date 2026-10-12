@@ -233,44 +233,80 @@ class PortfolioService:
         ]
 
     @staticmethod
+    def list_portfolios(db: Session):
+        """Returns summary list of all saved portfolios."""
+        portfolios = db.query(Portfolio).order_by(Portfolio.updated_at.desc()).all()
+        result = []
+        for p in portfolios:
+            strat_def = STRATEGY_DEFINITIONS.get(p.strategy, STRATEGY_DEFINITIONS["balanced"])
+            # Quick summary of current value
+            pos_val = 0.0
+            pos_count = len(p.positions)
+            for pos in p.positions:
+                cur_price = pos.company.current_price if (pos.company and pos.company.current_price) else pos.buy_price
+                pos_val += pos.shares * cur_price
+            tot_val = round(pos_val + p.cash_balance, 2)
+            tot_invested = p.initial_capital
+            pnl = round(tot_val - tot_invested, 2)
+            pnl_pct = round((pnl / tot_invested * 100.0) if tot_invested > 0 else 0.0, 2)
+            result.append({
+                "id": p.id,
+                "name": p.name,
+                "strategy": p.strategy,
+                "strategy_title": strat_def["title"],
+                "initial_capital": p.initial_capital,
+                "cash_balance": p.cash_balance,
+                "currency": p.currency,
+                "total_value": tot_val,
+                "total_pnl": pnl,
+                "total_pnl_pct": pnl_pct,
+                "positions_count": pos_count,
+                "created_at": p.created_at,
+                "updated_at": p.updated_at
+            })
+        return result
+
+    @staticmethod
     def get_or_create_portfolio(db: Session, portfolio_id: Optional[int] = None) -> Optional[Portfolio]:
-        """Fetches active portfolio or first existing portfolio."""
+        """Fetches requested portfolio by ID or most recently updated portfolio."""
         if portfolio_id:
             return db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
-        return db.query(Portfolio).first()
+        return db.query(Portfolio).order_by(Portfolio.updated_at.desc()).first()
 
     @staticmethod
     def create_or_setup_portfolio(db: Session, setup_data: PortfolioSetupSchema) -> Portfolio:
         """
         Creates or resets the portfolio with the selected strategy, capital, currency,
         and positions (auto-computed from strategy or custom-picked).
+        If existing_portfolio_id is supplied, resets that specific portfolio.
+        Otherwise, if a portfolio with the same name already exists, reuses it; otherwise creates a new one!
         """
         strat_key = setup_data.strategy.lower()
         if strat_key not in STRATEGY_DEFINITIONS:
             strat_key = "balanced"
 
-        # Look for existing portfolio or create one
-        portfolio = db.query(Portfolio).first()
-        if not portfolio:
+        requested_name = (setup_data.name or "").strip() or f"Portefeuille {STRATEGY_DEFINITIONS[strat_key]['title']}"
+
+        # Check if a portfolio with this name already exists
+        existing = db.query(Portfolio).filter(Portfolio.name == requested_name).first()
+        if existing:
+            portfolio = existing
+            portfolio.strategy = strat_key
+            portfolio.initial_capital = setup_data.initial_capital
+            portfolio.cash_balance = setup_data.initial_capital
+            portfolio.currency = setup_data.currency
+            portfolio.updated_at = datetime.utcnow()
+            db.query(PortfolioPosition).filter(PortfolioPosition.portfolio_id == portfolio.id).delete()
+            db.flush()
+        else:
             portfolio = Portfolio(
-                name=setup_data.name or "Mon Portefeuille IA",
+                name=requested_name,
                 strategy=strat_key,
                 initial_capital=setup_data.initial_capital,
                 cash_balance=setup_data.initial_capital,
                 currency=setup_data.currency
             )
             db.add(portfolio)
-            db.flush()
-        else:
-            # Reset existing portfolio
-            portfolio.name = setup_data.name or "Mon Portefeuille IA"
-            portfolio.strategy = strat_key
-            portfolio.initial_capital = setup_data.initial_capital
-            portfolio.cash_balance = setup_data.initial_capital
-            portfolio.currency = setup_data.currency
-            portfolio.updated_at = datetime.utcnow()
-            # Clear existing positions
-            db.query(PortfolioPosition).filter(PortfolioPosition.portfolio_id == portfolio.id).delete()
             db.flush()
 
         total_spent = 0.0
@@ -408,7 +444,10 @@ class PortfolioService:
                 if latest and latest.roic is not None:
                     total_weighted_roic += latest.roic * (weight_pct / 100.0)
                 if company.dividend_yield is not None:
-                    total_weighted_div_yield += company.dividend_yield * (weight_pct / 100.0)
+                    # Normalize dividend yield: if stored in basis points (> 10), divide by 100
+                    raw_div = company.dividend_yield
+                    normalized_div = (raw_div / 100.0) if raw_div > 15.0 else raw_div
+                    total_weighted_div_yield += normalized_div * (weight_pct / 100.0)
 
             analyzed_weight += weight_pct
 
@@ -682,18 +721,29 @@ class PortfolioService:
         if perf.average_roic and perf.average_roic >= 15.0:
             strengths.append(f"Rendement sur capital investi élevé (ROIC moyen : {perf.average_roic}%), attestant d'avantages concurrentiels durables (Moat).")
 
-        # 2. Sector Concentration Risk Analysis (> 35% trigger)
+        # 2. Sector Concentration Risk Analysis (adaptive threshold based on strategy)
+        strat_key = (perf.strategy or "").lower()
+        if strat_key == "dynamic":
+            sector_threshold = 45.0
+            rebalance_msg = "La stratégie Dynamique & IA est par nature fortement orientée vers la Tech/Semi-conducteurs. Veiller à ce que l'exposition ne dépasse pas 45% pour limiter la volatilité en cas de rotation sectorielle."
+        elif strat_key == "defensive":
+            sector_threshold = 30.0
+            rebalance_msg = "Dans une stratégie Défensive, une stricte décorrélation sectorielle est de mise (seuil max 30%). Diversifier vers d'autres secteurs résilients."
+        else:
+            sector_threshold = 35.0
+            rebalance_msg = "Le secteur pèse au-delà du seuil recommandé (35%). Diversifier vers d'autres secteurs pour amortir les chocs macroéconomiques."
+
         for s in perf.sectors:
-            if s.percentage > 35.0:
-                health_score -= 12
-                status = "CRITICAL" if s.percentage > 45.0 else "WARNING"
-                msg = f"Surpondération sectorielle : le secteur {s.sector} représente {s.percentage}% du portefeuille (seuil recommandé : <= 35%)."
+            if s.percentage > sector_threshold:
+                health_score -= 10
+                status = "CRITICAL" if s.percentage > (sector_threshold + 10.0) else "WARNING"
+                msg = f"Surpondération sectorielle : le secteur {s.sector} représente {s.percentage}% du portefeuille (seuil recommandé pour le profil {perf.strategy_title} : <= {sector_threshold}%)."
                 weaknesses.append(msg)
                 sector_alerts.append(
                     SectorConcentrationAlert(
                         sector=s.sector,
                         percentage=s.percentage,
-                        threshold=35.0,
+                        threshold=sector_threshold,
                         status=status,
                         message=msg
                     )
@@ -701,9 +751,9 @@ class PortfolioService:
                 recommendations.append(
                     AuditRecommendation(
                         action="REBALANCE",
-                        title=f"Alléger l'exposition au secteur {s.sector}",
-                        description=f"Le secteur pèse {s.percentage}% du capital. Diversifier vers des secteurs défensifs ou de santé décorrélés pour amortir les chocs macroéconomiques.",
-                        impact="Réduction de la volatilité globale et protection du capital"
+                        title=f"Surveiller l'exposition au secteur {s.sector}",
+                        description=f"{rebalance_msg} (actuel : {s.percentage}%).",
+                        impact="Optimisation du profil de risque selon votre stratégie"
                     )
                 )
             else:
@@ -711,9 +761,9 @@ class PortfolioService:
                     SectorConcentrationAlert(
                         sector=s.sector,
                         percentage=s.percentage,
-                        threshold=35.0,
+                        threshold=sector_threshold,
                         status="OPTIMAL",
-                        message=f"Pondération optimale ({s.percentage}%) dans le secteur {s.sector}."
+                        message=f"Pondération maîtrisée ({s.percentage}%) dans le secteur {s.sector} (seuil : <= {sector_threshold}%)."
                     )
                 )
 

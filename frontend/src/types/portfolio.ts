@@ -95,6 +95,22 @@ export interface PortfolioPerformance {
   updated_at: string;
 }
 
+export interface PortfolioListItem {
+  id: number;
+  name: string;
+  strategy: string;
+  strategy_title: string;
+  initial_capital: number;
+  cash_balance: number;
+  currency: string;
+  total_value: number;
+  total_pnl: number;
+  total_pnl_pct: number;
+  positions_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SectorConcentrationAlert {
   sector: string;
   percentage: number;

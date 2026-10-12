@@ -25,7 +25,7 @@ import {
 interface Props {
   portfolio: PortfolioPerformance;
   onOpenAudit: () => void;
-  onResetPortfolio: () => void;
+  onRequestResetPortfolio: () => void;
   onAddPosition: (payload: PositionCreatePayload) => Promise<void>;
   onDeletePosition: (id: number) => Promise<void>;
   onOpenStockDetail: (symbol: string) => void;
@@ -46,7 +46,7 @@ const SECTOR_COLORS = [
 export const PortfolioDashboard: React.FC<Props> = ({
   portfolio,
   onOpenAudit,
-  onResetPortfolio,
+  onRequestResetPortfolio,
   onAddPosition,
   onDeletePosition,
   onOpenStockDetail
@@ -131,15 +131,11 @@ export const PortfolioDashboard: React.FC<Props> = ({
             <span className="hidden sm:inline">Ajouter Titre</span>
           </button>
 
-          {/* RESET PORTFOLIO BUTTON */}
+          {/* RESET / DELETE PORTFOLIO BUTTON */}
           <button
-            onClick={() => {
-              if (window.confirm("Êtes-vous sûr de vouloir réinitialiser votre portefeuille pour recommencer à zéro ?")) {
-                onResetPortfolio();
-              }
-            }}
+            onClick={onRequestResetPortfolio}
             className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700/80 transition"
-            title="Réinitialiser le portefeuille"
+            title="Supprimer ou réinitialiser ce portefeuille"
           >
             <RotateCcw className="w-4 h-4" />
           </button>

@@ -168,8 +168,82 @@ def test_setup_portfolio_custom_mode(client):
     assert "PG" in symbols
     assert "MCD" in symbols
 
+def test_multi_portfolio_management(client):
+    """Test creating multiple portfolios with different strategies, listing them, and switching."""
+    # 1. Create Portfolio A (Dynamic)
+    setup_a = {
+        "strategy": "dynamic",
+        "initial_capital": 10000.0,
+        "currency": "EUR",
+        "name": "Portefeuille Dynamique IA",
+        "mode": "auto"
+    }
+    res_a = client.post("/api/portfolio/setup", json=setup_a)
+    assert res_a.status_code == 200
+    port_a = res_a.json()
+    assert port_a["name"] == "Portefeuille Dynamique IA"
+    id_a = port_a["id"]
+
+    # 2. Create Portfolio B (Defensive)
+    setup_b = {
+        "strategy": "defensive",
+        "initial_capital": 20000.0,
+        "currency": "EUR",
+        "name": "Portefeuille Défensif Dividendes",
+        "mode": "auto"
+    }
+    res_b = client.post("/api/portfolio/setup", json=setup_b)
+    assert res_b.status_code == 200
+    port_b = res_b.json()
+    assert port_b["name"] == "Portefeuille Défensif Dividendes"
+    id_b = port_b["id"]
+    assert id_a != id_b
+
+    # 3. List portfolios
+    list_res = client.get("/api/portfolio/list")
+    assert list_res.status_code == 200
+    items = list_res.json()
+    assert len(items) >= 2
+    names = [it["name"] for it in items]
+    assert "Portefeuille Dynamique IA" in names
+    assert "Portefeuille Défensif Dividendes" in names
+
+    # 4. Fetch specific portfolio A by ID
+    get_a = client.get(f"/api/portfolio?portfolio_id={id_a}")
+    assert get_a.status_code == 200
+    assert get_a.json()["id"] == id_a
+    assert get_a.json()["strategy"] == "dynamic"
+
+    # 5. Audit portfolio A: dividend yield should be reasonable (not 26+%) and dynamic tech threshold respected
+    audit_a = client.post(f"/api/portfolio/analyze?portfolio_id={id_a}")
+    assert audit_a.status_code == 200
+    audit_data = audit_a.json()
+    assert audit_data["portfolio_dividend_yield"] < 5.0  # Dynamic tech portfolio yields ~1%
+    tech_alert = next((a for a in audit_data["sector_alerts"] if a["sector"] == "Technology"), None)
+    if tech_alert:
+        assert tech_alert["threshold"] == 45.0  # Dynamic threshold
+
+    # 6. Delete portfolio A specifically
+    del_res = client.delete(f"/api/portfolio/reset?portfolio_id={id_a}")
+    assert del_res.status_code == 200
+
+    # 7. Check list: Portfolio B remains
+    list_res_after = client.get("/api/portfolio/list")
+    assert list_res_after.status_code == 200
+    rem_names = [it["name"] for it in list_res_after.json()]
+    assert "Portefeuille Dynamique IA" not in rem_names
+    assert "Portefeuille Défensif Dividendes" in rem_names
+
+    # Clean up portfolio B
+    client.delete(f"/api/portfolio/reset?portfolio_id={id_b}")
+
 def test_reset_portfolio(client):
     """Test resetting portfolio completely."""
+    # Delete all remaining portfolios
+    list_res = client.get("/api/portfolio/list")
+    for p in list_res.json():
+        client.delete(f"/api/portfolio/reset?portfolio_id={p['id']}")
+
     res = client.delete("/api/portfolio/reset")
     assert res.status_code == 200
     assert res.json()["status"] == "success"

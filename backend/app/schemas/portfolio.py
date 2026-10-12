@@ -118,6 +118,21 @@ class PortfolioPerformanceSchema(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class PortfolioListItemSchema(BaseModel):
+    id: int
+    name: str
+    strategy: str
+    strategy_title: str
+    initial_capital: float
+    cash_balance: float
+    currency: str
+    total_value: float
+    total_pnl: float
+    total_pnl_pct: float
+    positions_count: int
+    created_at: datetime
+    updated_at: datetime
+
 # --- AI Portfolio Audit Schemas ---
 
 class SectorConcentrationAlert(BaseModel):

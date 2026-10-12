@@ -25,12 +25,16 @@ interface Props {
     custom_positions?: PositionCreatePayload[];
   }) => Promise<void>;
   onOpenStockDetail?: (symbol: string) => void;
+  onCancel?: () => void;
+  hasExistingPortfolios?: boolean;
 }
 
 export const PortfolioWizard: React.FC<Props> = ({
   strategies,
   onSetup,
-  onOpenStockDetail
+  onOpenStockDetail,
+  onCancel,
+  hasExistingPortfolios
 }) => {
   const [selectedStrategyId, setSelectedStrategyId] = useState<string>('balanced');
   const [capital, setCapital] = useState<number>(10000);
@@ -107,9 +111,12 @@ export const PortfolioWizard: React.FC<Props> = ({
 
   const handleSelectStrategy = (stratId: string) => {
     setSelectedStrategyId(stratId);
-    // Preset custom picks with empty or default 1 share for each stock in that strategy
+    // Update default portfolio name based on selected strategy if user hasn't typed a custom one
     const strat = effectiveStrategies.find(s => s.id === stratId) || fallbackStrategies.find(s => s.id === stratId);
     if (strat) {
+      if (portfolioName.startsWith('Mon Portefeuille') || portfolioName.startsWith('Portefeuille')) {
+        setPortfolioName(`Portefeuille ${strat.title}`);
+      }
       const initialPicks: Record<string, { shares: number; buy_price: number }> = {};
       strat.recommendations.forEach(r => {
         initialPicks[r.symbol] = {
@@ -238,18 +245,29 @@ export const PortfolioWizard: React.FC<Props> = ({
     <div className="max-w-6xl mx-auto space-y-8 py-4">
       {/* Introduction Hero Card */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/20 p-6 sm:p-8 shadow-2xl">
-        <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
-            Assistant de Constitution de Portefeuille IA
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium mb-3">
+              <Sparkles className="w-3.5 h-3.5" />
+              Assistant de Constitution de Portefeuille IA
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Construisez un portefeuille rentable guidé par nos algorithmes fondamentaux
+            </h1>
+            <p className="mt-2 text-sm sm:text-base text-slate-300">
+              Choisissez l'une de nos 3 stratégies d'investissement (Défensif, Équilibré GARP, ou Dynamique IA),
+              définissez votre capital, et laissez l'IA générer la répartition idéale ou personnalisez vos lignes selon vos préférences.
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Construisez un portefeuille rentable guidé par nos algorithmes fondamentaux
-          </h1>
-          <p className="mt-2 text-sm sm:text-base text-slate-300">
-            Choisissez l'une de nos 3 stratégies d'investissement (Défensif, Équilibré GARP, ou Dynamique IA),
-            définissez votre capital, et laissez l'IA générer la répartition idéale ou personnalisez vos lignes selon vos préférences.
-          </p>
+          {hasExistingPortfolios && onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="self-start sm:self-center px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition flex items-center gap-1.5"
+            >
+              ← Retour au portefeuille
+            </button>
+          )}
         </div>
       </div>
 

@@ -19,7 +19,8 @@ from app.schemas.portfolio import (
     PortfolioSetupSchema,
     PositionCreateSchema,
     PortfolioPositionDetailSchema,
-    PortfolioAuditReportSchema
+    PortfolioAuditReportSchema,
+    PortfolioListItemSchema
 )
 from app.services.screener_service import ScreenerEngine
 from app.services.pipeline_service import DataPipelineService
@@ -242,6 +243,14 @@ def get_strategy_detail(
     Returns single strategy details with smart allocations and stock recommendations.
     """
     return PortfolioService.get_strategy_recommendations(db, strategy_id, capital=capital, currency=currency)
+
+
+@router.get("/portfolio/list", response_model=List[PortfolioListItemSchema])
+def list_portfolios(db: Session = Depends(get_db)):
+    """
+    List all saved portfolios with their performance metrics.
+    """
+    return PortfolioService.list_portfolios(db)
 
 
 @router.get("/portfolio", response_model=Optional[PortfolioPerformanceSchema])

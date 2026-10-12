@@ -5,12 +5,20 @@ import type {
   StrategyProfile,
   PortfolioAuditReport,
   PortfolioSetupPayload,
-  PositionCreatePayload
+  PositionCreatePayload,
+  PortfolioListItem
 } from '../../types/portfolio';
 import { PortfolioWizard } from './PortfolioWizard';
 import { PortfolioDashboard } from './PortfolioDashboard';
 import { PortfolioAuditModal } from './PortfolioAuditModal';
-import { Loader2 } from 'lucide-react';
+import { PortfolioResetModal } from './PortfolioResetModal';
+import { 
+  Loader2, 
+  Plus, 
+  FolderKanban, 
+  ChevronDown, 
+  Check
+} from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -24,18 +32,43 @@ export const PortfolioManager: React.FC<Props> = ({
   onPortfolioStatusChange
 }) => {
   const [portfolio, setPortfolio] = useState<PortfolioPerformance | null>(null);
+  const [portfolioList, setPortfolioList] = useState<PortfolioListItem[]>([]);
   const [strategies, setStrategies] = useState<StrategyProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // View state: 'dashboard' or 'new_wizard'
+  const [viewMode, setViewMode] = useState<'dashboard' | 'new_wizard'>('dashboard');
+
+  // Multi-portfolio dropdown state
+  const [portfolioDropdownOpen, setPortfolioDropdownOpen] = useState<boolean>(false);
+
+  // AI Audit modal
   const [auditModalOpen, setAuditModalOpen] = useState<boolean>(false);
   const [auditData, setAuditData] = useState<PortfolioAuditReport | null>(null);
   const [auditLoading, setAuditLoading] = useState<boolean>(false);
 
-  // Fetch current portfolio state and strategy recommendations
-  const fetchPortfolioData = async () => {
+  // Reset confirmation modal
+  const [resetModalOpen, setResetModalOpen] = useState<boolean>(false);
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
+
+  // Fetch list of portfolios
+  const fetchPortfolioList = async () => {
     try {
-      const [portRes, stratRes] = await Promise.allSettled([
-        axios.get(`${API_BASE}/portfolio`),
-        axios.get(`${API_BASE}/portfolio/strategies?capital=10000&currency=EUR`)
+      const res = await axios.get<PortfolioListItem[]>(`${API_BASE}/portfolio/list`);
+      setPortfolioList(res.data);
+    } catch (err) {
+      console.error("Error loading portfolio list", err);
+    }
+  };
+
+  // Fetch current portfolio state and strategy recommendations
+  const fetchPortfolioData = async (targetId?: number) => {
+    try {
+      const url = targetId ? `${API_BASE}/portfolio?portfolio_id=${targetId}` : `${API_BASE}/portfolio`;
+      const [portRes, stratRes, listRes] = await Promise.allSettled([
+        axios.get(url),
+        axios.get(`${API_BASE}/portfolio/strategies?capital=10000&currency=EUR`),
+        axios.get<PortfolioListItem[]>(`${API_BASE}/portfolio/list`)
       ]);
 
       if (portRes.status === 'fulfilled' && portRes.value.data) {
@@ -43,10 +76,19 @@ export const PortfolioManager: React.FC<Props> = ({
         if (onPortfolioStatusChange) {
           onPortfolioStatusChange(portRes.value.data);
         }
+      } else {
+        setPortfolio(null);
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(null);
+        }
       }
 
       if (stratRes.status === 'fulfilled' && Array.isArray(stratRes.value.data) && stratRes.value.data.length > 0) {
         setStrategies(stratRes.value.data);
+      }
+
+      if (listRes.status === 'fulfilled' && Array.isArray(listRes.value.data)) {
+        setPortfolioList(listRes.value.data);
       }
     } catch (err) {
       console.error("Error loading portfolio data", err);
@@ -59,12 +101,32 @@ export const PortfolioManager: React.FC<Props> = ({
     fetchPortfolioData();
   }, []);
 
+  // Switch to another portfolio
+  const handleSelectPortfolio = async (id: number) => {
+    setLoading(true);
+    setPortfolioDropdownOpen(false);
+    try {
+      const res = await axios.get(`${API_BASE}/portfolio?portfolio_id=${id}`);
+      setPortfolio(res.data);
+      setViewMode('dashboard');
+      if (onPortfolioStatusChange) {
+        onPortfolioStatusChange(res.data);
+      }
+    } catch (err) {
+      console.error("Error switching portfolio", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Setup / Initialize Portfolio from Wizard
   const handleSetupPortfolio = async (payload: PortfolioSetupPayload) => {
     setLoading(true);
     try {
       const res = await axios.post(`${API_BASE}/portfolio/setup`, payload);
       setPortfolio(res.data);
+      setViewMode('dashboard');
+      await fetchPortfolioList();
       if (onPortfolioStatusChange) {
         onPortfolioStatusChange(res.data);
       }
@@ -79,9 +141,12 @@ export const PortfolioManager: React.FC<Props> = ({
   // Add position
   const handleAddPosition = async (payload: PositionCreatePayload) => {
     try {
-      await axios.post(`${API_BASE}/portfolio/positions`, payload);
-      const res = await axios.get(`${API_BASE}/portfolio`);
+      const currentId = portfolio?.id;
+      const url = currentId ? `${API_BASE}/portfolio/positions?portfolio_id=${currentId}` : `${API_BASE}/portfolio/positions`;
+      await axios.post(url, payload);
+      const res = await axios.get(currentId ? `${API_BASE}/portfolio?portfolio_id=${currentId}` : `${API_BASE}/portfolio`);
       setPortfolio(res.data);
+      await fetchPortfolioList();
       if (onPortfolioStatusChange) {
         onPortfolioStatusChange(res.data);
       }
@@ -94,9 +159,11 @@ export const PortfolioManager: React.FC<Props> = ({
   // Delete position
   const handleDeletePosition = async (id: number) => {
     try {
+      const currentId = portfolio?.id;
       await axios.delete(`${API_BASE}/portfolio/positions/${id}`);
-      const res = await axios.get(`${API_BASE}/portfolio`);
+      const res = await axios.get(currentId ? `${API_BASE}/portfolio?portfolio_id=${currentId}` : `${API_BASE}/portfolio`);
       setPortfolio(res.data);
+      await fetchPortfolioList();
       if (onPortfolioStatusChange) {
         onPortfolioStatusChange(res.data);
       }
@@ -106,22 +173,41 @@ export const PortfolioManager: React.FC<Props> = ({
     }
   };
 
-  // Reset portfolio
-  const handleResetPortfolio = async () => {
-    setLoading(true);
+  // Reset/Delete current portfolio
+  const handleConfirmResetPortfolio = async () => {
+    setResetLoading(true);
     try {
-      await axios.delete(`${API_BASE}/portfolio/reset`);
-      setPortfolio(null);
-      if (onPortfolioStatusChange) {
-        onPortfolioStatusChange(null);
+      const targetId = portfolio?.id;
+      const url = targetId ? `${API_BASE}/portfolio/reset?portfolio_id=${targetId}` : `${API_BASE}/portfolio/reset`;
+      await axios.delete(url);
+
+      // Refresh list
+      const listRes = await axios.get<PortfolioListItem[]>(`${API_BASE}/portfolio/list`);
+      setPortfolioList(listRes.data);
+
+      if (listRes.data.length > 0) {
+        // Switch to the first remaining portfolio
+        const nextPort = listRes.data[0];
+        const res = await axios.get(`${API_BASE}/portfolio?portfolio_id=${nextPort.id}`);
+        setPortfolio(res.data);
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(res.data);
+        }
+      } else {
+        // No portfolios left
+        setPortfolio(null);
+        setViewMode('new_wizard');
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(null);
+        }
       }
-      // Refresh strategies with default capital
-      const stratRes = await axios.get(`${API_BASE}/portfolio/strategies?capital=10000&currency=EUR`);
-      setStrategies(stratRes.data);
+
+      setResetModalOpen(false);
     } catch (err) {
       console.error("Failed to reset portfolio", err);
+      alert("Erreur lors de la réinitialisation du portefeuille.");
     } finally {
-      setLoading(false);
+      setResetLoading(false);
     }
   };
 
@@ -130,7 +216,9 @@ export const PortfolioManager: React.FC<Props> = ({
     setAuditModalOpen(true);
     setAuditLoading(true);
     try {
-      const res = await axios.post(`${API_BASE}/portfolio/analyze`);
+      const currentId = portfolio?.id;
+      const url = currentId ? `${API_BASE}/portfolio/analyze?portfolio_id=${currentId}` : `${API_BASE}/portfolio/analyze`;
+      const res = await axios.post(url);
       setAuditData(res.data);
     } catch (err) {
       console.error("AI Audit failed", err);
@@ -150,19 +238,120 @@ export const PortfolioManager: React.FC<Props> = ({
   }
 
   return (
-    <div>
-      {!portfolio ? (
+    <div className="space-y-4">
+      {/* Multi-Portfolio Toolbar (Always shown when portfolios exist) */}
+      {portfolioList.length > 0 && (
+        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 rounded-xl p-3 px-4">
+          <div className="flex items-center gap-3 relative">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+              <FolderKanban className="w-4 h-4 text-indigo-400" />
+              <span>Portefeuilles enregistrés :</span>
+            </div>
+
+            {/* Portfolio Switcher Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setPortfolioDropdownOpen(prev => !prev)}
+                className="flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white border border-slate-700/80 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                <span>{portfolio ? portfolio.name : "Sélectionner un portefeuille"}</span>
+                {portfolio && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    {portfolio.strategy_title}
+                  </span>
+                )}
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+
+              {portfolioDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1.5 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 py-1 overflow-hidden">
+                  <div className="px-3 py-2 text-[11px] font-semibold text-slate-400 border-b border-slate-800 flex justify-between items-center">
+                    <span>MES STRATÉGIES ({portfolioList.length})</span>
+                    <span className="text-slate-500 text-[10px]">P&L Total</span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-800/50">
+                    {portfolioList.map(item => {
+                      const isSelected = portfolio?.id === item.id && viewMode === 'dashboard';
+                      const isProfit = item.total_pnl >= 0;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleSelectPortfolio(item.id)}
+                          className={`w-full text-left px-3 py-2.5 flex items-center justify-between text-xs hover:bg-slate-800 transition ${
+                            isSelected ? 'bg-indigo-950/40 border-l-2 border-indigo-500' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 pr-2">
+                            {isSelected && <Check className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
+                            <div className="truncate">
+                              <div className="font-bold text-white truncate">{item.name}</div>
+                              <div className="text-[10px] text-slate-400">
+                                {item.strategy_title} • {item.positions_count} titres
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className={`font-mono font-bold text-xs ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {isProfit ? '+' : ''}{item.total_pnl_pct.toFixed(1)}%
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              {item.total_value.toLocaleString(undefined, { maximumFractionDigits: 0 })} {item.currency === 'EUR' ? '€' : '$'}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* New Portfolio Button */}
+          <div className="flex items-center gap-2">
+            {viewMode === 'new_wizard' && portfolio && (
+              <button
+                type="button"
+                onClick={() => setViewMode('dashboard')}
+                className="text-xs text-slate-400 hover:text-white px-3 py-1.5 transition"
+              >
+                ← Annuler et revenir à {portfolio.name}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setViewMode('new_wizard')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+                viewMode === 'new_wizard'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-800 hover:bg-slate-750 text-indigo-300 hover:text-white border border-indigo-500/30'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Créer un autre Portefeuille</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main View: Dashboard or Creation Wizard */}
+      {viewMode === 'new_wizard' || !portfolio ? (
         <PortfolioWizard
           strategies={strategies}
           loading={loading}
           onSetup={handleSetupPortfolio}
           onOpenStockDetail={onOpenStockDetail}
+          onCancel={portfolio ? () => setViewMode('dashboard') : undefined}
+          hasExistingPortfolios={portfolioList.length > 0}
         />
       ) : (
         <PortfolioDashboard
           portfolio={portfolio}
           onOpenAudit={handleOpenAudit}
-          onResetPortfolio={handleResetPortfolio}
+          onRequestResetPortfolio={() => setResetModalOpen(true)}
           onAddPosition={handleAddPosition}
           onDeletePosition={handleDeletePosition}
           onOpenStockDetail={onOpenStockDetail}
@@ -175,6 +364,20 @@ export const PortfolioManager: React.FC<Props> = ({
           audit={auditData}
           loading={auditLoading}
           onClose={() => setAuditModalOpen(false)}
+        />
+      )}
+
+      {/* Confirmation Modal on Reset/Delete Portfolio */}
+      {portfolio && (
+        <PortfolioResetModal
+          isOpen={resetModalOpen}
+          portfolioName={portfolio.name}
+          positionsCount={portfolio.positions_count}
+          totalValue={portfolio.total_value}
+          currency={portfolio.currency}
+          loading={resetLoading}
+          onConfirm={handleConfirmResetPortfolio}
+          onCancel={() => setResetModalOpen(false)}
         />
       )}
     </div>
