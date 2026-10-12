@@ -13,10 +13,20 @@ from app.schemas.screener import (
     StockPriceSchema,
     NewsItemSchema
 )
+from app.schemas.portfolio import (
+    StrategyProfileSchema,
+    PortfolioPerformanceSchema,
+    PortfolioSetupSchema,
+    PositionCreateSchema,
+    PortfolioPositionDetailSchema,
+    PortfolioAuditReportSchema
+)
 from app.services.screener_service import ScreenerEngine
 from app.services.pipeline_service import DataPipelineService
 from app.services.copilot_service import CopilotService
 from app.services.news_service import NewsService
+from app.services.portfolio_service import PortfolioService
+
 
 router = APIRouter()
 
@@ -202,3 +212,121 @@ def refresh_universe(db: Session = Depends(get_db)):
         "message": "Stock universe & quality scores successfully refreshed with live market quotes",
         "companies_updated": count
     }
+
+
+# ==========================================
+# PORTFOLIO IA & INVESTMENT STRATEGIES ENDPOINTS
+# ==========================================
+
+@router.get("/portfolio/strategies", response_model=List[StrategyProfileSchema])
+def get_portfolio_strategies(
+    capital: float = Query(10000.0, ge=100.0, description="Capital de départ"),
+    currency: str = Query("EUR", description="Devise ('EUR' ou 'USD')"),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the 3 predefined investment strategies (Défensif, Équilibré, Dynamique)
+    with smart allocations and stock recommendations computed from current prices.
+    """
+    return PortfolioService.get_all_strategies(db, capital=capital, currency=currency)
+
+
+@router.get("/portfolio/strategies/{strategy_id}", response_model=StrategyProfileSchema)
+def get_strategy_detail(
+    strategy_id: str,
+    capital: float = Query(10000.0, ge=100.0, description="Capital de départ"),
+    currency: str = Query("EUR", description="Devise ('EUR' ou 'USD')"),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns single strategy details with smart allocations and stock recommendations.
+    """
+    return PortfolioService.get_strategy_recommendations(db, strategy_id, capital=capital, currency=currency)
+
+
+@router.get("/portfolio", response_model=Optional[PortfolioPerformanceSchema])
+def get_active_portfolio(
+    portfolio_id: Optional[int] = Query(None, description="Portfolio ID (optional, defaults to active)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch active portfolio with real-time performance metrics, P&L (amount & %),
+    positions detail, sector breakdown, and performance contributors.
+    Returns null if no portfolio is initialized yet.
+    """
+    return PortfolioService.get_portfolio_performance(db, portfolio_id=portfolio_id)
+
+
+@router.post("/portfolio/setup", response_model=PortfolioPerformanceSchema)
+def setup_portfolio(
+    setup_data: PortfolioSetupSchema,
+    db: Session = Depends(get_db)
+):
+    """
+    Initialize or reconfigure portfolio:
+    - Choose strategy (defensive, balanced, dynamic)
+    - Set initial capital and currency
+    - Mode: 'auto' (allocates automatically) or 'custom' (custom positions)
+    """
+    portfolio = PortfolioService.create_or_setup_portfolio(db, setup_data)
+    perf = PortfolioService.get_portfolio_performance(db, portfolio_id=portfolio.id)
+    if not perf:
+        raise HTTPException(status_code=500, detail="Failed to retrieve portfolio performance after setup")
+    return perf
+
+
+@router.post("/portfolio/positions", response_model=PortfolioPositionDetailSchema)
+def add_or_update_position(
+    position_data: PositionCreateSchema,
+    portfolio_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Add a new stock position or add shares to an existing holding.
+    """
+    return PortfolioService.add_or_update_position(db, position_data, portfolio_id=portfolio_id)
+
+
+@router.delete("/portfolio/positions/{position_id}")
+def delete_position(
+    position_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Remove a stock holding from the portfolio and return proceeds to cash.
+    """
+    success = PortfolioService.remove_position(db, position_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Position not found")
+    return {"status": "success", "message": f"Position {position_id} successfully deleted"}
+
+
+@router.delete("/portfolio/reset")
+def reset_portfolio(
+    portfolio_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Reset and wipe the portfolio to allow starting fresh with a new strategy.
+    """
+    success = PortfolioService.reset_portfolio(db, portfolio_id)
+    return {"status": "success", "message": "Portfolio successfully reset", "wiped": success}
+
+
+@router.post("/portfolio/analyze", response_model=PortfolioAuditReportSchema)
+def analyze_portfolio(
+    portfolio_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    AI Copilot Portfolio Audit Engine:
+    - Calculates overall portfolio health score (0-100)
+    - Evaluates fundamental solvency, Piotroski, ROE, ROIC, and dividend yield
+    - Analyzes sector concentration (> 35% alert) and single stock risk (> 25% alert)
+    - Generates concrete, actionable rebalancing and trimming recommendations
+    """
+    audit = PortfolioService.analyze_portfolio(db, portfolio_id)
+    if not audit:
+        raise HTTPException(status_code=400, detail="Cannot audit empty portfolio. Please add positions first.")
+    return audit
+
