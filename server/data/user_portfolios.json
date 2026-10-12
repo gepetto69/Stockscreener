@@ -19,6 +19,17 @@
       "currency": "EUR",
       "created_at": "2026-10-12 13:26:21.958846",
       "updated_at": "2026-10-12 13:26:21.965441"
+    },
+    {
+      "id": 3,
+      "user_id": 1,
+      "name": "Portefeuille de Alice Dupont",
+      "strategy": "balanced",
+      "initial_capital": 10000,
+      "cash_balance": 3090.35,
+      "currency": "EUR",
+      "created_at": "2026-10-12T18:54:01.564Z",
+      "updated_at": "2026-10-12T18:54:01.564Z"
     }
   ],
   "portfolio_positions": [
@@ -141,6 +152,56 @@
       "buy_price": 383.7,
       "buy_date": "2026-10-12 13:26:21.966220",
       "notes": "Allocation automatique 13.0%"
+    },
+    {
+      "id": 13,
+      "portfolio_id": 3,
+      "company_id": 2,
+      "symbol": "MSFT",
+      "shares": 3,
+      "buy_price": 538.95,
+      "buy_date": "2026-10-12T18:54:01.564Z",
+      "notes": "Allocation d'accueil offerte"
+    },
+    {
+      "id": 14,
+      "portfolio_id": 3,
+      "company_id": 4,
+      "symbol": "GOOGL",
+      "shares": 7,
+      "buy_price": 353.28,
+      "buy_date": "2026-10-12T18:54:01.564Z",
+      "notes": "Allocation d'accueil offerte"
+    },
+    {
+      "id": 15,
+      "portfolio_id": 3,
+      "company_id": 3,
+      "symbol": "AAPL",
+      "shares": 6,
+      "buy_price": 341.54,
+      "buy_date": "2026-10-12T18:54:01.564Z",
+      "notes": "Allocation d'accueil offerte"
+    },
+    {
+      "id": 16,
+      "portfolio_id": 3,
+      "company_id": 15,
+      "symbol": "MC.PA",
+      "shares": 2,
+      "buy_price": 385.3,
+      "buy_date": "2026-10-12T18:54:01.564Z",
+      "notes": "Allocation d'accueil offerte"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice Dupont",
+      "email": "alice_1791831241562_mh38h@example.com",
+      "salt": "0bb1562359c9455f2541eeafbecb41eb",
+      "hash": "f9d3482facce0837ea5e5d330c6d2a090861d92f245c38b0c2ac9b9062005ec3e2749ea749fb328a27ac6d10143109e4e06f4064f11921fa46e9742ce1f71f12",
+      "created_at": "2026-10-12T18:54:01.564Z"
     }
   ]
 }

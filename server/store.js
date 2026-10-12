@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const SEED_DATA_PATH = path.join(__dirname, 'data', 'seed_data.json');
 const USER_DATA_PATH = path.join(__dirname, 'data', 'user_portfolios.json');
@@ -12,8 +13,38 @@ class DataStore {
     this.stockPrices = [];
     this.portfolios = [];
     this.portfolioPositions = [];
+    this.users = [];
+    this.sessions = new Map(); // token -> userId
     this.companyMap = new Map();
     this.initialized = false;
+  }
+
+  // Password hashing helpers
+  hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+    const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+    return { salt, hash };
+  }
+
+  verifyPassword(password, salt, hash) {
+    const check = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+    return check === hash;
+  }
+
+  createSession(userId) {
+    const token = crypto.randomBytes(32).toString('hex');
+    this.sessions.set(token, Number(userId));
+    return token;
+  }
+
+  getUserByToken(token) {
+    if (!token) return null;
+    const userId = this.sessions.get(token);
+    if (!userId) return null;
+    return this.getUserById(userId);
+  }
+
+  removeSession(token) {
+    if (token) this.sessions.delete(token);
   }
 
   init() {
@@ -68,21 +99,24 @@ class DataStore {
       this.companyMap.set(c.symbol.toUpperCase(), c);
     }
 
-    // Load portfolios: check if user_portfolios.json exists, else load from seed
+    // Load portfolios & users: check if user_portfolios.json exists, else load from seed
     if (fs.existsSync(USER_DATA_PATH)) {
       try {
         const userRaw = fs.readFileSync(USER_DATA_PATH, 'utf-8');
         const userData = JSON.parse(userRaw);
         this.portfolios = userData.portfolios || [];
         this.portfolioPositions = userData.portfolio_positions || [];
+        this.users = userData.users || [];
       } catch (e) {
         console.warn('Failed to parse user_portfolios.json, falling back to seed:', e.message);
         this.portfolios = seed.portfolios || [];
         this.portfolioPositions = seed.portfolio_positions || [];
+        this.users = [];
       }
     } else {
       this.portfolios = seed.portfolios || [];
       this.portfolioPositions = seed.portfolio_positions || [];
+      this.users = [];
     }
 
     this.initialized = true;
@@ -92,12 +126,127 @@ class DataStore {
     try {
       const data = {
         portfolios: this.portfolios,
-        portfolio_positions: this.portfolioPositions
+        portfolio_positions: this.portfolioPositions,
+        users: this.users
       };
       fs.writeFileSync(USER_DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
     } catch (e) {
       console.error('Failed to write user_portfolios.json:', e);
     }
+  }
+
+  // User management methods
+  getUsers() {
+    this.init();
+    return this.users;
+  }
+
+  getUserById(id) {
+    this.init();
+    return this.users.find((u) => u.id === Number(id)) || null;
+  }
+
+  getUserByEmail(email) {
+    this.init();
+    if (!email) return null;
+    const clean = String(email).trim().toLowerCase();
+    return this.users.find((u) => u.email.toLowerCase() === clean) || null;
+  }
+
+  registerUser(name, email, password) {
+    this.init();
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanName = String(name || '').trim() || cleanEmail.split('@')[0];
+
+    if (this.getUserByEmail(cleanEmail)) {
+      throw new Error('Un compte existe déjà avec cette adresse email.');
+    }
+
+    const { salt, hash } = this.hashPassword(password);
+    const maxId = this.users.reduce((max, u) => Math.max(max, u.id || 0), 0);
+    const now = new Date().toISOString();
+
+    const newUser = {
+      id: maxId + 1,
+      name: cleanName,
+      email: cleanEmail,
+      salt,
+      hash,
+      created_at: now
+    };
+
+    this.users.push(newUser);
+
+    // Create a personalized welcome portfolio for this user (Balanced GARP, 10,000 EUR)
+    const portMaxId = this.portfolios.reduce((max, p) => Math.max(max, p.id || 0), 0);
+    const welcomePortfolio = {
+      id: portMaxId + 1,
+      user_id: newUser.id,
+      name: `Portefeuille de ${cleanName}`,
+      strategy: 'balanced',
+      initial_capital: 10000,
+      cash_balance: 10000,
+      currency: 'EUR',
+      created_at: now,
+      updated_at: now
+    };
+    this.portfolios.push(welcomePortfolio);
+
+    // Populate welcome portfolio with top balanced picks
+    const balancedPicks = [
+      { symbol: 'MSFT', shares: 3.0, buy_price: 430.0 },
+      { symbol: 'GOOGL', shares: 7.0, buy_price: 180.0 },
+      { symbol: 'AAPL', shares: 6.0, buy_price: 220.0 },
+      { symbol: 'MC.PA', shares: 2.0, buy_price: 640.0 }
+    ];
+
+    let totalInvested = 0;
+    for (const pick of balancedPicks) {
+      const posMaxId = this.portfolioPositions.reduce((max, p) => Math.max(max, p.id || 0), 0);
+      const company = this.getCompanyBySymbol(pick.symbol);
+      const buyPrice = company?.current_price || pick.buy_price;
+      totalInvested += buyPrice * pick.shares;
+
+      this.portfolioPositions.push({
+        id: posMaxId + 1,
+        portfolio_id: welcomePortfolio.id,
+        company_id: company ? company.id : null,
+        symbol: pick.symbol,
+        shares: pick.shares,
+        buy_price: buyPrice,
+        buy_date: now,
+        notes: "Allocation d'accueil offerte"
+      });
+    }
+
+    welcomePortfolio.cash_balance = Math.max(0, Math.round((10000 - totalInvested) * 100) / 100);
+
+    this.saveUserData();
+    return { id: newUser.id, name: newUser.name, email: newUser.email, created_at: newUser.created_at };
+  }
+
+  authenticateUser(email, password) {
+    this.init();
+    const user = this.getUserByEmail(email);
+    if (!user) {
+      throw new Error('Adresse email ou mot de passe incorrect.');
+    }
+
+    const valid = this.verifyPassword(password, user.salt, user.hash);
+    if (!valid) {
+      throw new Error('Adresse email ou mot de passe incorrect.');
+    }
+
+    const token = this.createSession(user.id);
+    return {
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        created_at: user.created_at
+      }
+    };
   }
 
   getAllCompanies() {
@@ -121,9 +270,13 @@ class DataStore {
   }
 
   // Portfolio methods
-  getPortfolios() {
+  getPortfolios(userId = null) {
     this.init();
-    return [...this.portfolios].sort(
+    let list = this.portfolios;
+    if (userId) {
+      list = list.filter((p) => p.user_id === Number(userId) || !p.user_id);
+    }
+    return [...list].sort(
       (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
     );
   }
@@ -144,17 +297,23 @@ class DataStore {
     return p || null;
   }
 
-  getLatestPortfolio() {
+  getLatestPortfolio(userId = null) {
     this.init();
-    if (this.portfolios.length === 0) return null;
+    if (userId) {
+      const userPorts = this.portfolios.filter((p) => p.user_id === Number(userId));
+      if (userPorts.length > 0) {
+        return [...userPorts].sort(
+          (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
+        )[0];
+      }
+    }
+    const ports = this.getPortfolios(userId);
+    if (ports.length === 0) return null;
     if (this.activePortfolioId) {
-      const active = this.portfolios.find((x) => x.id === Number(this.activePortfolioId));
+      const active = ports.find((x) => x.id === Number(this.activePortfolioId));
       if (active) return active;
     }
-    const sorted = [...this.portfolios].sort(
-      (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
-    );
-    return sorted[0];
+    return ports[0];
   }
 
   getPositionsForPortfolio(portfolioId) {
@@ -178,10 +337,12 @@ class DataStore {
       portfolio.cash_balance = Number(portfolioData.cash_balance ?? portfolio.cash_balance);
       portfolio.currency = portfolioData.currency || portfolio.currency;
       portfolio.updated_at = now;
+      if (portfolioData.user_id) portfolio.user_id = Number(portfolioData.user_id);
     } else {
       const maxId = this.portfolios.reduce((max, p) => Math.max(max, p.id || 0), 0);
       portfolio = {
         id: maxId + 1,
+        user_id: portfolioData.user_id ? Number(portfolioData.user_id) : null,
         name: portfolioData.name || 'Mon Portefeuille',
         strategy: portfolioData.strategy || 'balanced',
         initial_capital: Number(portfolioData.initial_capital || 10000),

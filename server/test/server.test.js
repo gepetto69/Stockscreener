@@ -257,4 +257,104 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
     const backSubsequent = await backSubsequentRes.json();
     assert.equal(backSubsequent.id, firstPort.id);
   });
+
+  describe('User Authentication & Scoped Portfolios', () => {
+    let testUser;
+    let authToken = '';
+    let registeredUser = null;
+
+    test('POST /api/auth/register creates user and generates dedicated welcome portfolio', async () => {
+      testUser = {
+        name: 'Alice Dupont',
+        email: `alice_${Date.now()}_${Math.random().toString(36).substring(7)}@example.com`,
+        password: 'SecurePassword123!'
+      };
+      const res = await fetch(`${baseUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testUser)
+      });
+      assert.equal(res.status, 201);
+      const data = await res.json();
+      assert.ok(data.user);
+      assert.equal(data.user.email, testUser.email);
+      assert.equal(data.user.name, testUser.name);
+      assert.ok(data.token);
+      assert.ok(data.portfolio);
+      assert.equal(data.portfolio.user_id, data.user.id);
+      assert.ok(data.portfolio.positions.length > 0);
+
+      authToken = data.token;
+      registeredUser = data.user;
+    });
+
+    test('POST /api/auth/register prevents duplicate email', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testUser)
+      });
+      assert.equal(res.status, 409);
+      const data = await res.json();
+      assert.ok(data.error.includes('déjà utilisé'));
+    });
+
+    test('POST /api/auth/login succeeds with valid credentials', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testUser.email, password: testUser.password })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.ok(data.user);
+      assert.equal(data.user.id, registeredUser.id);
+      assert.ok(data.token);
+    });
+
+    test('POST /api/auth/login fails with invalid password', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testUser.email, password: 'WrongPassword' })
+      });
+      assert.equal(res.status, 401);
+    });
+
+    test('GET /api/auth/me returns current authenticated user profile', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/me`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.user.id, registeredUser.id);
+      assert.equal(data.user.email, registeredUser.email);
+    });
+
+    test('GET /api/portfolio/list scopes portfolios to authenticated user', async () => {
+      const res = await fetch(`${baseUrl}/api/portfolio/list`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      assert.equal(res.status, 200);
+      const list = await res.json();
+      assert.ok(Array.isArray(list));
+      assert.ok(list.length >= 1);
+      // All returned portfolios must belong to Alice
+      assert.ok(list.every(p => !p.user_id || p.user_id === registeredUser.id));
+    });
+
+    test('POST /api/auth/logout invalidates session', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      assert.equal(res.status, 200);
+
+      // Verify /auth/me now returns 401
+      const meRes = await fetch(`${baseUrl}/api/auth/me`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      assert.equal(meRes.status, 401);
+    });
+  });
 });
