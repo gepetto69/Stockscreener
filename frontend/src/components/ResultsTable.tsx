@@ -57,11 +57,11 @@ export const ResultsTable: React.FC<Props> = ({
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl flex flex-col overflow-hidden">
       {/* Table container */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[700px] sm:min-w-full">
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-left border-collapse min-w-[980px] lg:min-w-full">
           <thead>
             <tr className="border-b border-slate-800 bg-slate-950/80 text-xs text-slate-400 font-medium">
-              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group sticky left-0 z-20 bg-slate-950 min-w-[150px] sm:min-w-0" onClick={() => onSort('symbol')}>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group sticky left-0 z-20 bg-slate-950 shadow-[1px_0_0_0_rgba(51,65,85,0.5)]" onClick={() => onSort('symbol')}>
                 <div className="flex items-center">
                   <span>Entreprise</span>
                   {renderSortIndicator('symbol')}
@@ -86,43 +86,45 @@ export const ResultsTable: React.FC<Props> = ({
                   {renderSortIndicator('current_price')}
                 </div>
               </th>
-              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group hidden md:table-cell" onClick={() => onSort('latest_roe')}>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('latest_roe')}>
                 <div className="flex items-center">
                   <span>ROE (%)</span>
                   {renderSortIndicator('latest_roe')}
                 </div>
               </th>
-              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group hidden md:table-cell" onClick={() => onSort('latest_roic')}>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('latest_roic')}>
                 <div className="flex items-center">
                   <span>ROIC (%)</span>
                   {renderSortIndicator('latest_roic')}
                 </div>
               </th>
-              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group hidden lg:table-cell" onClick={() => onSort('latest_operating_margin')}>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('latest_operating_margin')}>
                 <div className="flex items-center">
                   <span>Marge Op.</span>
                   {renderSortIndicator('latest_operating_margin')}
                 </div>
               </th>
-              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group hidden sm:table-cell" onClick={() => onSort('latest_debt_to_ebitda')}>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('latest_debt_to_ebitda')}>
                 <div className="flex items-center">
                   <span>Dette/EBITDA</span>
                   {renderSortIndicator('latest_debt_to_ebitda')}
                 </div>
               </th>
-              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group hidden lg:table-cell" onClick={() => onSort('revenue_growth_5y')}>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('revenue_growth_5y')}>
                 <div className="flex items-center">
                   <span>CAGR CA 5A</span>
                   {renderSortIndicator('revenue_growth_5y')}
                 </div>
               </th>
-              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group hidden sm:table-cell" onClick={() => onSort('pe_ratio')}>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('pe_ratio')}>
                 <div className="flex items-center">
                   <span>P/E</span>
                   {renderSortIndicator('pe_ratio')}
                 </div>
               </th>
-              <th className="py-3.5 px-3 sm:px-4 text-right">Action</th>
+              <th className="py-3.5 px-3 sm:px-4 text-center sticky right-0 z-20 bg-slate-950 shadow-[-1px_0_0_0_rgba(51,65,85,0.5)]">
+                Détail
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 text-sm">
@@ -144,8 +146,8 @@ export const ResultsTable: React.FC<Props> = ({
                     onClick={() => onSelectCompany(c)}
                     className="hover:bg-slate-800/50 cursor-pointer transition-colors active:bg-slate-800/80 group/row"
                   >
-                    {/* Symbol & Name - Sticky on horizontal scroll on mobile so ticker is ALWAYS visible */}
-                    <td className="py-3.5 px-3 sm:px-4 sticky left-0 z-10 bg-slate-900 group-hover/row:bg-slate-850 transition-colors">
+                    {/* Symbol & Name - Sticky on horizontal scroll */}
+                    <td className="py-3.5 px-3 sm:px-4 sticky left-0 z-10 bg-slate-900 group-hover/row:bg-slate-850 transition-colors shadow-[1px_0_0_0_rgba(51,65,85,0.5)]">
                       <div className="flex items-center gap-2 sm:gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-indigo-950/80 border border-indigo-800/50 flex items-center justify-center font-bold text-xs text-indigo-300 shrink-0">
                           {c.symbol.slice(0, 3)}
@@ -157,7 +159,7 @@ export const ResultsTable: React.FC<Props> = ({
                               {c.currency}
                             </span>
                           </div>
-                          <div className="text-[11px] sm:text-xs text-slate-400 truncate max-w-[110px] sm:max-w-[170px]">{c.name}</div>
+                          <div className="text-[11px] sm:text-xs text-slate-400 truncate max-w-[130px] sm:max-w-[170px]">{c.name}</div>
                         </div>
                       </div>
                     </td>
@@ -168,7 +170,7 @@ export const ResultsTable: React.FC<Props> = ({
                         <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-bold border ${getScoreBadgeColor(qScore)}`}>
                           {qScore.toFixed(0)}/100
                         </span>
-                        <div className="w-14 sm:w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden hidden sm:block">
+                        <div className="w-12 sm:w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden hidden sm:block">
                           <div
                             className={`h-full ${qScore >= 75 ? 'bg-emerald-400' : qScore >= 50 ? 'bg-indigo-400' : 'bg-amber-400'}`}
                             style={{ width: `${Math.min(100, qScore)}%` }}
@@ -202,28 +204,28 @@ export const ResultsTable: React.FC<Props> = ({
                     </td>
 
                     {/* ROE */}
-                    <td className="py-3.5 px-3 sm:px-4 hidden md:table-cell">
+                    <td className="py-3.5 px-3 sm:px-4">
                       <span className={`font-semibold ${c.latest_roe && c.latest_roe >= 15 ? 'text-emerald-400' : 'text-slate-300'}`}>
                         {c.latest_roe ? `${c.latest_roe.toFixed(1)}%` : '—'}
                       </span>
                     </td>
 
                     {/* ROIC */}
-                    <td className="py-3.5 px-3 sm:px-4 hidden md:table-cell">
+                    <td className="py-3.5 px-3 sm:px-4">
                       <span className={`font-semibold ${c.latest_roic && c.latest_roic >= 12 ? 'text-emerald-400' : 'text-slate-300'}`}>
                         {c.latest_roic ? `${c.latest_roic.toFixed(1)}%` : '—'}
                       </span>
                     </td>
 
                     {/* Operating Margin */}
-                    <td className="py-3.5 px-3 sm:px-4 text-slate-300 hidden lg:table-cell">
+                    <td className="py-3.5 px-3 sm:px-4 text-slate-300">
                       {c.latest_operating_margin ? `${c.latest_operating_margin.toFixed(1)}%` : '—'}
                     </td>
 
                     {/* Net Debt / EBITDA */}
-                    <td className="py-3.5 px-3 sm:px-4 hidden sm:table-cell">
+                    <td className="py-3.5 px-3 sm:px-4">
                       {c.latest_debt_to_ebitda !== undefined && c.latest_debt_to_ebitda !== null ? (
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
                           c.latest_debt_to_ebitda <= 0
                             ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
                             : c.latest_debt_to_ebitda <= 2.5
@@ -238,9 +240,9 @@ export const ResultsTable: React.FC<Props> = ({
                     </td>
 
                     {/* Revenue Growth 5Y */}
-                    <td className="py-3.5 px-3 sm:px-4 hidden lg:table-cell">
+                    <td className="py-3.5 px-3 sm:px-4">
                       {c.revenue_growth_5y !== undefined && c.revenue_growth_5y !== null ? (
-                        <div className="flex items-center gap-1 text-slate-300 font-medium text-xs">
+                        <div className="flex items-center gap-1 text-slate-300 font-medium text-xs whitespace-nowrap">
                           {c.revenue_growth_5y >= 0 ? (
                             <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
                           ) : (
@@ -254,27 +256,30 @@ export const ResultsTable: React.FC<Props> = ({
                     </td>
 
                     {/* P/E */}
-                    <td className="py-3.5 px-3 sm:px-4 hidden sm:table-cell">
-                      <span className="text-slate-300 font-medium">
+                    <td className="py-3.5 px-3 sm:px-4">
+                      <span className="text-slate-300 font-medium whitespace-nowrap">
                         {c.pe_ratio ? `${c.pe_ratio.toFixed(1)}x` : '—'}
                       </span>
                     </td>
 
-                    {/* Action Arrow */}
-                    <td className="py-3.5 px-3 sm:px-4 text-right">
+                    {/* Action Button - Sticky right on horizontal scroll */}
+                    <td className="py-3.5 px-3 sm:px-4 text-center sticky right-0 z-10 bg-slate-900 group-hover/row:bg-slate-850 transition-colors shadow-[-1px_0_0_0_rgba(51,65,85,0.5)]">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCompany(c);
                         }}
-                        className="p-2 rounded-lg bg-slate-800/50 hover:bg-indigo-600/30 text-slate-300 hover:text-white border border-slate-700/50 transition active:scale-95 flex items-center justify-center ml-auto"
-                        title={`Voir la fiche détaillée de ${c.symbol}`}
-                        aria-label={`Voir la fiche détaillée de ${c.symbol}`}
+                        className="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 hover:border-indigo-500 transition active:scale-95 flex items-center justify-center gap-1 mx-auto text-xs font-semibold shadow-sm"
+                        title={`Ouvrir le dossier d'analyse de ${c.symbol}`}
+                        aria-label={`Ouvrir le dossier d'analyse de ${c.symbol}`}
                       >
                         {isItemLoading ? (
-                          <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
                         ) : (
-                          <ChevronRight className="w-4 h-4 text-indigo-400" />
+                          <>
+                            <span className="hidden sm:inline">Dossier</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </>
                         )}
                       </button>
                     </td>

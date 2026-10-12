@@ -168,6 +168,26 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const [einsteinLoading, setEinsteinLoading] = useState<boolean>(false);
   const [showEinsteinModal, setShowEinsteinModal] = useState<boolean>(false);
 
+  // Refs for tab scrolling and content scrolling
+  const contentAreaRef = React.useRef<HTMLDivElement>(null);
+  const tabsContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const goToTab = (tabId: TabType) => {
+    setActiveTab(tabId);
+    if (contentAreaRef.current) {
+      contentAreaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsContainerRef.current) {
+      tabsContainerRef.current.scrollBy({
+        left: direction === 'left' ? -220 : 220,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   // Reset tab to overview whenever a new company is opened
   useEffect(() => {
     if (company?.symbol) {
@@ -180,18 +200,73 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     }
   }, [company?.symbol]);
 
-  if (!company) return null;
+  // Fetch Abigail opinion on demand or for Health tab
+  const handleAskAbigail = async () => {
+    if (!company?.symbol) return;
+    setAbigailLoading(true);
+    setShowAbigailModal(true);
+    try {
+      const res = await axios.get(`/api/companies/${company.symbol}/copilot/abigail`);
+      setAbigailData(res.data);
+    } catch (err) {
+      console.error('Error fetching Abigail analysis', err);
+    } finally {
+      setAbigailLoading(false);
+    }
+  };
 
-  const stmts = company.financial_statements
+  // Fetch Warren analysis
+  const handleLoadWarren = async () => {
+    if (!company?.symbol) return;
+    setWarrenLoading(true);
+    try {
+      const res = await axios.get(`/api/companies/${company.symbol}/copilot/warren`);
+      setWarrenData(res.data);
+    } catch (err) {
+      console.error('Error fetching Warren analysis', err);
+    } finally {
+      setWarrenLoading(false);
+    }
+  };
+
+  // Fetch Einstein ranking
+  const handleLoadEinstein = async () => {
+    if (!company?.symbol) return;
+    setEinsteinLoading(true);
+    setShowEinsteinModal(true);
+    try {
+      const res = await axios.get(`/api/companies/${company.symbol}/copilot/einstein`);
+      setEinsteinData(res.data);
+    } catch (err) {
+      console.error('Error fetching Einstein analysis', err);
+    } finally {
+      setEinsteinLoading(false);
+    }
+  };
+
+  // Automatically fetch Warren if user navigates to full_analysis tab
+  useEffect(() => {
+    if (!company?.symbol) return;
+    if (activeTab === 'full_analysis' && !warrenData) {
+      handleLoadWarren();
+    }
+    if (activeTab === 'health' && !abigailData) {
+      axios.get(`/api/companies/${company.symbol}/copilot/abigail`)
+        .then(res => setAbigailData(res.data))
+        .catch(e => console.error(e));
+    }
+  }, [activeTab, company?.symbol]);
+
+  const stmts = company?.financial_statements
     ? [...company.financial_statements].sort((a, b) => a.fiscal_year - b.fiscal_year)
     : [];
-  const rawPrices = company.historical_prices
+  const rawPrices = company?.historical_prices
     ? [...company.historical_prices].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     : [];
 
-  const qs = company.quality_score;
-  const piotroskiScore = qs?.piotroski_score ?? company.piotroski_score ?? 6;
-  const piotroskiStatus = qs?.piotroski_status ?? company.piotroski_status ?? 'Solide';
+  const qs = company?.quality_score;
+  const piotroskiScore = qs?.piotroski_score ?? company?.piotroski_score ?? 6;
+  const piotroskiStatus = qs?.piotroski_status ?? company?.piotroski_status ?? 'Solide';
   const qualityRatio = qs?.quality_score_ratio ?? (qs ? Number((qs.total_score / 30).toFixed(2)) : 2.43);
 
   let strengths: string[] = [];
@@ -218,59 +293,6 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     price: p.close
   }));
 
-  // Fetch Abigail opinion on demand or for Health tab
-  const handleAskAbigail = async () => {
-    setAbigailLoading(true);
-    setShowAbigailModal(true);
-    try {
-      const res = await axios.get(`/api/companies/${company.symbol}/copilot/abigail`);
-      setAbigailData(res.data);
-    } catch (err) {
-      console.error('Error fetching Abigail analysis', err);
-    } finally {
-      setAbigailLoading(false);
-    }
-  };
-
-  // Fetch Warren analysis
-  const handleLoadWarren = async () => {
-    setWarrenLoading(true);
-    try {
-      const res = await axios.get(`/api/companies/${company.symbol}/copilot/warren`);
-      setWarrenData(res.data);
-    } catch (err) {
-      console.error('Error fetching Warren analysis', err);
-    } finally {
-      setWarrenLoading(false);
-    }
-  };
-
-  // Fetch Einstein ranking
-  const handleLoadEinstein = async () => {
-    setEinsteinLoading(true);
-    setShowEinsteinModal(true);
-    try {
-      const res = await axios.get(`/api/companies/${company.symbol}/copilot/einstein`);
-      setEinsteinData(res.data);
-    } catch (err) {
-      console.error('Error fetching Einstein analysis', err);
-    } finally {
-      setEinsteinLoading(false);
-    }
-  };
-
-  // Automatically fetch Warren if user navigates to full_analysis tab
-  useEffect(() => {
-    if (activeTab === 'full_analysis' && !warrenData) {
-      handleLoadWarren();
-    }
-    if (activeTab === 'health' && !abigailData) {
-      axios.get(`/api/companies/${company.symbol}/copilot/abigail`)
-        .then(res => setAbigailData(res.data))
-        .catch(e => console.error(e));
-    }
-  }, [activeTab, company.symbol]);
-
   // Chart data formatters
   const revenueChartData = stmts.map(s => ({
     year: s.fiscal_year.toString(),
@@ -287,28 +309,12 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     roic: s.roic ?? 0
   }));
 
-  // Refs for tab scrolling and content scrolling
-  const contentAreaRef = React.useRef<HTMLDivElement>(null);
-  const tabsContainerRef = React.useRef<HTMLDivElement>(null);
+  if (!company) return null;
 
   const currentTabIndex = TABS_CONFIG.findIndex(t => t.id === activeTab);
   const currentTab = TABS_CONFIG[currentTabIndex] || TABS_CONFIG[0];
   const prevTab = currentTabIndex > 0 ? TABS_CONFIG[currentTabIndex - 1] : null;
   const nextTab = currentTabIndex < TABS_CONFIG.length - 1 ? TABS_CONFIG[currentTabIndex + 1] : null;
-
-  const goToTab = (tabId: TabType) => {
-    setActiveTab(tabId);
-    if (contentAreaRef.current) {
-      contentAreaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const scrollTabs = (direction: 'left' | 'right') => {
-    if (tabsContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -220 : 220;
-      tabsContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
 
   // Dynamic calculations for tabs 3 to 7
   const currentPrice = company.current_price || 205.79;
@@ -374,12 +380,12 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-6xl h-[92vh] sm:max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[96vh] sm:max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         
         {/* TOP BAR / HEADER (Matching Databourse layout) */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-950/80">
@@ -464,9 +470,10 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
           </div>
         </div>
 
-        {/* MOBILE DEDICATED PAGE SELECTOR (VISIBLE ON MOBILE / SMALL SCREENS) */}
-        <div className="block lg:hidden px-3 sm:px-6 py-2.5 bg-slate-950/95 border-b border-slate-800">
-          <div className="flex items-center justify-between gap-2">
+        {/* TAB NAVIGATION: ON MOBILE DROPDOWN + ON DESKTOP HORIZONTAL TABS */}
+        <div className="border-b border-slate-800 bg-slate-950/95">
+          {/* Mobile Page Dropdown Bar */}
+          <div className="flex lg:hidden items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
             <button
               onClick={() => prevTab && goToTab(prevTab.id)}
               disabled={!prevTab}
@@ -484,7 +491,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
               <select
                 value={activeTab}
                 onChange={(e) => goToTab(e.target.value as TabType)}
-                className="w-full appearance-none bg-slate-900 border border-sky-500/60 hover:border-sky-400 text-white text-xs font-bold py-2.5 pl-3 pr-8 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-sky-500 transition cursor-pointer"
+                className="w-full appearance-none bg-slate-900 border border-sky-500/60 hover:border-sky-400 text-white text-xs font-bold py-2 pl-3 pr-8 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-sky-500 transition cursor-pointer"
               >
                 {TABS_CONFIG.map((tab) => (
                   <option key={tab.id} value={tab.id} className="bg-slate-900 text-white py-1">
@@ -510,88 +517,83 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
 
-        {/* NAVIGATION TABS (Horizontal bar with badges, scroll arrows, and gradient fade indicators) */}
-        <div className="relative border-b border-slate-800 px-2 sm:px-4 bg-slate-950/80 flex items-center">
-          {/* Scroll Left Button */}
-          <button
-            onClick={() => scrollTabs('left')}
-            className="hidden sm:flex items-center justify-center p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition shrink-0 z-20 mr-1"
-            aria-label="Défiler à gauche"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+          {/* Desktop Tab Bar */}
+          <div className="hidden lg:flex items-center px-4 relative">
+            <button
+              onClick={() => scrollTabs('left')}
+              className="flex items-center justify-center p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition shrink-0 z-20 mr-1"
+              aria-label="Défiler à gauche"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
 
-          {/* Left Gradient Shadow */}
-          <div className="pointer-events-none absolute left-8 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10 hidden sm:block" />
+            <div className="pointer-events-none absolute left-12 top-0 bottom-0 w-6 bg-gradient-to-r from-slate-950 to-transparent z-10" />
 
-          {/* Scrollable Tabs Container */}
-          <div
-            ref={tabsContainerRef}
-            className="flex items-center gap-1 overflow-x-auto text-xs sm:text-sm font-medium scrollbar-thin scrollbar-thumb-slate-700 py-1.5 flex-1 scroll-smooth"
-          >
-            {TABS_CONFIG.map((tab) => {
-              const isActive = activeTab === tab.id;
-              const isWarren = tab.id === 'full_analysis';
+            <div
+              ref={tabsContainerRef}
+              className="flex items-center gap-1 overflow-x-auto text-xs sm:text-sm font-medium scrollbar-thin scrollbar-thumb-slate-700 py-1.5 flex-1 scroll-smooth"
+            >
+              {TABS_CONFIG.map((tab) => {
+                const isActive = activeTab === tab.id;
+                const isWarren = tab.id === 'full_analysis';
 
-              if (isWarren) {
+                if (isWarren) {
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => goToTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition shrink-0 ml-auto ${
+                        isActive
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                          : 'bg-amber-950/40 text-amber-300 border-amber-600/60 hover:bg-amber-900/50'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>8. {tab.shortLabel}</span>
+                      <span className="text-[9px] px-1 py-0.2 rounded font-black bg-amber-900/80 text-amber-200 border border-amber-700">
+                        IA
+                      </span>
+                    </button>
+                  );
+                }
+
                 return (
                   <button
                     key={tab.id}
                     onClick={() => goToTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition shrink-0 ml-auto ${
+                    className={`py-2 px-2.5 sm:px-3 border-b-2 transition whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                       isActive
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-                        : 'bg-amber-950/40 text-amber-300 border-amber-600/60 hover:bg-amber-900/50'
+                        ? 'border-sky-500 text-sky-400 font-bold bg-sky-950/20'
+                        : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
                     }`}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>8. {tab.shortLabel}</span>
-                    <span className="text-[9px] px-1 py-0.2 rounded font-black bg-amber-900/80 text-amber-200 border border-amber-700">
-                      IA
+                    <span className={`text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                      isActive ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {tab.pageNumber}
                     </span>
+                    <span>{tab.shortLabel}</span>
+                    {tab.badge && (
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${tab.badgeColor || 'bg-slate-800 text-slate-300 border-slate-700'}`}>
+                        {tab.badge}
+                      </span>
+                    )}
                   </button>
                 );
-              }
+              })}
+            </div>
 
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => goToTab(tab.id)}
-                  className={`py-2 px-2.5 sm:px-3 border-b-2 transition whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
-                    isActive
-                      ? 'border-sky-500 text-sky-400 font-bold bg-sky-950/20'
-                      : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
-                  }`}
-                >
-                  <span className={`text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
-                    isActive ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    {tab.pageNumber}
-                  </span>
-                  <span>{tab.shortLabel}</span>
-                  {tab.badge && (
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${tab.badgeColor || 'bg-slate-800 text-slate-300 border-slate-700'}`}>
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <div className="pointer-events-none absolute right-12 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-950 to-transparent z-10" />
+
+            <button
+              onClick={() => scrollTabs('right')}
+              className="flex items-center justify-center p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition shrink-0 z-20 ml-1"
+              aria-label="Défiler à droite"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-
-          {/* Right Gradient Shadow */}
-          <div className="pointer-events-none absolute right-8 top-0 bottom-0 w-6 bg-gradient-to-l from-slate-950 to-transparent z-10 hidden sm:block" />
-
-          {/* Scroll Right Button */}
-          <button
-            onClick={() => scrollTabs('right')}
-            className="hidden sm:flex items-center justify-center p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition shrink-0 z-20 ml-1"
-            aria-label="Défiler à droite"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
 
         {/* TAB CONTENTS */}
@@ -996,8 +998,8 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
                   <div className="text-[10px] uppercase font-bold text-slate-400">Current Ratio</div>
                   <div className="text-2xl font-bold text-white mt-1">
-                    {company.financial_statements?.[0]?.current_ratio != null
-                      ? `${company.financial_statements[0].current_ratio.toFixed(2)}x`
+                    {latestStmt?.current_ratio != null
+                      ? `${latestStmt.current_ratio.toFixed(2)}x`
                       : '1.61x'}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">Médiane sect. : 1.38x</div>
@@ -1005,20 +1007,32 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
                 <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
                   <div className="text-[10px] uppercase font-bold text-slate-400">Debt-to-Equity</div>
-                  <div className="text-2xl font-bold text-emerald-400 mt-1">0.76x</div>
+                  <div className="text-2xl font-bold text-emerald-400 mt-1">
+                    {latestStmt?.total_debt && latestStmt?.total_equity && latestStmt.total_equity > 0
+                      ? `${(latestStmt.total_debt / latestStmt.total_equity).toFixed(2)}x`
+                      : '0.76x'}
+                  </div>
                   <div className="text-xs text-slate-500 mt-1">Moyenne pairs : 1.05x</div>
                 </div>
 
                 <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
                   <div className="text-[10px] uppercase font-bold text-slate-400">Interest Coverage</div>
-                  <div className="text-2xl font-bold text-white mt-1">7.22x</div>
+                  <div className="text-2xl font-bold text-white mt-1">
+                    {latestStmt?.interest_coverage != null
+                      ? `${latestStmt.interest_coverage.toFixed(2)}x`
+                      : '7.22x'}
+                  </div>
                   <div className="text-xs text-slate-500 mt-1">Solide &gt; 5.0x</div>
                 </div>
 
                 <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
                   <div className="text-[10px] uppercase font-bold text-slate-400">FCF Margin</div>
-                  <div className="text-2xl font-bold text-emerald-400 mt-1">9.2%</div>
-                  <div className="text-xs text-slate-500 mt-1">Secteur : -66.2%</div>
+                  <div className="text-2xl font-bold text-emerald-400 mt-1">
+                    {latestStmt?.free_cash_flow && latestStmt?.revenue && latestStmt.revenue > 0
+                      ? `${((latestStmt.free_cash_flow / latestStmt.revenue) * 100).toFixed(1)}%`
+                      : '9.2%'}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Conversion de cash</div>
                 </div>
               </div>
 
@@ -1846,7 +1860,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
         {/* MODAL: AVIS DE ABIGAIL (Screenshot 3) */}
         {showAbigailModal && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
               <button
                 onClick={() => setShowAbigailModal(false)}
@@ -1903,7 +1917,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
 
         {/* MODAL: EINSTEIN CLASSEMENT DES CONCURRENTS (Screenshot 4) */}
         {showEinsteinModal && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 shadow-2xl relative max-h-[85vh] flex flex-col overflow-hidden">
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-3">

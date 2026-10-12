@@ -10,6 +10,8 @@ interface Props {
 }
 
 export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sectorsList }) => {
+  const [collapsed, setCollapsed] = React.useState<boolean>(false);
+
   const handleInputChange = (field: keyof FilterParams, value: any) => {
     onChange({
       ...filters,
@@ -47,22 +49,29 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-6">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-xl space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div className="flex items-center gap-2 text-indigo-400 font-semibold text-base">
-          <Filter className="w-5 h-5" />
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-2 text-indigo-400 font-semibold text-sm sm:text-base hover:text-indigo-300 transition"
+        >
+          <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Filtres de Qualité</span>
-        </div>
+          <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 lg:hidden">
+            {collapsed ? 'Afficher' : 'Réduire'}
+          </span>
+        </button>
         <button
           onClick={onReset}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700/60"
+          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Réinitialiser</span>
         </button>
       </div>
 
+      <div className={`${collapsed ? 'hidden lg:block' : 'block'} space-y-5`}>
       {/* Preset Strategy Buttons */}
       <div className="space-y-2">
         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -353,6 +362,7 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

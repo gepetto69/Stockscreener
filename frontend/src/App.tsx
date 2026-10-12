@@ -154,7 +154,7 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
       {/* Top Navbar */}
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <TrendingUp className="w-6 h-6 text-white" />
@@ -171,7 +171,7 @@ export const App: React.FC = () => {
             <button
               onClick={handleRefreshUniverse}
               disabled={refreshing}
-              className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-lg border border-slate-700 transition"
+              className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white px-3 py-2 rounded-lg border border-slate-700 transition"
               title="Rafraîchir les cours et recalculer les scores"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-400' : ''}`} />
@@ -191,7 +191,7 @@ export const App: React.FC = () => {
 
       {/* Hero Stats Ribbon */}
       <div className="bg-slate-900/50 border-b border-slate-800/80 py-4 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="max-w-[1600px] mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <ShieldCheck className="w-5 h-5" />
@@ -235,7 +235,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
         {/* Mobile Filter Toggle & Search Bar */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
@@ -267,8 +267,9 @@ export const App: React.FC = () => {
         </div>
 
         {/* 2-Column Layout: Sidebar Filters & Results Table */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-          <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block lg:col-span-1`}>
+        <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+          {/* Sidebar */}
+          <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block w-full lg:w-80 shrink-0`}>
             <FilterSidebar
               filters={filters}
               onChange={setFilters}
@@ -277,7 +278,8 @@ export const App: React.FC = () => {
             />
           </div>
 
-          <div className="lg:col-span-3">
+          {/* Results Table container */}
+          <div className="w-full min-w-0 flex-1">
             <ResultsTable
               companies={screenerData.items}
               total={screenerData.total}
