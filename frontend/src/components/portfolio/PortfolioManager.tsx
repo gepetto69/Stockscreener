@@ -25,16 +25,19 @@ import { LocalEngine } from '../../services/localEngine';
 interface Props {
   onOpenStockDetail: (symbol: string) => void;
   onPortfolioStatusChange?: (portfolio: PortfolioPerformance | null) => void;
+  initialPortfolioId?: number;
 }
 
 export const PortfolioManager: React.FC<Props> = ({
   onOpenStockDetail,
-  onPortfolioStatusChange
+  onPortfolioStatusChange,
+  initialPortfolioId
 }) => {
   // Synchronously initialize portfolio state from LocalEngine so the view displays immediately (< 1ms)
   const [portfolio, setPortfolio] = useState<PortfolioPerformance | null>(() => {
     try {
-      return LocalEngine.getPortfolioPerformance(null);
+      const activeId = initialPortfolioId || LocalEngine.getActivePortfolioId();
+      return LocalEngine.getPortfolioPerformance(activeId);
     } catch {
       return null;
     }
@@ -83,15 +86,19 @@ export const PortfolioManager: React.FC<Props> = ({
   // Fetch current portfolio state and strategy recommendations
   const fetchPortfolioData = async (targetId?: number) => {
     try {
-      const url = targetId ? `${API_BASE}/portfolio?portfolio_id=${targetId}` : `${API_BASE}/portfolio`;
+      const activeId = targetId ?? portfolio?.id ?? initialPortfolioId ?? LocalEngine.getActivePortfolioId();
+      const url = activeId ? `${API_BASE}/portfolio?portfolio_id=${activeId}` : `${API_BASE}/portfolio`;
       const [portRes, stratRes, listRes] = await Promise.allSettled([
-        axios.get(url),
-        axios.get(`${API_BASE}/portfolio/strategies?capital=10000&currency=EUR`),
+        axios.get(url, { params: activeId ? { portfolio_id: activeId } : undefined }),
+        axios.get(`${API_BASE}/portfolio/strategies?capital=10000&currency=EUR`, { params: { capital: 10000, currency: 'EUR' } }),
         axios.get<PortfolioListItem[]>(`${API_BASE}/portfolio/list`)
       ]);
 
       if (portRes.status === 'fulfilled' && portRes.value.data) {
         setPortfolio(portRes.value.data);
+        if (portRes.value.data.id) {
+          LocalEngine.setActivePortfolioId(portRes.value.data.id);
+        }
         if (onPortfolioStatusChange) {
           onPortfolioStatusChange(portRes.value.data);
         }
@@ -128,6 +135,8 @@ export const PortfolioManager: React.FC<Props> = ({
   // Switch to another portfolio
   const handleSelectPortfolio = async (id: number) => {
     setPortfolioDropdownOpen(false);
+    LocalEngine.setActivePortfolioId(id);
+
     // Immediately set local portfolio for instant UI feedback
     try {
       const localPerf = LocalEngine.getPortfolioPerformance(id);
@@ -143,9 +152,14 @@ export const PortfolioManager: React.FC<Props> = ({
     }
 
     try {
-      const res = await axios.get(`${API_BASE}/portfolio?portfolio_id=${id}`);
+      const res = await axios.get(`${API_BASE}/portfolio?portfolio_id=${id}`, {
+        params: { portfolio_id: id }
+      });
       if (res.data) {
         setPortfolio(res.data);
+        if (res.data.id) {
+          LocalEngine.setActivePortfolioId(res.data.id);
+        }
         setViewMode('dashboard');
         if (onPortfolioStatusChange) {
           onPortfolioStatusChange(res.data);
@@ -163,6 +177,9 @@ export const PortfolioManager: React.FC<Props> = ({
       const res = await axios.post(`${API_BASE}/portfolio/setup`, payload);
       const newPortfolio = res.data;
       setPortfolio(newPortfolio);
+      if (newPortfolio?.id) {
+        LocalEngine.setActivePortfolioId(newPortfolio.id);
+      }
       setViewMode('dashboard');
       if (onPortfolioStatusChange) {
         onPortfolioStatusChange(newPortfolio);
@@ -182,6 +199,7 @@ export const PortfolioManager: React.FC<Props> = ({
         const localCreated = LocalEngine.createOrSetupPortfolio(payload);
         const localPerf = LocalEngine.getPortfolioPerformance(localCreated.id);
         setPortfolio(localPerf);
+        LocalEngine.setActivePortfolioId(localCreated.id);
         setViewMode('dashboard');
         setPortfolioList(LocalEngine.listPortfolios());
         if (onPortfolioStatusChange) {
@@ -199,11 +217,14 @@ export const PortfolioManager: React.FC<Props> = ({
   // Add position
   const handleAddPosition = async (payload: PositionCreatePayload) => {
     try {
-      const currentId = portfolio?.id;
+      const currentId = portfolio?.id || LocalEngine.getActivePortfolioId();
       const url = currentId ? `${API_BASE}/portfolio/positions?portfolio_id=${currentId}` : `${API_BASE}/portfolio/positions`;
-      await axios.post(url, payload);
-      const res = await axios.get(currentId ? `${API_BASE}/portfolio?portfolio_id=${currentId}` : `${API_BASE}/portfolio`);
+      await axios.post(url, payload, { params: currentId ? { portfolio_id: currentId } : undefined });
+      const res = await axios.get(currentId ? `${API_BASE}/portfolio?portfolio_id=${currentId}` : `${API_BASE}/portfolio`, {
+        params: currentId ? { portfolio_id: currentId } : undefined
+      });
       setPortfolio(res.data);
+      if (res.data?.id) LocalEngine.setActivePortfolioId(res.data.id);
       await fetchPortfolioList();
       if (onPortfolioStatusChange) {
         onPortfolioStatusChange(res.data);
@@ -211,7 +232,7 @@ export const PortfolioManager: React.FC<Props> = ({
     } catch (err) {
       console.error("Failed to add position with API, falling back locally", err);
       try {
-        const currentId = portfolio?.id || null;
+        const currentId = portfolio?.id || LocalEngine.getActivePortfolioId();
         LocalEngine.addOrUpdatePosition(payload, currentId);
         const updated = LocalEngine.getPortfolioPerformance(currentId);
         setPortfolio(updated);
@@ -229,10 +250,13 @@ export const PortfolioManager: React.FC<Props> = ({
   // Delete position
   const handleDeletePosition = async (id: number) => {
     try {
-      const currentId = portfolio?.id;
+      const currentId = portfolio?.id || LocalEngine.getActivePortfolioId();
       await axios.delete(`${API_BASE}/portfolio/positions/${id}`);
-      const res = await axios.get(currentId ? `${API_BASE}/portfolio?portfolio_id=${currentId}` : `${API_BASE}/portfolio`);
+      const res = await axios.get(currentId ? `${API_BASE}/portfolio?portfolio_id=${currentId}` : `${API_BASE}/portfolio`, {
+        params: currentId ? { portfolio_id: currentId } : undefined
+      });
       setPortfolio(res.data);
+      if (res.data?.id) LocalEngine.setActivePortfolioId(res.data.id);
       await fetchPortfolioList();
       if (onPortfolioStatusChange) {
         onPortfolioStatusChange(res.data);
@@ -240,7 +264,7 @@ export const PortfolioManager: React.FC<Props> = ({
     } catch (err) {
       console.error("Failed to delete position with API, falling back locally", err);
       try {
-        const currentId = portfolio?.id || null;
+        const currentId = portfolio?.id || LocalEngine.getActivePortfolioId();
         LocalEngine.removePosition(id);
         const updated = LocalEngine.getPortfolioPerformance(currentId);
         setPortfolio(updated);
@@ -259,9 +283,9 @@ export const PortfolioManager: React.FC<Props> = ({
   const handleConfirmResetPortfolio = async () => {
     setResetLoading(true);
     try {
-      const targetId = portfolio?.id;
+      const targetId = portfolio?.id || LocalEngine.getActivePortfolioId();
       const url = targetId ? `${API_BASE}/portfolio/reset?portfolio_id=${targetId}` : `${API_BASE}/portfolio/reset`;
-      await axios.delete(url);
+      await axios.delete(url, { params: targetId ? { portfolio_id: targetId } : undefined });
 
       // Refresh list
       const listRes = await axios.get<PortfolioListItem[]>(`${API_BASE}/portfolio/list`);
@@ -270,13 +294,17 @@ export const PortfolioManager: React.FC<Props> = ({
       if (listRes.data.length > 0) {
         // Switch to the first remaining portfolio
         const nextPort = listRes.data[0];
-        const res = await axios.get(`${API_BASE}/portfolio?portfolio_id=${nextPort.id}`);
+        LocalEngine.setActivePortfolioId(nextPort.id);
+        const res = await axios.get(`${API_BASE}/portfolio?portfolio_id=${nextPort.id}`, {
+          params: { portfolio_id: nextPort.id }
+        });
         setPortfolio(res.data);
         if (onPortfolioStatusChange) {
           onPortfolioStatusChange(res.data);
         }
       } else {
         // No portfolios left
+        LocalEngine.setActivePortfolioId(null);
         setPortfolio(null);
         setViewMode('new_wizard');
         if (onPortfolioStatusChange) {
@@ -288,7 +316,7 @@ export const PortfolioManager: React.FC<Props> = ({
     } catch (err) {
       console.error("Failed to reset portfolio with API, falling back locally", err);
       try {
-        const targetId = portfolio?.id || null;
+        const targetId = portfolio?.id || LocalEngine.getActivePortfolioId();
         LocalEngine.resetPortfolio(targetId);
         const list = LocalEngine.listPortfolios();
         setPortfolioList(list);
@@ -299,6 +327,7 @@ export const PortfolioManager: React.FC<Props> = ({
             onPortfolioStatusChange(nextPort);
           }
         } else {
+          LocalEngine.setActivePortfolioId(null);
           setPortfolio(null);
           setViewMode('new_wizard');
           if (onPortfolioStatusChange) {
@@ -320,14 +349,14 @@ export const PortfolioManager: React.FC<Props> = ({
     setAuditModalOpen(true);
     setAuditLoading(true);
     try {
-      const currentId = portfolio?.id;
+      const currentId = portfolio?.id || LocalEngine.getActivePortfolioId();
       const url = currentId ? `${API_BASE}/portfolio/analyze?portfolio_id=${currentId}` : `${API_BASE}/portfolio/analyze`;
-      const res = await axios.post(url);
+      const res = await axios.post(url, undefined, { params: currentId ? { portfolio_id: currentId } : undefined });
       setAuditData(res.data);
     } catch (err) {
       console.error("AI Audit API failed, falling back locally", err);
       try {
-        const currentId = portfolio?.id || null;
+        const currentId = portfolio?.id || LocalEngine.getActivePortfolioId();
         const localAudit = LocalEngine.analyzePortfolio(currentId);
         setAuditData(localAudit);
       } catch (localErr) {

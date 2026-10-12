@@ -223,4 +223,38 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
     });
     assert.equal(resetRes.status, 200);
   });
+
+  test('Portfolio selection persistence: switching returns selected portfolio on subsequent calls', async () => {
+    const listRes = await fetch(`${baseUrl}/api/portfolio/list`);
+    assert.equal(listRes.status, 200);
+    const list = await listRes.json();
+    assert.ok(list.length >= 2, 'Should have at least 2 default portfolios to test switching');
+
+    const firstPort = list[0];
+    const secondPort = list[1];
+
+    // Select second portfolio specifically
+    const selectRes = await fetch(`${baseUrl}/api/portfolio?portfolio_id=${secondPort.id}`);
+    assert.equal(selectRes.status, 200);
+    const selected = await selectRes.json();
+    assert.equal(selected.id, secondPort.id);
+
+    // Call /api/portfolio without query parameter; should persist active portfolio (secondPort)
+    const subsequentRes = await fetch(`${baseUrl}/api/portfolio`);
+    assert.equal(subsequentRes.status, 200);
+    const subsequent = await subsequentRes.json();
+    assert.equal(subsequent.id, secondPort.id);
+
+    // Switch back to first portfolio
+    const selectBackRes = await fetch(`${baseUrl}/api/portfolio?portfolio_id=${firstPort.id}`);
+    assert.equal(selectBackRes.status, 200);
+    const selectedBack = await selectBackRes.json();
+    assert.equal(selectedBack.id, firstPort.id);
+
+    // Verify first is now active
+    const backSubsequentRes = await fetch(`${baseUrl}/api/portfolio`);
+    assert.equal(backSubsequentRes.status, 200);
+    const backSubsequent = await backSubsequentRes.json();
+    assert.equal(backSubsequent.id, firstPort.id);
+  });
 });

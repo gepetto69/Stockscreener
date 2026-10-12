@@ -197,6 +197,9 @@ class PortfolioService {
     let portfolio;
     if (portfolioId) {
       portfolio = store.getPortfolioById(portfolioId);
+      if (portfolio) {
+        store.setActivePortfolioId(portfolio.id);
+      }
     } else {
       portfolio = store.getLatestPortfolio();
     }

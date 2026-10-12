@@ -128,6 +128,16 @@ class DataStore {
     );
   }
 
+  getActivePortfolioId() {
+    this.init();
+    return this.activePortfolioId || null;
+  }
+
+  setActivePortfolioId(id) {
+    this.init();
+    this.activePortfolioId = id ? Number(id) : null;
+  }
+
   getPortfolioById(id) {
     this.init();
     const p = this.portfolios.find((x) => x.id === Number(id));
@@ -137,6 +147,10 @@ class DataStore {
   getLatestPortfolio() {
     this.init();
     if (this.portfolios.length === 0) return null;
+    if (this.activePortfolioId) {
+      const active = this.portfolios.find((x) => x.id === Number(this.activePortfolioId));
+      if (active) return active;
+    }
     const sorted = [...this.portfolios].sort(
       (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()
     );
@@ -179,6 +193,7 @@ class DataStore {
       this.portfolios.push(portfolio);
     }
 
+    this.setActivePortfolioId(portfolio.id);
     this.saveUserData();
     return portfolio;
   }
@@ -189,6 +204,9 @@ class DataStore {
     this.portfolioPositions = this.portfolioPositions.filter((p) => p.portfolio_id !== pid);
     const beforeCount = this.portfolios.length;
     this.portfolios = this.portfolios.filter((p) => p.id !== pid);
+    if (this.activePortfolioId === pid) {
+      this.activePortfolioId = this.portfolios[0]?.id || null;
+    }
     this.saveUserData();
     return beforeCount > this.portfolios.length;
   }
