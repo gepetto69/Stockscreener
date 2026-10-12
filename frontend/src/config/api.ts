@@ -31,6 +31,30 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
 
   const cleanPath = urlPath.replace(/^(?:https?:\/\/[^/]+)?(?:\/api|\/?api)/, '').replace(/\?.*$/, '');
 
+  // 0. Auth endpoints
+  if (cleanPath === '/auth/register' || cleanPath === 'auth/register') {
+    const { name, email, password } = data || {};
+    return LocalEngine.registerUser(name, email, password);
+  }
+
+  if (cleanPath === '/auth/login' || cleanPath === 'auth/login') {
+    const { email, password } = data || {};
+    return LocalEngine.loginUser(email, password);
+  }
+
+  if (cleanPath === '/auth/me' || cleanPath === 'auth/me') {
+    const currentUser = LocalEngine.getCurrentUser();
+    if (currentUser) {
+      return { status: 'success', user: currentUser };
+    }
+    return { status: 'error', message: 'Non connecté' };
+  }
+
+  if (cleanPath === '/auth/logout' || cleanPath === 'auth/logout') {
+    LocalEngine.logoutUser();
+    return { status: 'success', message: 'Déconnecté avec succès' };
+  }
+
   // 1. /sectors
   if (cleanPath === '/sectors' || cleanPath === 'sectors') {
     return LocalEngine.getSectors();
@@ -147,8 +171,16 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
 }
 
 // Axios Request Interceptor:
-// If request config specifies immediateLocal, or if window has local-first flag, handle immediately
+// Attach Authorization Bearer token from localStorage if available
 axios.interceptors.request.use((config) => {
+  try {
+    const token = localStorage.getItem('stockscreener_auth_token_v1');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore
+  }
   return config;
 });
 

@@ -15,8 +15,91 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Auth helper middleware
+function getAuthUser(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  const parts = authHeader.split(' ');
+  const token = parts.length === 2 && parts[0] === 'Bearer' ? parts[1] : parts[0];
+  return store.getUserByToken(token);
+}
+
 // API Routes
 const api = express.Router();
+
+// Auth Endpoints
+api.post('/auth/register', (req, res) => {
+  try {
+    const { name, email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe requis.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères.' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    if (store.getUserByEmail(cleanEmail)) {
+      return res.status(409).json({ error: 'Un compte avec cet email est déjà utilisé.' });
+    }
+
+    const user = store.registerUser(name, email, password);
+    const token = store.createSession(user.id);
+    const welcomePortfolio = portfolioService.getPortfolioPerformance(null, user.id);
+
+    res.status(201).json({
+      status: 'success',
+      token,
+      user,
+      portfolio: welcomePortfolio
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+api.post('/auth/login', (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe requis.' });
+    }
+    const result = store.authenticateUser(email, password);
+    res.json({
+      status: 'success',
+      token: result.token,
+      user: result.user
+    });
+  } catch (err) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+api.get('/auth/me', (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+  res.json({
+    status: 'success',
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      created_at: user.created_at
+    }
+  });
+});
+
+api.post('/auth/logout', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const parts = authHeader.split(' ');
+    const token = parts.length === 2 && parts[0] === 'Bearer' ? parts[1] : parts[0];
+    store.removeSession(token);
+  }
+  res.json({ status: 'success', message: 'Déconnecté avec succès' });
+});
 
 // Health
 api.get('/health', (req, res) => {
@@ -211,7 +294,8 @@ api.get('/portfolio/strategies/:strategy_id', (req, res) => {
 // Portfolios List
 api.get('/portfolio/list', (req, res) => {
   try {
-    const list = portfolioService.listPortfolios();
+    const authUser = getAuthUser(req);
+    const list = portfolioService.listPortfolios(authUser ? authUser.id : null);
     res.json(list);
   } catch (err) {
     console.error('Error in /api/portfolio/list:', err);
@@ -222,8 +306,9 @@ api.get('/portfolio/list', (req, res) => {
 // Active Portfolio Performance
 api.get('/portfolio', (req, res) => {
   try {
+    const authUser = getAuthUser(req);
     const portfolioId = req.query.portfolio_id ? Number(req.query.portfolio_id) : null;
-    const perf = portfolioService.getPortfolioPerformance(portfolioId);
+    const perf = portfolioService.getPortfolioPerformance(portfolioId, authUser ? authUser.id : null);
     res.json(perf);
   } catch (err) {
     console.error('Error in /api/portfolio:', err);
@@ -234,7 +319,11 @@ api.get('/portfolio', (req, res) => {
 // Portfolio Setup
 api.post('/portfolio/setup', (req, res) => {
   try {
+    const authUser = getAuthUser(req);
     const setupData = req.body || {};
+    if (authUser && !setupData.user_id) {
+      setupData.user_id = authUser.id;
+    }
     const portfolio = portfolioService.createOrSetupPortfolio(setupData);
     const perf = portfolioService.getPortfolioPerformance(portfolio.id);
     if (!perf) {

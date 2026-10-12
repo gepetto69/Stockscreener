@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import type { FilterParams, Company, ScreenerResponse } from './types/stock';
 import type { PortfolioPerformance } from './types/portfolio';
+import type { User } from './types/auth';
 import { FilterSidebar } from './components/FilterSidebar';
 import { ResultsTable } from './components/ResultsTable';
 import { StockDetailModal } from './components/StockDetailModal';
 import { PortfolioManager } from './components/portfolio/PortfolioManager';
+import { AuthModal } from './components/auth/AuthModal';
 import {
   TrendingUp,
   Search,
@@ -15,7 +17,9 @@ import {
   ShieldCheck,
   Award,
   Filter,
-  Briefcase
+  Briefcase,
+  LogOut,
+  LogIn
 } from 'lucide-react';
 import { API_BASE } from './config/api';
 import { LocalEngine } from './services/localEngine';
@@ -68,6 +72,72 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [searchInput, setSearchInput] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      return LocalEngine.getCurrentUser();
+    } catch {
+      return null;
+    }
+  });
+  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
+
+  // Verify auth on mount if token exists
+  useEffect(() => {
+    const token = localStorage.getItem('stockscreener_auth_token_v1');
+    if (token) {
+      axios.get(`${API_BASE}/auth/me`)
+        .then(res => {
+          if (res.data && res.data.user) {
+            setCurrentUser(res.data.user);
+            LocalEngine.setCurrentUser(res.data.user);
+          }
+        })
+        .catch(() => {
+          // Keep local user or clear if invalid
+        });
+    }
+  }, []);
+
+  const refreshActivePortfolio = () => {
+    const activeId = LocalEngine.getActivePortfolioId();
+    const portfolioUrl = activeId ? `${API_BASE}/portfolio?portfolio_id=${activeId}` : `${API_BASE}/portfolio`;
+    axios.get(portfolioUrl, { params: activeId ? { portfolio_id: activeId } : undefined })
+      .then(res => {
+        if (res.data) {
+          setActivePortfolio(res.data);
+          if (res.data.id) {
+            LocalEngine.setActivePortfolioId(res.data.id);
+          }
+        }
+      })
+      .catch(err => {
+        console.error("Could not fetch active portfolio", err);
+        try {
+          const localPerf = LocalEngine.getPortfolioPerformance(activeId);
+          setActivePortfolio(localPerf);
+        } catch {
+          // ignore
+        }
+      });
+  };
+
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    // Refresh active portfolio for the newly logged in user
+    refreshActivePortfolio();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_BASE}/auth/logout`);
+    } catch {
+      // ignore
+    }
+    LocalEngine.logoutUser();
+    setCurrentUser(null);
+    refreshActivePortfolio();
+  };
 
   // Fetch Sectors & Active Portfolio summary on mount (syncs with backend if reachable)
   useEffect(() => {
@@ -298,6 +368,61 @@ export const App: React.FC = () => {
               <Download className="w-3.5 h-3.5" />
               <span>Exporter CSV</span>
             </button>
+
+            {/* User Account / Auth Section */}
+            <div className="h-6 w-px bg-slate-800 mx-1 hidden sm:block" />
+
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg">
+                  <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-[11px] font-bold text-indigo-300">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div className="hidden md:flex flex-col text-left">
+                    <span className="text-xs font-semibold text-white leading-tight">
+                      {currentUser.name || currentUser.email.split('@')[0]}
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-mono">Connecté</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleLogout}
+                  type="button"
+                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-rose-400 bg-slate-900 hover:bg-slate-850 p-2 rounded-lg border border-slate-800 transition"
+                  title="Se déconnecter"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">Déconnexion</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalMode('login');
+                    setAuthModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-750 px-3 py-2 rounded-lg border border-slate-700 transition"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Connexion</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalMode('signup');
+                    setAuthModalOpen(true);
+                  }}
+                  className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 px-3 py-2 rounded-lg shadow-md shadow-indigo-600/20 transition"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Inscription</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -426,6 +551,14 @@ export const App: React.FC = () => {
       <StockDetailModal
         company={selectedCompany}
         onClose={() => setSelectedCompany(null)}
+      />
+
+      {/* Auth Modal (Login & Signup) */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+        initialMode={authModalMode}
       />
 
       {/* Footer */}

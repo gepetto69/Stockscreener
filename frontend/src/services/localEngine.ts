@@ -72,10 +72,54 @@ for (const c of companies) {
   companyMap.set(c.symbol.toUpperCase(), c);
 }
 
-// Portfolio LocalStorage Persistence
+// Portfolio & Auth LocalStorage Persistence
 const PORTFOLIO_STORAGE_KEY = 'stockscreener_portfolios_v1';
 const POSITIONS_STORAGE_KEY = 'stockscreener_positions_v1';
 const ACTIVE_PORTFOLIO_KEY = 'stockscreener_active_portfolio_id_v1';
+const USERS_STORAGE_KEY = 'stockscreener_users_v1';
+const CURRENT_USER_KEY = 'stockscreener_current_user_v1';
+const AUTH_TOKEN_KEY = 'stockscreener_auth_token_v1';
+
+function getStoredUsers(): any[] {
+  try {
+    const raw = localStorage.getItem(USERS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function saveStoredUsers(users: any[]) {
+  try {
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  } catch {
+    // ignore
+  }
+}
+
+function getStoredCurrentUser(): any | null {
+  try {
+    const raw = localStorage.getItem(CURRENT_USER_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveStoredCurrentUser(user: any | null) {
+  try {
+    if (user) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(CURRENT_USER_KEY);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 function getStoredPortfolios(): any[] {
   try {
@@ -778,12 +822,137 @@ export class LocalEngine {
     });
   }
 
-  static listPortfolios() {
+  // Auth methods
+  static getCurrentUser(): any | null {
+    return getStoredCurrentUser();
+  }
+
+  static setCurrentUser(user: any | null): void {
+    saveStoredCurrentUser(user);
+  }
+
+  static registerUser(name: string, email: string, password: string): any {
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanName = String(name || '').trim() || cleanEmail.split('@')[0];
+
+    const users = getStoredUsers();
+    if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
+      throw new Error('Un compte existe déjà avec cette adresse email.');
+    }
+
+    const maxId = users.reduce((m, u) => Math.max(m, u.id || 0), 0);
+    const now = new Date().toISOString();
+    const newUser = {
+      id: maxId + 1,
+      name: cleanName,
+      email: cleanEmail,
+      password, // in local browser fallback
+      created_at: now
+    };
+    users.push(newUser);
+    saveStoredUsers(users);
+
+    const safeUser = { id: newUser.id, name: newUser.name, email: newUser.email, created_at: newUser.created_at };
+    saveStoredCurrentUser(safeUser);
+
+    // Create a personalized welcome portfolio for this user (Balanced GARP, 10,000 EUR)
+    const portfolios = getStoredPortfolios();
+    const portMaxId = portfolios.reduce((m, p) => Math.max(m, p.id || 0), 0);
+    const welcomePort = {
+      id: portMaxId + 1,
+      user_id: newUser.id,
+      name: `Portefeuille de ${cleanName}`,
+      strategy: 'balanced',
+      initial_capital: 10000,
+      cash_balance: 10000,
+      currency: 'EUR',
+      created_at: now,
+      updated_at: now
+    };
+    portfolios.push(welcomePort);
+    saveStoredPortfolios(portfolios);
+    saveStoredActivePortfolioId(welcomePort.id);
+
+    // Populate welcome portfolio with top balanced picks
+    const balancedPicks = [
+      { symbol: 'MSFT', shares: 3.0, buy_price: 430.0 },
+      { symbol: 'GOOGL', shares: 7.0, buy_price: 180.0 },
+      { symbol: 'AAPL', shares: 6.0, buy_price: 220.0 },
+      { symbol: 'MC.PA', shares: 2.0, buy_price: 640.0 }
+    ];
+
+    const allPositions = getStoredPositions();
+    let totalInvested = 0;
+    for (const pick of balancedPicks) {
+      const posMaxId = allPositions.reduce((m, p) => Math.max(m, p.id || 0), 0);
+      const company = companyMap.get(pick.symbol);
+      const buyPrice = company?.current_price || pick.buy_price;
+      totalInvested += buyPrice * pick.shares;
+
+      allPositions.push({
+        id: posMaxId + 1,
+        portfolio_id: welcomePort.id,
+        company_id: company ? company.id : null,
+        symbol: pick.symbol,
+        shares: pick.shares,
+        buy_price: buyPrice,
+        buy_date: now,
+        notes: "Allocation d'accueil offerte"
+      });
+    }
+
+    welcomePort.cash_balance = Math.max(0, Math.round((10000 - totalInvested) * 100) / 100);
+    saveStoredPositions(allPositions);
+    saveStoredPortfolios(portfolios);
+
+    return {
+      status: 'success',
+      token: `local_token_${newUser.id}_${Date.now()}`,
+      user: safeUser
+    };
+  }
+
+  static loginUser(email: string, password: string): any {
+    const cleanEmail = String(email).trim().toLowerCase();
+    const users = getStoredUsers();
+    const user = users.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    if (!user || user.password !== password) {
+      throw new Error('Adresse email ou mot de passe incorrect.');
+    }
+
+    const safeUser = { id: user.id, name: user.name, email: user.email, created_at: user.created_at };
+    saveStoredCurrentUser(safeUser);
+
+    // Set active portfolio to one belonging to this user if exists
+    const portfolios = getStoredPortfolios();
+    const userPort = portfolios.find((p) => p.user_id === user.id);
+    if (userPort) {
+      saveStoredActivePortfolioId(userPort.id);
+    }
+
+    return {
+      status: 'success',
+      token: `local_token_${user.id}_${Date.now()}`,
+      user: safeUser
+    };
+  }
+
+  static logoutUser(): void {
+    saveStoredCurrentUser(null);
+  }
+
+  static listPortfolios(userId: number | null = null) {
     const portfolios = getStoredPortfolios();
     const positions = getStoredPositions();
     const result: any[] = [];
 
-    for (const p of portfolios) {
+    const effectiveUserId = userId ?? getStoredCurrentUser()?.id ?? null;
+    const filteredPortfolios = effectiveUserId
+      ? portfolios.filter((p) => p.user_id === effectiveUserId || !p.user_id)
+      : portfolios;
+
+    for (const p of filteredPortfolios) {
       const stratDef = STRATEGY_DEFINITIONS[p.strategy] || STRATEGY_DEFINITIONS.balanced;
       const portPositions = positions.filter((pos) => pos.portfolio_id === p.id);
 
@@ -1010,6 +1179,7 @@ export class LocalEngine {
 
     return {
       id: portfolio.id,
+      user_id: portfolio.user_id || null,
       name: portfolio.name,
       strategy: portfolio.strategy,
       strategy_title: stratDef.title,
@@ -1050,6 +1220,8 @@ export class LocalEngine {
     const existingIdx = portfolios.findIndex((p) => p.name === requestedName);
     let portfolio: any;
     const now = new Date().toISOString();
+    const currentUser = getStoredCurrentUser();
+    const userId = setupData.user_id || currentUser?.id || null;
 
     if (existingIdx >= 0) {
       portfolio = portfolios[existingIdx];
@@ -1057,12 +1229,14 @@ export class LocalEngine {
       portfolio.initial_capital = Number(setupData.initial_capital);
       portfolio.cash_balance = Number(setupData.initial_capital);
       portfolio.currency = setupData.currency;
+      if (userId) portfolio.user_id = userId;
       portfolio.updated_at = now;
       positions = positions.filter((p) => p.portfolio_id !== portfolio.id);
     } else {
       const maxId = portfolios.reduce((m, p) => Math.max(m, p.id || 0), 0);
       portfolio = {
         id: maxId + 1,
+        user_id: userId,
         name: requestedName,
         strategy: stratKey,
         initial_capital: Number(setupData.initial_capital),

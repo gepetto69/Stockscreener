@@ -153,8 +153,8 @@ class PortfolioService {
     );
   }
 
-  static listPortfolios() {
-    const portfolios = store.getPortfolios();
+  static listPortfolios(userId = null) {
+    const portfolios = store.getPortfolios(userId);
     const result = [];
 
     for (const p of portfolios) {
@@ -193,7 +193,7 @@ class PortfolioService {
     return result;
   }
 
-  static getPortfolioPerformance(portfolioId = null) {
+  static getPortfolioPerformance(portfolioId = null, userId = null) {
     let portfolio;
     if (portfolioId) {
       portfolio = store.getPortfolioById(portfolioId);
@@ -201,7 +201,7 @@ class PortfolioService {
         store.setActivePortfolioId(portfolio.id);
       }
     } else {
-      portfolio = store.getLatestPortfolio();
+      portfolio = store.getLatestPortfolio(userId);
     }
 
     if (!portfolio) return null;
@@ -376,6 +376,7 @@ class PortfolioService {
 
     return {
       id: portfolio.id,
+      user_id: portfolio.user_id || null,
       name: portfolio.name,
       strategy: portfolio.strategy,
       strategy_title: stratDef.title,
