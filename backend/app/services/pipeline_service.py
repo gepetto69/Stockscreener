@@ -44,6 +44,21 @@ CURATED_UNIVERSE = [
         "business_model": "Vente de puces ultra haute performance (H100, B200 Blackwell) avec un pricing power exceptionnel, architecture réseau complète (InfiniBand) et verrouillage logiciel propriétaire via l'écosystème CUDA."
     },
     {
+        "symbol": "AMZN", "name": "Amazon.com, Inc.", "sector": "Consumer Cyclical", "industry": "Internet Retail", "country": "USA",
+        "business_summary": "Amazon.com, Inc. est un leader technologique mondial incontournable dans le commerce en ligne, le cloud computing (Amazon Web Services - AWS), la publicité numérique et les abonnements Prime. AWS est le moteur de rentabilité du groupe et l'infrastructure cloud dominante pour les déploiements d'entreprises et d'IA générative.",
+        "business_model": "Modèle économique ultra-robuste combinant les marges opérationnelles élevées d'AWS, les flux récurrents des abonnements Prime, l'hyper-croissance de la régie publicitaire et la marketplace logistique mondiale."
+    },
+    {
+        "symbol": "META", "name": "Meta Platforms, Inc.", "sector": "Communication Services", "industry": "Internet Content & Information", "country": "USA",
+        "business_summary": "Meta Platforms, Inc. est le leader planétaire des réseaux sociaux et de la communication digitale (Facebook, Instagram, WhatsApp, Messenger, Threads). L'entreprise réunit plus de 3 milliards d'utilisateurs actifs quotidiens et investit massivement dans les modèles de fondation IA (Llama) et les technologies d'informatique spatiale.",
+        "business_model": "Monétisation d'un engagement utilisateur sans équivalent par la publicité numérique ciblée à très forte marge, générant des dizaines de milliards de dollars de Free Cash Flow annuel et des rachats massifs d'actions."
+    },
+    {
+        "symbol": "TSLA", "name": "Tesla, Inc.", "sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "country": "USA",
+        "business_summary": "Tesla, Inc. est le pionnier et leader mondial de la mobilité électrique (Model Y, Model 3, Cybertruck), du stockage d'énergie renouvelable par batteries stationnaires (Megapack, Powerwall) et du calcul accéléré pour la conduite autonome (FSD) et la robotique autonome (Optimus).",
+        "business_model": "Vente de véhicules électriques connectés à marge brute industrielle supérieure, services logiciels récurrents de connectivité et de conduite autonome (Full Self-Driving), réseau propriétaire de recharge Supercharger et déploiement mondial de stockage énergétique."
+    },
+    {
         "symbol": "ASML", "name": "ASML Holding N.V.", "sector": "Technology", "industry": "Semiconductor Equipment", "country": "Netherlands",
         "business_summary": "ASML est le fabricant mondial exclusif de systèmes de lithographie extrême ultraviolet (EUV) indispensables à la gravure des puces semi-conductrices les plus avancées (TSMC, Intel, Samsung). L'entreprise dispose d'un monopole technologique absolu sur le segment le plus stratégique de l'électronique moderne.",
         "business_model": "Vente de machines industrielles ultra complexes à plusieurs centaines de millions d'euros par unité, assortie de contrats de maintenance, de mise à niveau logicielle et de pièces détachées pluriannuels à marges très élevées."
@@ -164,13 +179,43 @@ FALLBACK_FINANCIAL_PROFILES = {
         ]
     },
     "GOOGL": {
-        "pe": 22.4, "pfcf": 24.1, "price": 165.0, "mcap": 2050000000000, "yield": 0.45,
+        "pe": 17.64, "pfcf": 20.5, "price": 351.66, "mcap": 4301000000000, "yield": 0.25,
         "years": [
-            {"year": 2020, "rev": 182527, "op_inc": 41224, "ebitda": 54629, "ni": 40269, "eps": 2.93, "fcf": 42843, "debt": 27213, "cash": 136694, "assets": 319616, "equity": 222544, "cur_a": 174296, "cur_l": 44283, "div": 0},
-            {"year": 2021, "rev": 257637, "op_inc": 78714, "ebitda": 91155, "ni": 76033, "eps": 5.61, "fcf": 67012, "debt": 28504, "cash": 139649, "assets": 359268, "equity": 251635, "cur_a": 188143, "cur_l": 64254, "div": 0},
-            {"year": 2022, "rev": 282836, "op_inc": 74842, "ebitda": 90770, "ni": 59972, "eps": 4.56, "fcf": 60010, "debt": 29699, "cash": 113762, "assets": 365264, "equity": 256144, "cur_a": 164805, "cur_l": 69300, "div": 0},
-            {"year": 2023, "rev": 307394, "op_inc": 84293, "ebitda": 102000, "ni": 73795, "eps": 5.80, "fcf": 69494, "debt": 28000, "cash": 110916, "assets": 402392, "equity": 283388, "cur_a": 177432, "cur_l": 78000, "div": 0},
-            {"year": 2024, "rev": 345000, "op_inc": 105000, "ebitda": 125000, "ni": 92000, "eps": 7.35, "fcf": 85000, "debt": 27000, "cash": 115000, "assets": 440000, "equity": 320000, "cur_a": 195000, "cur_l": 82000, "div": 2500},
+            {"year": 2020, "rev": 182527, "op_inc": 41224, "ebitda": 54629, "ni": 40269, "eps": 8.05, "fcf": 42843, "debt": 27213, "cash": 136694, "assets": 319616, "equity": 222544, "cur_a": 174296, "cur_l": 44283, "div": 0},
+            {"year": 2021, "rev": 257637, "op_inc": 78714, "ebitda": 91155, "ni": 76033, "eps": 15.20, "fcf": 67012, "debt": 28504, "cash": 139649, "assets": 359268, "equity": 251635, "cur_a": 188143, "cur_l": 64254, "div": 0},
+            {"year": 2022, "rev": 282836, "op_inc": 74842, "ebitda": 90770, "ni": 59972, "eps": 12.10, "fcf": 60010, "debt": 29699, "cash": 113762, "assets": 365264, "equity": 256144, "cur_a": 164805, "cur_l": 69300, "div": 0},
+            {"year": 2023, "rev": 307394, "op_inc": 84293, "ebitda": 102000, "ni": 73795, "eps": 14.80, "fcf": 69494, "debt": 28000, "cash": 110916, "assets": 402392, "equity": 283388, "cur_a": 177432, "cur_l": 78000, "div": 0},
+            {"year": 2024, "rev": 350000, "op_inc": 118000, "ebitda": 142000, "ni": 100000, "eps": 19.93, "fcf": 88000, "debt": 26000, "cash": 118000, "assets": 450000, "equity": 330000, "cur_a": 205000, "cur_l": 85000, "div": 2500},
+        ]
+    },
+    "AMZN": {
+        "pe": 21.1, "pfcf": 24.5, "price": 262.43, "mcap": 2830000000000, "yield": 0.0,
+        "years": [
+            {"year": 2020, "rev": 386064, "op_inc": 22899, "ebitda": 48000, "ni": 21331, "eps": 2.09, "fcf": 25924, "debt": 84389, "cash": 84396, "assets": 321195, "equity": 93404, "cur_a": 132733, "cur_l": 126385, "div": 0},
+            {"year": 2021, "rev": 469822, "op_inc": 24879, "ebitda": 59100, "ni": 33364, "eps": 3.24, "fcf": -14726, "debt": 116395, "cash": 96049, "assets": 420549, "equity": 138245, "cur_a": 161580, "cur_l": 142266, "div": 0},
+            {"year": 2022, "rev": 513983, "op_inc": 12248, "ebitda": 54100, "ni": -2722, "eps": -0.27, "fcf": -16893, "debt": 140118, "cash": 70026, "assets": 462675, "equity": 146043, "cur_a": 146791, "cur_l": 155393, "div": 0},
+            {"year": 2023, "rev": 574785, "op_inc": 36852, "ebitda": 85500, "ni": 30425, "eps": 2.90, "fcf": 36800, "debt": 135000, "cash": 86780, "assets": 527854, "equity": 201875, "cur_a": 172000, "cur_l": 165000, "div": 0},
+            {"year": 2024, "rev": 638000, "op_inc": 60500, "ebitda": 115000, "ni": 48000, "eps": 4.55, "fcf": 52000, "debt": 128000, "cash": 92000, "assets": 590000, "equity": 260000, "cur_a": 195000, "cur_l": 175000, "div": 0},
+        ]
+    },
+    "META": {
+        "pe": 27.1, "pfcf": 25.0, "price": 718.67, "mcap": 1830000000000, "yield": 0.35,
+        "years": [
+            {"year": 2020, "rev": 85965, "op_inc": 34203, "ebitda": 43000, "ni": 29146, "eps": 10.09, "fcf": 23632, "debt": 10600, "cash": 61954, "assets": 159316, "equity": 128290, "cur_a": 75670, "cur_l": 14981, "div": 0},
+            {"year": 2021, "rev": 117929, "op_inc": 46753, "ebitda": 54720, "ni": 39370, "eps": 13.77, "fcf": 38439, "debt": 13800, "cash": 47998, "assets": 165987, "equity": 124879, "cur_a": 66666, "cur_l": 21135, "div": 0},
+            {"year": 2022, "rev": 116609, "op_inc": 28944, "ebitda": 37800, "ni": 23200, "eps": 8.59, "fcf": 18439, "debt": 27000, "cash": 40700, "assets": 185727, "equity": 125713, "cur_a": 59549, "cur_l": 27026, "div": 0},
+            {"year": 2023, "rev": 134902, "op_inc": 46751, "ebitda": 61000, "ni": 39098, "eps": 14.87, "fcf": 43000, "debt": 37000, "cash": 65400, "assets": 229623, "equity": 153170, "cur_a": 85000, "cur_l": 34000, "div": 0},
+            {"year": 2024, "rev": 164000, "op_inc": 69000, "ebitda": 88000, "ni": 58000, "eps": 22.50, "fcf": 53000, "debt": 38000, "cash": 72000, "assets": 275000, "equity": 190000, "cur_a": 105000, "cur_l": 40000, "div": 4500},
+        ]
+    },
+    "TSLA": {
+        "pe": 354.0, "pfcf": 85.0, "price": 382.70, "mcap": 1511000000000, "yield": 0.0,
+        "years": [
+            {"year": 2020, "rev": 31536, "op_inc": 1994, "ebitda": 4224, "ni": 721, "eps": 0.25, "fcf": 2701, "debt": 11688, "cash": 19384, "assets": 52148, "equity": 22225, "cur_a": 26717, "cur_l": 14248, "div": 0},
+            {"year": 2021, "rev": 53823, "op_inc": 6523, "ebitda": 9598, "ni": 5519, "eps": 1.63, "fcf": 3483, "debt": 6834, "cash": 17576, "assets": 62131, "equity": 30189, "cur_a": 27100, "cur_l": 19705, "div": 0},
+            {"year": 2022, "rev": 81462, "op_inc": 13656, "ebitda": 17660, "ni": 12583, "eps": 3.62, "fcf": 7566, "debt": 3099, "cash": 22185, "assets": 82338, "equity": 44704, "cur_a": 40917, "cur_l": 26709, "div": 0},
+            {"year": 2023, "rev": 96773, "op_inc": 8891, "ebitda": 14700, "ni": 14997, "eps": 4.30, "fcf": 4358, "debt": 4800, "cash": 29094, "assets": 106618, "equity": 62634, "cur_a": 49616, "cur_l": 28748, "div": 0},
+            {"year": 2024, "rev": 99500, "op_inc": 9200, "ebitda": 15500, "ni": 7800, "eps": 2.25, "fcf": 4100, "debt": 5200, "cash": 33000, "assets": 118000, "equity": 71000, "cur_a": 55000, "cur_l": 31000, "div": 0},
         ]
     },
     "NVO": {
@@ -256,6 +301,44 @@ FALLBACK_FINANCIAL_PROFILES = {
 }
 
 
+DEFAULT_TICKER_MARKET_DATA = {
+    "GLW": {"price": 205.79, "mcap": 175000000000.0, "pe": 34.2, "yield": 1.45},
+    "MSFT": {"price": 535.07, "mcap": 3973000000000.0, "pe": 29.8, "yield": 0.75},
+    "AAPL": {"price": 336.64, "mcap": 4913000000000.0, "pe": 38.6, "yield": 0.50},
+    "GOOGL": {"price": 351.66, "mcap": 4301000000000.0, "pe": 17.64, "yield": 0.25},
+    "NVDA": {"price": 229.28, "mcap": 5536000000000.0, "pe": 29.0, "yield": 0.10},
+    "AMZN": {"price": 262.43, "mcap": 2830000000000.0, "pe": 21.1, "yield": 0.0},
+    "META": {"price": 718.67, "mcap": 1830000000000.0, "pe": 27.1, "yield": 0.35},
+    "TSLA": {"price": 382.70, "mcap": 1511000000000.0, "pe": 354.0, "yield": 0.0},
+    "ASML": {"price": 1780.34, "mcap": 683800000000.0, "pe": 57.8, "yield": 0.95},
+    "JNJ": {"price": 261.44, "mcap": 630000000000.0, "pe": 30.3, "yield": 2.50},
+    "NVO": {"price": 38.64, "mcap": 170500000000.0, "pe": 9.4, "yield": 1.40},
+    "UNH": {"price": 379.30, "mcap": 340400000000.0, "pe": 24.4, "yield": 1.80},
+    "COST": {"price": 946.92, "mcap": 419600000000.0, "pe": 45.6, "yield": 0.60},
+    "PG": {"price": 151.23, "mcap": 351500000000.0, "pe": 22.8, "yield": 2.60},
+    "KO": {"price": 88.05, "mcap": 378800000000.0, "pe": 26.4, "yield": 3.10},
+    "MCD": {"price": 235.23, "mcap": 166400000000.0, "pe": 19.1, "yield": 2.40},
+    "OR.PA": {"price": 381.95, "mcap": 203300000000.0, "pe": 32.4, "yield": 1.70},
+    "MC.PA": {"price": 382.00, "mcap": 188300000000.0, "pe": 17.4, "yield": 2.80},
+    "RMS.PA": {"price": 1292.00, "mcap": 135300000000.0, "pe": 30.0, "yield": 0.90},
+    "V": {"price": 385.45, "mcap": 723600000000.0, "pe": 32.8, "yield": 0.80},
+    "MA": {"price": 589.14, "mcap": 516000000000.0, "pe": 32.4, "yield": 0.60},
+    "AIR.PA": {"price": 187.96, "mcap": 148700000000.0, "pe": 25.0, "yield": 1.40},
+    "SU.PA": {"price": 266.45, "mcap": 150000000000.0, "pe": 32.0, "yield": 1.90},
+    "SAN.PA": {"price": 71.90, "mcap": 86100000000.0, "pe": 22.1, "yield": 4.10},
+}
+
+
+def safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
+    if val is None:
+        return default
+    try:
+        f = float(val)
+        return default if math.isnan(f) or math.isinf(f) else f
+    except (ValueError, TypeError):
+        return default
+
+
 class DataPipelineService:
     """
     Handles fetching financial data from yfinance (or curated historical database),
@@ -263,11 +346,14 @@ class DataPipelineService:
     """
 
     @classmethod
-    def seed_initial_universe(cls, db: Session, fetch_live_yfinance: bool = True):
+    def seed_initial_universe(cls, db: Session, fetch_live_yfinance: bool = True) -> int:
         """
-        Populate universe with comprehensive historical data and calculate quality scores
+        Populate universe with comprehensive historical data and calculate quality scores.
+        When fetch_live_yfinance is True, updates live prices and quotes from Yahoo Finance.
+        Returns the number of companies seeded or refreshed.
         """
-        logger.info("Seeding initial company universe...")
+        logger.info(f"Seeding/refreshing initial company universe (live_quotes={fetch_live_yfinance})...")
+        updated_count = 0
         
         for item in CURATED_UNIVERSE:
             symbol = item["symbol"]
@@ -298,39 +384,131 @@ class DataPipelineService:
             # Check if statements or prices already exist
             existing_stmts = db.query(FinancialStatement).filter(FinancialStatement.company_id == company.id).count()
             existing_prices = db.query(StockPrice).filter(StockPrice.company_id == company.id).count()
+            
             if existing_stmts < 3 or existing_prices < 10:
                 cls.populate_company_data(db, company, fetch_live_yfinance=fetch_live_yfinance)
+                updated_count += 1
+            elif fetch_live_yfinance:
+                success = cls.refresh_company_live_data(db, company)
+                if success:
+                    updated_count += 1
+
+        return updated_count
 
     @classmethod
     def populate_company_data(cls, db: Session, company: Company, fetch_live_yfinance: bool = False):
         symbol = company.symbol
         fallback_data = FALLBACK_FINANCIAL_PROFILES.get(symbol)
         
-        # If live fetching is desired, try yfinance first
+        # 1. First ensure 5-year financial statements and baseline data are populated
+        if fallback_data:
+            cls._populate_from_profile(db, company, fallback_data)
+        else:
+            cls._generate_generic_profile(db, company)
+
+        # 2. If live fetching is desired, fetch real-time market data & 1Y daily history from yfinance
         live_success = False
         if fetch_live_yfinance:
             try:
-                live_success = cls._fetch_yfinance(db, company)
+                live_success = cls.refresh_company_live_data(db, company)
             except Exception as e:
-                logger.warning(f"Live fetch for {symbol} failed ({e}), falling back to curated profile.")
+                logger.warning(f"Live fetch for {symbol} failed ({e}), keeping curated profile baseline.")
 
-        if not live_success and fallback_data:
-            cls._populate_from_profile(db, company, fallback_data)
-        elif not live_success and not fallback_data:
-            # Generate consistent high-quality fallback for any other company
-            cls._generate_generic_profile(db, company)
-
-        # Recalculate Quality Score
-        statements = db.query(FinancialStatement).filter(FinancialStatement.company_id == company.id).all()
-        q_score = QualityScoringEngine.evaluate_company(company, statements)
-        
-        existing_score = db.query(QualityScore).filter(QualityScore.company_id == company.id).first()
-        if existing_score:
-            db.delete(existing_score)
+        # 3. Recalculate Quality Score if live refresh didn't already
+        if not live_success:
+            statements = db.query(FinancialStatement).filter(FinancialStatement.company_id == company.id).all()
+            q_score = QualityScoringEngine.evaluate_company(company, statements)
+            
+            existing_score = db.query(QualityScore).filter(QualityScore.company_id == company.id).first()
+            if existing_score:
+                db.delete(existing_score)
+                db.commit()
+            
+            db.add(q_score)
             db.commit()
-        
-        db.add(q_score)
-        db.commit()
+
+    @classmethod
+    def refresh_company_live_data(cls, db: Session, company: Company) -> bool:
+        """
+        Fetches live market data (current price, market cap, PE ratio, dividend yield, 1Y price history)
+        from yfinance, updates company fields and StockPrice table, and recalculates quality score.
+        """
+        try:
+            ticker = yf.Ticker(company.symbol)
+            info = ticker.info or {}
+            
+            price = safe_float(info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose"))
+            
+            # If info dict is empty or missing price, attempt retrieving latest close from history
+            hist = ticker.history(period="1y")
+            if not price and not hist.empty:
+                price = safe_float(hist["Close"].iloc[-1])
+
+            if not price:
+                logger.warning(f"Could not retrieve live price for {company.symbol}")
+                return False
+
+            company.current_price = round(price, 2)
+            
+            mcap = safe_float(info.get("marketCap"))
+            if mcap:
+                company.market_cap = mcap
+            
+            pe = safe_float(info.get("trailingPE"))
+            if pe:
+                company.pe_ratio = round(pe, 2)
+            
+            div_yield = safe_float(info.get("dividendYield"))
+            if div_yield is not None:
+                company.dividend_yield = round(div_yield * 100.0, 2)
+            
+            if info.get("currency"):
+                company.currency = str(info["currency"]).upper()
+                
+            if info.get("longBusinessSummary") and not company.business_summary:
+                company.description = info["longBusinessSummary"]
+
+            # Save full 1-year historical daily prices
+            if not hist.empty:
+                db.query(StockPrice).filter(StockPrice.company_id == company.id).delete()
+                for idx, row in hist.iterrows():
+                    dt = idx.to_pydatetime()
+                    if hasattr(dt, "tzinfo") and dt.tzinfo is not None:
+                        dt = dt.replace(tzinfo=None)
+                    c_price = safe_float(row.get("Close"))
+                    if c_price is None:
+                        continue
+                    price_row = StockPrice(
+                        company_id=company.id,
+                        date=dt,
+                        open=round(safe_float(row.get("Open"), c_price), 2),
+                        high=round(safe_float(row.get("High"), c_price), 2),
+                        low=round(safe_float(row.get("Low"), c_price), 2),
+                        close=round(c_price, 2),
+                        volume=float(safe_float(row.get("Volume"), 0.0))
+                    )
+                    db.add(price_row)
+
+            company.updated_at = datetime.utcnow()
+
+            # Recalculate Quality Score with updated live market multiples
+            statements = db.query(FinancialStatement).filter(FinancialStatement.company_id == company.id).all()
+            if statements:
+                q_score = QualityScoringEngine.evaluate_company(company, statements)
+                existing_score = db.query(QualityScore).filter(QualityScore.company_id == company.id).first()
+                if existing_score:
+                    db.delete(existing_score)
+                    db.commit()
+                db.add(q_score)
+
+            db.commit()
+            db.refresh(company)
+            logger.info(f"Successfully updated live market data for {company.symbol}: {company.current_price} {company.currency}, PE={company.pe_ratio}")
+            return True
+        except Exception as e:
+            logger.error(f"Error fetching live data for {company.symbol}: {e}")
+            db.rollback()
+            return False
 
     @classmethod
     def _populate_from_profile(cls, db: Session, company: Company, profile: Dict[str, Any]):
@@ -427,17 +605,17 @@ class DataPipelineService:
                 )
                 db.add(price_row)
         else:
-            for i in range(90, 0, -2):
+            for i in range(180, 0, -2):
                 dt = now - timedelta(days=i)
                 # small realistic pseudo random variation
-                var = math.sin(i / 5.0) * 0.04 + (90 - i) * 0.001
+                var = math.sin(i / 7.0) * 0.05 + math.cos(i / 13.0) * 0.03
                 p = round(base_price * (1.0 + var), 2)
                 price_row = StockPrice(
                     company_id=company.id,
                     date=dt,
-                    open=p * 0.995,
-                    high=p * 1.01,
-                    low=p * 0.99,
+                    open=round(p * 0.995, 2),
+                    high=round(p * 1.01, 2),
+                    low=round(p * 0.99, 2),
                     close=p,
                     volume=1500000.0
                 )
@@ -448,11 +626,12 @@ class DataPipelineService:
     @classmethod
     def _generate_generic_profile(cls, db: Session, company: Company):
         """Generates consistent mock financials for any other stock symbol"""
-        company.current_price = 150.0
-        company.market_cap = 50000000000
-        company.pe_ratio = 20.0
+        meta = DEFAULT_TICKER_MARKET_DATA.get(company.symbol, {})
+        company.current_price = meta.get("price", 150.0)
+        company.market_cap = meta.get("mcap", 50000000000.0)
+        company.pe_ratio = meta.get("pe", 20.0)
         company.pfcf_ratio = 18.0
-        company.dividend_yield = 1.8
+        company.dividend_yield = meta.get("yield", 1.8)
         
         db.query(FinancialStatement).filter(FinancialStatement.company_id == company.id).delete()
         now_year = datetime.utcnow().year
@@ -506,9 +685,9 @@ class DataPipelineService:
         db.query(StockPrice).filter(StockPrice.company_id == company.id).delete()
         base_price = company.current_price or 150.0
         now = datetime.utcnow()
-        for i in range(90, 0, -2):
+        for i in range(180, 0, -2):
             dt = now - timedelta(days=i)
-            var = math.sin(i / 5.0) * 0.04 + (90 - i) * 0.001
+            var = math.sin(i / 7.0) * 0.05 + math.cos(i / 13.0) * 0.03
             p = round(base_price * (1.0 + var), 2)
             price_row = StockPrice(
                 company_id=company.id,
@@ -522,41 +701,3 @@ class DataPipelineService:
             db.add(price_row)
 
         db.commit()
-
-    @classmethod
-    def _fetch_yfinance(cls, db: Session, company: Company) -> bool:
-        """
-        Attempts to fetch live balance sheet, income statement, cash flow, and quotes from yfinance
-        """
-        ticker = yf.Ticker(company.symbol)
-        info = ticker.info
-        if not info or "regularMarketPrice" not in info and "currentPrice" not in info:
-            return False
-
-        company.name = info.get("longName") or company.name
-        company.sector = info.get("sector") or company.sector
-        company.industry = info.get("industry") or company.industry
-        company.current_price = info.get("currentPrice") or info.get("regularMarketPrice")
-        company.market_cap = info.get("marketCap")
-        company.pe_ratio = info.get("trailingPE")
-        company.dividend_yield = (info.get("dividendYield", 0) or 0) * 100.0
-        company.description = info.get("longBusinessSummary") or company.description
-
-        hist = ticker.history(period="3mo")
-        if not hist.empty:
-            db.query(StockPrice).filter(StockPrice.company_id == company.id).delete()
-            for idx, row in hist.iterrows():
-                dt = idx.to_pydatetime()
-                price_row = StockPrice(
-                    company_id=company.id,
-                    date=dt,
-                    open=float(row["Open"]),
-                    high=float(row["High"]),
-                    low=float(row["Low"]),
-                    close=float(row["Close"]),
-                    volume=float(row["Volume"])
-                )
-                db.add(price_row)
-
-        db.commit()
-        return True

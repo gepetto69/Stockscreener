@@ -28,7 +28,7 @@ def screen_stocks(filters: ScreenerFilterParams, db: Session = Depends(get_db)):
 
 
 @router.get("/companies/{symbol}", response_model=CompanyDetailSchema)
-def get_company_detail(symbol: str, db: Session = Depends(get_db)):
+def get_company_detail(symbol: str, refresh: bool = False, db: Session = Depends(get_db)):
     """
     Fetch comprehensive company detail, multi-year financial statements,
     historical stock prices and quality score breakdown.
@@ -36,6 +36,9 @@ def get_company_detail(symbol: str, db: Session = Depends(get_db)):
     company = db.query(Company).filter(Company.symbol == symbol.upper()).first()
     if not company:
         raise HTTPException(status_code=404, detail=f"Company with symbol '{symbol}' not found")
+
+    if refresh or company.current_price is None:
+        DataPipelineService.refresh_company_live_data(db, company)
 
     stmts = sorted(company.financial_statements, key=lambda s: s.fiscal_year)
     prices = sorted(company.stock_prices, key=lambda p: p.date)
@@ -179,5 +182,9 @@ def export_screened_csv(filters: ScreenerFilterParams, db: Session = Depends(get
 @router.post("/pipeline/refresh")
 def refresh_universe(db: Session = Depends(get_db)):
     """Trigger manual or scheduled data pipeline refresh and scoring calculation"""
-    DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=False)
-    return {"status": "success", "message": "Stock universe & quality scores successfully refreshed"}
+    count = DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=True)
+    return {
+        "status": "success",
+        "message": "Stock universe & quality scores successfully refreshed with live market quotes",
+        "companies_updated": count
+    }

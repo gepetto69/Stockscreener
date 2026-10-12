@@ -157,3 +157,38 @@ def test_copilot_einstein_endpoint(client):
     assert len(data["competitors"]) > 0
     assert "rank" in data["competitors"][0]
     assert "einstein_score" in data["competitors"][0]
+
+
+def test_googl_detail_price_and_history(client):
+    response = client.get("/api/companies/GOOGL")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["symbol"] == "GOOGL"
+    assert data["name"] == "Alphabet Inc."
+    # Price should reflect realistic ~351.66 USD range, not outdated 165.0 USD
+    assert data["current_price"] >= 300.0
+    assert data["pe_ratio"] is not None
+    assert len(data["historical_prices"]) > 0
+    # Latest historical price should align with current price
+    latest_hist = data["historical_prices"][-1]
+    assert latest_hist["close"] >= 300.0
+
+
+def test_new_tech_universe_symbols(client):
+    for sym in ["AMZN", "META", "TSLA"]:
+        response = client.get(f"/api/companies/{sym}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["symbol"] == sym
+        assert data["current_price"] is not None
+        assert data["current_price"] > 0
+
+
+def test_pipeline_refresh_endpoint(client):
+    # Tests that the refresh endpoint accepts requests and returns valid status
+    response = client.post("/api/pipeline/refresh")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert "companies_updated" in data
+

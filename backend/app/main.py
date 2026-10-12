@@ -19,7 +19,7 @@ def scheduled_daily_pipeline_job():
     logger.info("Executing scheduled daily stock data & scoring refresh...")
     db = SessionLocal()
     try:
-        DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=False)
+        DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=True)
         logger.info("Scheduled refresh completed successfully.")
     except Exception as e:
         logger.error(f"Error during scheduled pipeline job: {e}")
@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     
     db = SessionLocal()
     try:
-        DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=False)
+        DataPipelineService.seed_initial_universe(db, fetch_live_yfinance=True)
     finally:
         db.close()
     

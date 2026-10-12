@@ -132,6 +132,10 @@ export const App: React.FC = () => {
     try {
       await axios.post(`${API_BASE}/pipeline/refresh`);
       await fetchScreenerData();
+      if (selectedCompany?.symbol) {
+        const res = await axios.get(`${API_BASE}/companies/${selectedCompany.symbol}?refresh=true`);
+        setSelectedCompany(res.data);
+      }
     } catch (err) {
       console.error("Failed to refresh universe", err);
     } finally {

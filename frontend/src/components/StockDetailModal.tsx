@@ -317,7 +317,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const nextTab = currentTabIndex < TABS_CONFIG.length - 1 ? TABS_CONFIG[currentTabIndex + 1] : null;
 
   // Dynamic calculations for tabs 3 to 7
-  const currentPrice = company.current_price || 205.79;
+  const currentPrice = company.current_price ?? (rawPrices.length > 0 ? rawPrices[rawPrices.length - 1].close : 0);
   const currency = company.currency || 'USD';
   const supportShortTerm = (currentPrice * 0.935).toFixed(2);
   const supportLongTerm = (currentPrice * 0.855).toFixed(2);
@@ -422,10 +422,13 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
             <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
               {/* Cours Actuel */}
               <div className="bg-slate-850/90 border border-slate-800 p-2.5 sm:px-4 sm:py-2 rounded-xl text-center sm:text-left">
-                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">Cours Actuel</div>
+                <div className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-center sm:justify-start gap-1">
+                  <span>Cours Actuel</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Cours live" />
+                </div>
                 <div className="text-base sm:text-xl font-black text-emerald-400">
-                  {company.current_price?.toFixed(2) || '205.79'}
-                  <span className="text-[10px] sm:text-xs font-normal text-slate-400 ml-1">{company.currency || 'USD'}</span>
+                  {currentPrice > 0 ? currentPrice.toFixed(2) : '—'}
+                  <span className="text-[10px] sm:text-xs font-normal text-slate-400 ml-1">{currency}</span>
                 </div>
               </div>
 
@@ -639,7 +642,10 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                       <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 11 }} />
                       <YAxis stroke="#64748b" domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
+                        formatter={(value: any) => [`${Number(value).toFixed(2)} ${currency}`, 'Cours']}
+                      />
                       <Area type="monotone" dataKey="price" stroke="#38bdf8" strokeWidth={2.5} fill="url(#priceLineGrad)" />
                     </AreaChart>
                   </ResponsiveContainer>
