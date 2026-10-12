@@ -313,7 +313,9 @@ app.get('/health', (req, res) => {
 // Static assets: serve compiled frontend
 const distCandidates = [
   path.join(__dirname, '..', 'dist'),
-  path.join(__dirname, '..', 'frontend', 'dist')
+  path.join(__dirname, '..', 'frontend', 'dist'),
+  path.join(__dirname, '..', 'public'),
+  path.join(__dirname, '..')
 ];
 
 let publicDir = null;
