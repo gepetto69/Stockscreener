@@ -381,31 +381,31 @@ export const PortfolioManager: React.FC<Props> = ({
     <div className="space-y-4">
       {/* Multi-Portfolio Toolbar (Always shown when portfolios exist) */}
       {portfolioList.length > 0 && (
-        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 rounded-xl p-3 px-4">
-          <div className="flex items-center gap-3 relative">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 sm:p-3 px-3 sm:px-4">
+          <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3 relative min-w-0">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 shrink-0">
               <FolderKanban className="w-4 h-4 text-indigo-400" />
-              <span>Portefeuilles enregistrés :</span>
+              <span>Portefeuilles :</span>
             </div>
 
             {/* Portfolio Switcher Dropdown */}
-            <div className="relative">
+            <div className="relative min-w-0 flex-1 xs:flex-initial">
               <button
                 type="button"
                 onClick={() => setPortfolioDropdownOpen(prev => !prev)}
-                className="flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white border border-slate-700/80 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"
+                className="w-full xs:w-auto flex items-center justify-between xs:justify-start gap-2 bg-slate-950 hover:bg-slate-800 text-white border border-slate-700/80 px-2.5 py-1.5 rounded-lg text-xs font-bold transition shadow-sm truncate"
               >
-                <span>{portfolio ? portfolio.name : "Sélectionner un portefeuille"}</span>
+                <span className="truncate">{portfolio ? portfolio.name : "Sélectionner un portefeuille"}</span>
                 {portfolio && (
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
                     {portfolio.strategy_title}
                   </span>
                 )}
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-auto xs:ml-0" />
               </button>
 
               {portfolioDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1.5 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 py-1 overflow-hidden">
+                <div className="absolute top-full left-0 mt-1.5 w-full xs:w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-40 py-1 overflow-hidden">
                   <div className="px-3 py-2 text-[11px] font-semibold text-slate-400 border-b border-slate-800 flex justify-between items-center">
                     <span>MES STRATÉGIES ({portfolioList.length})</span>
                     <span className="text-slate-500 text-[10px]">P&L Total</span>
@@ -455,23 +455,23 @@ export const PortfolioManager: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setViewMode('dashboard')}
-                className="text-xs text-slate-400 hover:text-white px-3 py-1.5 transition"
+                className="text-xs text-slate-400 hover:text-white px-2.5 py-1.5 transition"
               >
-                ← Annuler et revenir à {portfolio.name}
+                ← Revenir à {portfolio.name}
               </button>
             )}
 
             <button
               type="button"
               onClick={() => setViewMode('new_wizard')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+              className={`w-full xs:w-auto justify-center px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
                 viewMode === 'new_wizard'
                   ? 'bg-indigo-600 text-white'
                   : 'bg-slate-800 hover:bg-slate-750 text-indigo-300 hover:text-white border border-indigo-500/30'
               }`}
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Créer un autre Portefeuille</span>
+              <span>Nouveau Portefeuille</span>
             </button>
           </div>
         </div>

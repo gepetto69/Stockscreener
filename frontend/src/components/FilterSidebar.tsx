@@ -1,15 +1,16 @@
 import React from 'react';
 import type { FilterParams } from '../types/stock';
-import { Filter, RotateCcw, TrendingUp, ShieldCheck, DollarSign, PieChart, Sparkles } from 'lucide-react';
+import { Filter, RotateCcw, TrendingUp, ShieldCheck, DollarSign, PieChart, Sparkles, X } from 'lucide-react';
 
 interface Props {
   filters: FilterParams;
   onChange: (filters: FilterParams) => void;
   onReset: () => void;
   sectorsList: string[];
+  onCloseMobile?: () => void;
 }
 
-export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sectorsList }) => {
+export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sectorsList, onCloseMobile }) => {
   const [collapsed, setCollapsed] = React.useState<boolean>(false);
 
   const handleInputChange = (field: keyof FilterParams, value: any) => {
@@ -52,23 +53,38 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-5 shadow-xl space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center gap-2 text-indigo-400 font-semibold text-sm sm:text-base hover:text-indigo-300 transition"
-        >
-          <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span>Filtres de Qualité</span>
-          <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 lg:hidden">
-            {collapsed ? 'Afficher' : 'Réduire'}
-          </span>
-        </button>
-        <button
-          onClick={onReset}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Réinitialiser</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center gap-2 text-indigo-400 font-semibold text-sm sm:text-base hover:text-indigo-300 transition"
+          >
+            <Filter className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>Filtres de Qualité</span>
+            <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 lg:hidden">
+              {collapsed ? 'Afficher' : 'Réduire'}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onReset}
+            className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Réinitialiser</span>
+          </button>
+
+          {onCloseMobile && (
+            <button
+              onClick={onCloseMobile}
+              className="lg:hidden p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              aria-label="Fermer les filtres"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={`${collapsed ? 'hidden lg:block' : 'block'} space-y-5`}>
