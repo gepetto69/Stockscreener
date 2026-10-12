@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# 1. Rediriger les appels API vers le backend Python si configuré localement sur le port 8000
+RewriteCond %{REQUEST_URI} ^/api/(.*)$
+RewriteRule ^api/(.*)$ http://127.0.0.1:8000/api/$1 [P,L]
+
+# 2. Gestion du Single Page Application (SPA) React / Vite
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [QSA,L]

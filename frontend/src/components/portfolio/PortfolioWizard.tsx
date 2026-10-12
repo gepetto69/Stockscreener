@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import type { StrategyProfile, PositionCreatePayload, StrategyStockRecommendation } from '../../types/portfolio';
 import { buildDefaultStrategies } from '../../data/defaultStrategies';
+import { API_BASE } from '../../config/api';
 import {
   ShieldCheck,
   TrendingUp,
@@ -61,7 +62,7 @@ export const PortfolioWizard: React.FC<Props> = ({
     const fetchLive = async () => {
       try {
         const res = await axios.get<StrategyProfile[]>(
-          `/api/portfolio/strategies?capital=${capital}&currency=${currency}`
+          `${API_BASE}/portfolio/strategies?capital=${capital}&currency=${currency}`
         );
         if (active && Array.isArray(res.data) && res.data.length > 0) {
           setLiveStrategies(res.data);

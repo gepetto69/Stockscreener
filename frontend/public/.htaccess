@@ -1,0 +1,6 @@
+RewriteEngine On
+
+# Single Page Application routing for Vite / React
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [QSA,L]
