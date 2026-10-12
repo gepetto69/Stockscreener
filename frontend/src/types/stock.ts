@@ -132,7 +132,7 @@ export interface EinsteinAnalysis {
   copilot: string;
   target_symbol: string;
   target_name: string;
-  sector: string;
+  sector?: string;
   target_rank: number;
   total_evaluated: number;
   verdict: string;
@@ -158,11 +158,11 @@ export interface Company {
   quality_score?: QualityScore;
   piotroski_score?: number;
   piotroski_status?: string;
-  latest_roe?: number;
-  latest_roic?: number;
-  latest_debt_to_ebitda?: number;
-  latest_operating_margin?: number;
-  revenue_growth_5y?: number;
+  latest_roe?: number | null;
+  latest_roic?: number | null;
+  latest_debt_to_ebitda?: number | null;
+  latest_operating_margin?: number | null;
+  revenue_growth_5y?: number | null;
   financial_statements?: FinancialStatement[];
   historical_prices?: StockPrice[];
 }

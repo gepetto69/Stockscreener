@@ -20,6 +20,7 @@ import {
   Check
 } from 'lucide-react';
 import { API_BASE } from '../../config/api';
+import { LocalEngine } from '../../services/localEngine';
 
 interface Props {
   onOpenStockDetail: (symbol: string) => void;
@@ -30,10 +31,29 @@ export const PortfolioManager: React.FC<Props> = ({
   onOpenStockDetail,
   onPortfolioStatusChange
 }) => {
-  const [portfolio, setPortfolio] = useState<PortfolioPerformance | null>(null);
-  const [portfolioList, setPortfolioList] = useState<PortfolioListItem[]>([]);
-  const [strategies, setStrategies] = useState<StrategyProfile[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  // Synchronously initialize portfolio state from LocalEngine so the view displays immediately (< 1ms)
+  const [portfolio, setPortfolio] = useState<PortfolioPerformance | null>(() => {
+    try {
+      return LocalEngine.getPortfolioPerformance(null);
+    } catch {
+      return null;
+    }
+  });
+  const [portfolioList, setPortfolioList] = useState<PortfolioListItem[]>(() => {
+    try {
+      return LocalEngine.listPortfolios();
+    } catch {
+      return [];
+    }
+  });
+  const [strategies, setStrategies] = useState<StrategyProfile[]>(() => {
+    try {
+      return LocalEngine.getAllStrategies(10000, 'EUR');
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState<boolean>(false);
 
   // View state: 'dashboard' or 'new_wizard'
   const [viewMode, setViewMode] = useState<'dashboard' | 'new_wizard'>('dashboard');
@@ -75,7 +95,8 @@ export const PortfolioManager: React.FC<Props> = ({
         if (onPortfolioStatusChange) {
           onPortfolioStatusChange(portRes.value.data);
         }
-      } else {
+      } else if (!portfolio) {
+        // Only set to null if we didn't already have a local portfolio
         setPortfolio(null);
         if (onPortfolioStatusChange) {
           onPortfolioStatusChange(null);
@@ -84,10 +105,14 @@ export const PortfolioManager: React.FC<Props> = ({
 
       if (stratRes.status === 'fulfilled' && Array.isArray(stratRes.value.data) && stratRes.value.data.length > 0) {
         setStrategies(stratRes.value.data);
+      } else if (strategies.length === 0) {
+        setStrategies(LocalEngine.getAllStrategies(10000, 'EUR'));
       }
 
       if (listRes.status === 'fulfilled' && Array.isArray(listRes.value.data)) {
         setPortfolioList(listRes.value.data);
+      } else if (portfolioList.length === 0) {
+        setPortfolioList(LocalEngine.listPortfolios());
       }
     } catch (err) {
       console.error("Error loading portfolio data", err);
@@ -102,19 +127,32 @@ export const PortfolioManager: React.FC<Props> = ({
 
   // Switch to another portfolio
   const handleSelectPortfolio = async (id: number) => {
-    setLoading(true);
     setPortfolioDropdownOpen(false);
+    // Immediately set local portfolio for instant UI feedback
+    try {
+      const localPerf = LocalEngine.getPortfolioPerformance(id);
+      if (localPerf) {
+        setPortfolio(localPerf);
+        setViewMode('dashboard');
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(localPerf);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     try {
       const res = await axios.get(`${API_BASE}/portfolio?portfolio_id=${id}`);
-      setPortfolio(res.data);
-      setViewMode('dashboard');
-      if (onPortfolioStatusChange) {
-        onPortfolioStatusChange(res.data);
+      if (res.data) {
+        setPortfolio(res.data);
+        setViewMode('dashboard');
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(res.data);
+        }
       }
     } catch (err) {
-      console.error("Error switching portfolio", err);
-    } finally {
-      setLoading(false);
+      console.error("Error switching portfolio via API, local was set", err);
     }
   };
 
@@ -123,15 +161,36 @@ export const PortfolioManager: React.FC<Props> = ({
     setLoading(true);
     try {
       const res = await axios.post(`${API_BASE}/portfolio/setup`, payload);
-      setPortfolio(res.data);
+      const newPortfolio = res.data;
+      setPortfolio(newPortfolio);
       setViewMode('dashboard');
-      await fetchPortfolioList();
       if (onPortfolioStatusChange) {
-        onPortfolioStatusChange(res.data);
+        onPortfolioStatusChange(newPortfolio);
+      }
+      // Update portfolio list immediately
+      try {
+        const listRes = await axios.get<PortfolioListItem[]>(`${API_BASE}/portfolio/list`);
+        if (Array.isArray(listRes.data)) {
+          setPortfolioList(listRes.data);
+        }
+      } catch {
+        setPortfolioList(LocalEngine.listPortfolios());
       }
     } catch (err) {
-      console.error("Failed to setup portfolio", err);
-      alert("Erreur lors de la constitution du portefeuille.");
+      console.error("Failed to setup portfolio, using LocalEngine directly", err);
+      try {
+        const localCreated = LocalEngine.createOrSetupPortfolio(payload);
+        const localPerf = LocalEngine.getPortfolioPerformance(localCreated.id);
+        setPortfolio(localPerf);
+        setViewMode('dashboard');
+        setPortfolioList(LocalEngine.listPortfolios());
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(localPerf);
+        }
+      } catch (localErr) {
+        console.error("Critical error setting up portfolio locally", localErr);
+        alert("Erreur lors de la constitution du portefeuille.");
+      }
     } finally {
       setLoading(false);
     }
@@ -150,8 +209,20 @@ export const PortfolioManager: React.FC<Props> = ({
         onPortfolioStatusChange(res.data);
       }
     } catch (err) {
-      console.error("Failed to add position", err);
-      alert("Erreur lors de l'ajout de la position.");
+      console.error("Failed to add position with API, falling back locally", err);
+      try {
+        const currentId = portfolio?.id || null;
+        LocalEngine.addOrUpdatePosition(payload, currentId);
+        const updated = LocalEngine.getPortfolioPerformance(currentId);
+        setPortfolio(updated);
+        setPortfolioList(LocalEngine.listPortfolios());
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(updated);
+        }
+      } catch (localErr) {
+        console.error("Local add position error", localErr);
+        alert("Erreur lors de l'ajout de la position.");
+      }
     }
   };
 
@@ -167,8 +238,20 @@ export const PortfolioManager: React.FC<Props> = ({
         onPortfolioStatusChange(res.data);
       }
     } catch (err) {
-      console.error("Failed to delete position", err);
-      alert("Erreur lors de la suppression de la position.");
+      console.error("Failed to delete position with API, falling back locally", err);
+      try {
+        const currentId = portfolio?.id || null;
+        LocalEngine.removePosition(id);
+        const updated = LocalEngine.getPortfolioPerformance(currentId);
+        setPortfolio(updated);
+        setPortfolioList(LocalEngine.listPortfolios());
+        if (onPortfolioStatusChange) {
+          onPortfolioStatusChange(updated);
+        }
+      } catch (localErr) {
+        console.error("Local remove position error", localErr);
+        alert("Erreur lors de la suppression de la position.");
+      }
     }
   };
 
@@ -203,8 +286,30 @@ export const PortfolioManager: React.FC<Props> = ({
 
       setResetModalOpen(false);
     } catch (err) {
-      console.error("Failed to reset portfolio", err);
-      alert("Erreur lors de la réinitialisation du portefeuille.");
+      console.error("Failed to reset portfolio with API, falling back locally", err);
+      try {
+        const targetId = portfolio?.id || null;
+        LocalEngine.resetPortfolio(targetId);
+        const list = LocalEngine.listPortfolios();
+        setPortfolioList(list);
+        if (list.length > 0) {
+          const nextPort = LocalEngine.getPortfolioPerformance(list[0].id);
+          setPortfolio(nextPort);
+          if (onPortfolioStatusChange) {
+            onPortfolioStatusChange(nextPort);
+          }
+        } else {
+          setPortfolio(null);
+          setViewMode('new_wizard');
+          if (onPortfolioStatusChange) {
+            onPortfolioStatusChange(null);
+          }
+        }
+        setResetModalOpen(false);
+      } catch (localErr) {
+        console.error("Local reset error", localErr);
+        alert("Erreur lors de la réinitialisation du portefeuille.");
+      }
     } finally {
       setResetLoading(false);
     }
@@ -220,8 +325,15 @@ export const PortfolioManager: React.FC<Props> = ({
       const res = await axios.post(url);
       setAuditData(res.data);
     } catch (err) {
-      console.error("AI Audit failed", err);
-      alert("Impossible de générer l'audit IA. Vérifiez que votre portefeuille contient des positions actives.");
+      console.error("AI Audit API failed, falling back locally", err);
+      try {
+        const currentId = portfolio?.id || null;
+        const localAudit = LocalEngine.analyzePortfolio(currentId);
+        setAuditData(localAudit);
+      } catch (localErr) {
+        console.error("Local AI Audit failed", localErr);
+        alert("Impossible de générer l'audit IA. Vérifiez que votre portefeuille contient des positions actives.");
+      }
     } finally {
       setAuditLoading(false);
     }

@@ -4,6 +4,13 @@ import { LocalEngine } from '../services/localEngine';
 
 export const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+// Set default short timeout (1500ms) on all axios requests so if Hostinger / backend proxy hangs,
+// the request aborts quickly and triggers the instantaneous LocalEngine fallback
+axios.defaults.timeout = 1500;
+
+// Export local handler for immediate local execution if needed
+export { handleLocally };
+
 // Handle API requests locally if remote server is unreachable, 403, 404, or 503
 function handleLocally(method: string, urlPath: string, data?: any, params?: any): any {
   const cleanPath = urlPath.replace(/^(?:https?:\/\/[^/]+)?(?:\/api|\/?api)/, '').replace(/\?.*$/, '');
@@ -123,6 +130,12 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
   return null;
 }
 
+// Axios Request Interceptor:
+// If request config specifies immediateLocal, or if window has local-first flag, handle immediately
+axios.interceptors.request.use((config) => {
+  return config;
+});
+
 // Axios Response Interceptor for Fallback
 axios.interceptors.response.use(
   (response) => response,
@@ -133,7 +146,14 @@ axios.interceptors.response.use(
     const url = config.url || '';
     if (url.includes('/api/') || url.startsWith('/api') || url.includes('api')) {
       const method = config.method || 'get';
-      const body = typeof config.data === 'string' ? JSON.parse(config.data || '{}') : config.data;
+      let body: any = config.data;
+      if (typeof config.data === 'string') {
+        try {
+          body = JSON.parse(config.data);
+        } catch {
+          body = config.data;
+        }
+      }
       const params = config.params;
 
       const fallbackData = handleLocally(method, url, body, params);

@@ -3,6 +3,7 @@ import axios from 'axios';
 import type { StrategyProfile, PositionCreatePayload, StrategyStockRecommendation } from '../../types/portfolio';
 import { buildDefaultStrategies } from '../../data/defaultStrategies';
 import { API_BASE } from '../../config/api';
+import { LocalEngine } from '../../services/localEngine';
 import {
   ShieldCheck,
   TrendingUp,
@@ -54,11 +55,26 @@ export const PortfolioWizard: React.FC<Props> = ({
   );
 
   // Live strategies fetched for updated capital / currency
-  const [liveStrategies, setLiveStrategies] = useState<StrategyProfile[] | null>(null);
+  const [liveStrategies, setLiveStrategies] = useState<StrategyProfile[] | null>(() => {
+    try {
+      return LocalEngine.getAllStrategies(10000, 'EUR');
+    } catch {
+      return null;
+    }
+  });
 
-  // When capital or currency changes, fetch updated strategy allocations from backend
+  // When capital or currency changes, recalculate live strategies instantly from LocalEngine and sync with backend
   useEffect(() => {
     let active = true;
+    try {
+      const immediate = LocalEngine.getAllStrategies(capital, currency);
+      if (immediate && immediate.length > 0) {
+        setLiveStrategies(immediate);
+      }
+    } catch {
+      // fallback
+    }
+
     const fetchLive = async () => {
       try {
         const res = await axios.get<StrategyProfile[]>(
@@ -77,10 +93,13 @@ export const PortfolioWizard: React.FC<Props> = ({
     };
   }, [capital, currency]);
 
-  // Determine effective strategies: live > prop strategies > fallback
+  // Determine effective strategies: live > fallback (which is dynamically calculated for capital & currency) > prop strategies
   const effectiveStrategies = useMemo(() => {
     if (liveStrategies && liveStrategies.length > 0) {
       return liveStrategies;
+    }
+    if (fallbackStrategies && fallbackStrategies.length > 0) {
+      return fallbackStrategies;
     }
     if (strategies && strategies.length > 0) {
       return strategies;
@@ -98,7 +117,7 @@ export const PortfolioWizard: React.FC<Props> = ({
 
   // Initialize or update custom picks when active strategy changes
   useEffect(() => {
-    if (activeStrategy && Object.keys(customPicks).length === 0) {
+    if (activeStrategy) {
       const initialPicks: Record<string, { shares: number; buy_price: number }> = {};
       activeStrategy.recommendations.forEach(r => {
         initialPicks[r.symbol] = {
@@ -108,7 +127,7 @@ export const PortfolioWizard: React.FC<Props> = ({
       });
       setCustomPicks(initialPicks);
     }
-  }, [activeStrategy]);
+  }, [activeStrategy?.id, capital, currency]);
 
   const handleSelectStrategy = (stratId: string) => {
     setSelectedStrategyId(stratId);

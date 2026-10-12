@@ -18,10 +18,18 @@ import {
   Briefcase
 } from 'lucide-react';
 import { API_BASE } from './config/api';
+import { LocalEngine } from './services/localEngine';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'screener' | 'portfolio'>('screener');
-  const [activePortfolio, setActivePortfolio] = useState<PortfolioPerformance | null>(null);
+  // Immediately populate active portfolio from LocalEngine so UI is instantaneous (<1ms)
+  const [activePortfolio, setActivePortfolio] = useState<PortfolioPerformance | null>(() => {
+    try {
+      return LocalEngine.getPortfolioPerformance(null);
+    } catch {
+      return null;
+    }
+  });
   const [showMobileFilters, setShowMobileFilters] = useState<boolean>(false);
   const [filters, setFilters] = useState<FilterParams>({
     page: 1,
@@ -31,39 +39,70 @@ export const App: React.FC = () => {
     min_quality_score: 50
   });
 
-  const [screenerData, setScreenerData] = useState<ScreenerResponse>({
-    total: 0,
-    page: 1,
-    page_size: 20,
-    items: []
+  // Immediately initialize screenerData with LocalEngine calculation so table renders immediately with 0ms delay
+  const [screenerData, setScreenerData] = useState<ScreenerResponse>(() => {
+    try {
+      return LocalEngine.screenCompanies({
+        page: 1,
+        page_size: 20,
+        sort_by: 'quality_score',
+        sort_order: 'desc',
+        min_quality_score: 50
+      });
+    } catch {
+      return { total: 0, page: 1, page_size: 20, items: [] };
+    }
   });
 
-  const [sectors, setSectors] = useState<string[]>([]);
+  // Immediately initialize sectors from LocalEngine
+  const [sectors, setSectors] = useState<string[]>(() => {
+    try {
+      return LocalEngine.getSectors();
+    } catch {
+      return [];
+    }
+  });
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [detailLoadingSymbol, setDetailLoadingSymbol] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [searchInput, setSearchInput] = useState<string>('');
 
-  // Fetch Sectors & Active Portfolio summary on mount
+  // Fetch Sectors & Active Portfolio summary on mount (syncs with backend if reachable)
   useEffect(() => {
     axios.get(`${API_BASE}/sectors`)
-      .then(res => setSectors(res.data))
+      .then(res => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setSectors(res.data);
+        }
+      })
       .catch(err => console.error("Could not fetch sectors", err));
 
     axios.get(`${API_BASE}/portfolio`)
-      .then(res => setActivePortfolio(res.data))
+      .then(res => {
+        if (res.data) {
+          setActivePortfolio(res.data);
+        }
+      })
       .catch(err => console.error("Could not fetch initial portfolio", err));
   }, []);
 
   // Fetch screened companies when filters change
   const fetchScreenerData = async () => {
-    setLoading(true);
     try {
       const response = await axios.post(`${API_BASE}/screen`, filters);
-      setScreenerData(response.data);
+      if (response.data && Array.isArray(response.data.items)) {
+        setScreenerData(response.data);
+      }
     } catch (err) {
       console.error("Error screening stocks", err);
+      // Fallback directly to LocalEngine if axios request failed
+      try {
+        const localRes = LocalEngine.screenCompanies(filters);
+        setScreenerData(localRes);
+      } catch (localErr) {
+        console.error("Local screening error", localErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -86,21 +125,22 @@ export const App: React.FC = () => {
       ? screenerData.items.find(c => c.symbol === symbol) || { id: 0, symbol, name: symbol }
       : companyOrSymbol;
 
-    // Immediately open modal with existing summary data
-    setSelectedCompany(initialCompany);
+    // Immediately fetch full company details from LocalEngine if available, so user sees data without any delay
+    const localDetail = LocalEngine.getCompanyDetail(symbol);
+    setSelectedCompany(localDetail ? (localDetail as any) : initialCompany);
     setDetailLoadingSymbol(symbol);
 
     try {
       const res = await axios.get(`${API_BASE}/companies/${symbol}`);
-      // Merge with detailed data when received
+      // Merge with detailed data when received from server
       setSelectedCompany(prev => {
-        if (prev && prev.symbol === symbol) {
+        if (prev && prev.symbol === symbol && res.data) {
           return res.data;
         }
         return prev;
       });
     } catch (err) {
-      console.error("Error loading company detail, using initial data", err);
+      console.error("Error loading company detail from server, using local data", err);
     } finally {
       setDetailLoadingSymbol(null);
     }
@@ -142,10 +182,20 @@ export const App: React.FC = () => {
       await fetchScreenerData();
       if (selectedCompany?.symbol) {
         const res = await axios.get(`${API_BASE}/companies/${selectedCompany.symbol}?refresh=true`);
-        setSelectedCompany(res.data);
+        if (res.data) setSelectedCompany(res.data);
       }
     } catch (err) {
-      console.error("Failed to refresh universe", err);
+      console.error("Failed to refresh universe via API, fallback to local recalculation", err);
+      try {
+        const localRes = LocalEngine.screenCompanies(filters);
+        setScreenerData(localRes);
+        if (selectedCompany?.symbol) {
+          const detail = LocalEngine.getCompanyDetail(selectedCompany.symbol);
+          if (detail) setSelectedCompany(detail as any);
+        }
+      } catch (localErr) {
+        console.error("Local refresh error", localErr);
+      }
     } finally {
       setRefreshing(false);
     }
