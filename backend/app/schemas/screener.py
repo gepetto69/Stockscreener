@@ -70,6 +70,19 @@ class StockPriceSchema(BaseModel):
     volume: Optional[float] = None
 
 
+class NewsItemSchema(BaseModel):
+    id: str
+    title: str
+    publisher: str
+    link: str
+    published_at: str
+    published_raw: Optional[str] = None
+    summary: Optional[str] = None
+    category: Optional[str] = "Marché & Entreprise"
+    sentiment: Optional[str] = "Neutre"
+    source: Optional[str] = "Yahoo Finance / Google News"
+
+
 class CompanyListSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

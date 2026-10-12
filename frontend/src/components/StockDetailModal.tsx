@@ -3,7 +3,8 @@ import type {
   Company,
   AbigailAnalysis,
   WarrenAnalysis,
-  EinsteinAnalysis
+  EinsteinAnalysis,
+  NewsItem
 } from '../types/stock';
 import axios from 'axios';
 import {
@@ -23,7 +24,10 @@ import {
   Compass,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ExternalLink,
+  RefreshCw,
+  Newspaper
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -168,6 +172,11 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const [einsteinLoading, setEinsteinLoading] = useState<boolean>(false);
   const [showEinsteinModal, setShowEinsteinModal] = useState<boolean>(false);
 
+  // Live Newsfeed states
+  const [newsList, setNewsList] = useState<NewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState<boolean>(false);
+  const [newsError, setNewsError] = useState<boolean>(false);
+
   // Refs for tab scrolling and content scrolling
   const contentAreaRef = React.useRef<HTMLDivElement>(null);
   const tabsContainerRef = React.useRef<HTMLDivElement>(null);
@@ -197,6 +206,8 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
       setEinsteinData(null);
       setShowAbigailModal(false);
       setShowEinsteinModal(false);
+      setNewsList([]);
+      setNewsError(false);
     }
   }, [company?.symbol]);
 
@@ -244,7 +255,23 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     }
   };
 
-  // Automatically fetch Warren if user navigates to full_analysis tab
+  // Fetch Live Real-World News
+  const handleLoadNews = async () => {
+    if (!company?.symbol) return;
+    setNewsLoading(true);
+    setNewsError(false);
+    try {
+      const res = await axios.get(`/api/companies/${company.symbol}/news?limit=8`);
+      setNewsList(res.data);
+    } catch (err) {
+      console.error('Error fetching newsfeed', err);
+      setNewsError(true);
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  // Automatically fetch data when navigating to respective tabs
   useEffect(() => {
     if (!company?.symbol) return;
     if (activeTab === 'full_analysis' && !warrenData) {
@@ -254,6 +281,9 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
       axios.get(`/api/companies/${company.symbol}/copilot/abigail`)
         .then(res => setAbigailData(res.data))
         .catch(e => console.error(e));
+    }
+    if (activeTab === 'news' && newsList.length === 0 && !newsLoading) {
+      handleLoadNews();
     }
   }, [activeTab, company?.symbol]);
 
@@ -1519,105 +1549,134 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                     📰
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      Newsflow & Publications Récentes
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      Fil d'actualité corporate, résultats trimestriels et catalyseurs stratégiques.
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        Newsflow & Actus en Direct
+                      </h3>
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Flux Temps Réel
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Actualités financières vérifiées, communiqués de presse et catalyseurs stratégiques pour {company.name} ({company.symbol}).
                     </p>
                   </div>
                 </div>
-                <span className="self-start sm:self-auto text-xs font-bold px-3 py-1 rounded-full bg-slate-850 text-slate-300 border border-slate-700">
-                  4 publications récentes
-                </span>
-              </div>
 
-              {/* 4 News Items */}
-              <div className="space-y-3.5">
-                {/* News 1 */}
-                <div className="bg-slate-950/70 border border-slate-800 p-4 sm:p-5 rounded-xl space-y-2.5 hover:border-slate-700 transition">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-                        Résultats Financiers
-                      </span>
-                      <span className="text-[10px] text-slate-500">Il y a 3 jours</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/60">
-                      Impact Positif
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-white">
-                    Dépassement du consensus au dernier trimestre & révision haussière des perspectives de FCF
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {company.name} a dévoilé un chiffre d'affaires en progression soutenue, tiré par l'adoption croissante de ses solutions premium. La direction a relevé son objectif de flux de trésorerie disponible pour l'exercice grâce à une maîtrise rigoureuse des coûts d'exploitation et une accélération des livraisons.
-                  </p>
-                </div>
-
-                {/* News 2 */}
-                <div className="bg-slate-950/70 border border-slate-800 p-4 sm:p-5 rounded-xl space-y-2.5 hover:border-slate-700 transition">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800">
-                        Stratégie & Contrats
-                      </span>
-                      <span className="text-[10px] text-slate-500">Il y a 10 jours</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-sky-400 bg-sky-950/40 px-2 py-0.5 rounded border border-sky-800/60">
-                      Visibilité Accrue
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-white">
-                    Signature d'accords pluriannuels majeurs dans le secteur {company.sector}
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Renforcement substantiel du carnet de commandes consolidé suite à l'attribution de nouveaux contrats de référence. La visibilité sur le chiffre d'affaires s'étend désormais sur un horizon supérieur à 18 mois, consolidant le pricing power de l'entreprise.
-                  </p>
-                </div>
-
-                {/* News 3 */}
-                <div className="bg-slate-950/70 border border-slate-800 p-4 sm:p-5 rounded-xl space-y-2.5 hover:border-slate-700 transition">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800">
-                        Retour Actionnarial
-                      </span>
-                      <span className="text-[10px] text-slate-500">Il y a 2 semaines</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/60">
-                      Relutif BPA
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-white">
-                    Poursuite du programme de rachat d'actions et confirmation du versement du dividende
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Le Conseil d'administration a réaffirmé son engagement envers le retour de valeur aux actionnaires, confirmant la cadence des rachats de titres sur le marché tout en préservant un bilan de qualité supérieure sans recours excessif à la dette.
-                  </p>
-                </div>
-
-                {/* News 4 */}
-                <div className="bg-slate-950/70 border border-slate-800 p-4 sm:p-5 rounded-xl space-y-2.5 hover:border-slate-700 transition">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                        Marché & Industrie
-                      </span>
-                      <span className="text-[10px] text-slate-500">Il y a 3 semaines</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                      Tendance Structurelle
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-white">
-                    Vents porteurs structurels dans l'industrie {company.industry || company.sector}
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Les analystes soulignent la résistance exemplaire de la demande pour les produits et technologies indispensables de {company.name}, protégée par des barrières à l'entrée technologiques élevées et des coûts de transfert importants pour les clients.
-                  </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800">
+                    Source : Yahoo Finance / Google News (100% gratuit)
+                  </span>
+                  <button
+                    onClick={handleLoadNews}
+                    disabled={newsLoading}
+                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition disabled:opacity-50"
+                    title="Actualiser les nouvelles en direct"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${newsLoading ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Actualiser</span>
+                  </button>
                 </div>
               </div>
+
+              {/* News items list or loader */}
+              {newsLoading && newsList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 text-slate-400 space-y-3 bg-slate-950/50 border border-slate-800 rounded-xl">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+                  <p className="text-sm font-medium">Récupération des dernières actualités en direct...</p>
+                  <p className="text-xs text-slate-500">Connexion aux flux Yahoo Finance & Google News sans frais...</p>
+                </div>
+              ) : newsError && newsList.length === 0 ? (
+                <div className="bg-slate-950/70 border border-rose-900/50 p-6 rounded-xl text-center space-y-3">
+                  <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto" />
+                  <p className="text-sm font-semibold text-white">Impossible de récupérer les actualités pour l'instant</p>
+                  <p className="text-xs text-slate-400">Vérifiez la connexion ou réessayez dans quelques instants.</p>
+                  <button
+                    onClick={handleLoadNews}
+                    className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : newsList.length > 0 ? (
+                <div className="space-y-3.5">
+                  {newsList.map((item) => {
+                    const isPositive = item.sentiment === 'Positif';
+                    const isVigilant = item.sentiment === 'Vigilance';
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-slate-950/70 border border-slate-800 p-4 sm:p-5 rounded-xl space-y-2.5 hover:border-slate-700 hover:bg-slate-950/90 transition group"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800">
+                              {item.category || "Marché & Entreprise"}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-300">
+                              {item.publisher}
+                            </span>
+                            <span className="text-slate-600">•</span>
+                            <span className="text-[11px] text-slate-400">
+                              {item.published_at}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {isPositive && (
+                              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/60">
+                                Positif
+                              </span>
+                            )}
+                            {isVigilant && (
+                              <span className="text-[10px] font-bold text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/60">
+                                Vigilance
+                              </span>
+                            )}
+                            {!isPositive && !isVigilant && (
+                              <span className="text-[10px] font-medium text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                                Neutre
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <h4 className="text-sm font-bold text-white group-hover:text-blue-300 transition leading-snug">
+                          {item.title}
+                        </h4>
+
+                        {item.summary && (
+                          <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">
+                            {item.summary}
+                          </p>
+                        )}
+
+                        <div className="pt-1 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-500">
+                            Source : {item.source || item.publisher}
+                          </span>
+                          <a
+                            href={item.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 hover:underline transition"
+                          >
+                            <span>Lire l'article</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-400 bg-slate-950/50 border border-slate-800 rounded-xl">
+                  <Newspaper className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                  <p className="text-sm">Aucune actualité disponible pour le moment.</p>
+                </div>
+              )}
             </div>
           )}
 

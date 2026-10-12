@@ -191,6 +191,19 @@ export interface FilterParams {
   page_size: number;
 }
 
+export interface NewsItem {
+  id: string;
+  title: string;
+  publisher: string;
+  link: string;
+  published_at: string;
+  published_raw?: string;
+  summary?: string;
+  category?: string;
+  sentiment?: string;
+  source?: string;
+}
+
 export interface ScreenerResponse {
   total: number;
   page: number;

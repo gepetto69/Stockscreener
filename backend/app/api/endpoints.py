@@ -10,11 +10,13 @@ from app.schemas.screener import (
     CompanyListSchema,
     CompanyDetailSchema,
     FinancialStatementSchema,
-    StockPriceSchema
+    StockPriceSchema,
+    NewsItemSchema
 )
 from app.services.screener_service import ScreenerEngine
 from app.services.pipeline_service import DataPipelineService
 from app.services.copilot_service import CopilotService
+from app.services.news_service import NewsService
 
 router = APIRouter()
 
@@ -118,6 +120,18 @@ def get_einstein_ranking(symbol: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Company with symbol '{symbol}' not found")
     all_companies = db.query(Company).all()
     return CopilotService.get_einstein_ranking(company, all_companies)
+
+
+@router.get("/companies/{symbol}/news", response_model=List[NewsItemSchema])
+def get_company_news(symbol: str, limit: int = Query(8, ge=1, le=30), db: Session = Depends(get_db)):
+    """
+    Fetch real-world live financial news for a company from Yahoo Finance and Google News feeds.
+    Includes fallback, caching, and sentiment analysis.
+    """
+    company = db.query(Company).filter(Company.symbol == symbol.upper()).first()
+    company_name = company.name if company else symbol
+    news = NewsService.get_company_news(symbol=symbol.upper(), company_name=company_name, limit=limit)
+    return news
 
 
 @router.get("/sectors", response_model=List[str])

@@ -192,3 +192,48 @@ def test_pipeline_refresh_endpoint(client):
     assert data["status"] == "success"
     assert "companies_updated" in data
 
+
+def test_company_news_endpoint(client):
+    # Test real-world live news endpoint for Visa (V)
+    response = client.get("/api/companies/V/news?limit=4")
+    assert response.status_code == 200
+    news = response.json()
+    assert isinstance(news, list)
+    assert len(news) > 0
+    first = news[0]
+    assert "id" in first
+    assert "title" in first
+    assert "publisher" in first
+    assert "link" in first
+    assert "published_at" in first
+    assert "category" in first
+    assert "sentiment" in first
+    assert len(first["title"]) > 5
+    assert first["link"].startswith("http")
+
+    # Test for Alphabet (GOOGL)
+    res_googl = client.get("/api/companies/GOOGL/news?limit=3")
+    assert res_googl.status_code == 200
+    news_googl = res_googl.json()
+    assert isinstance(news_googl, list)
+    assert len(news_googl) > 0
+
+
+def test_company_news_fallback(client):
+    # Test news for a symbol that may not exist in database or have empty feeds
+    from unittest.mock import patch
+    from app.services.news_service import NewsService
+
+    # Clear cache
+    NewsService.clear_cache()
+
+    with patch.object(NewsService, "_fetch_from_yfinance", return_value=[]), \
+         patch.object(NewsService, "_fetch_from_yahoo_rss", return_value=[]), \
+         patch.object(NewsService, "_fetch_from_google_news_rss", return_value=[]):
+        response = client.get("/api/companies/UNKNOWN_SYM/news")
+        assert response.status_code == 200
+        news = response.json()
+        assert len(news) == 1
+        assert "UNKNOWN_SYM" in news[0]["title"] or "UNKNOWN_SYM" in news[0]["summary"]
+
+
