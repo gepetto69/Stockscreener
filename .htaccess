@@ -15,7 +15,11 @@ RewriteEngine On
 RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
 RewriteRule ^(.*)$ dist/$1 [L]
 
-# 3. Gestion du Single Page Application (SPA) React / Vite
+# 3. Servir assets depuis dist/assets/
+RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
+RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+# 4. Gestion du Single Page Application (SPA) React / Vite
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ dist/index.html [QSA,L]
+RewriteRule ^.*$ dist/index.html [L]

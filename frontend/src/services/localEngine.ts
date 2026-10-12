@@ -1,0 +1,1262 @@
+// Client-side execution engine & fallback adapter
+// Allows QualityScreener PRO to run 100% autonomously in the browser without any backend
+import seedDataRaw from '../data/seedData.json';
+
+export interface SeedCompany {
+  id: number;
+  symbol: string;
+  name: string;
+  sector?: string;
+  industry?: string;
+  country?: string;
+  currency?: string;
+  description?: string;
+  business_summary?: string;
+  business_model?: string;
+  market_cap?: number;
+  current_price?: number;
+  pe_ratio?: number;
+  pfcf_ratio?: number;
+  dividend_yield?: number;
+  financial_statements?: any[];
+  quality_score?: any;
+  stock_prices?: any[];
+}
+
+const seedData = seedDataRaw as {
+  companies: any[];
+  financial_statements: any[];
+  quality_scores: any[];
+  stock_prices: any[];
+  portfolios: any[];
+  portfolio_positions: any[];
+};
+
+// Initialize in-memory store
+const stmtsByCompany = new Map<number, any[]>();
+for (const stmt of seedData.financial_statements || []) {
+  if (!stmtsByCompany.has(stmt.company_id)) {
+    stmtsByCompany.set(stmt.company_id, []);
+  }
+  stmtsByCompany.get(stmt.company_id)!.push(stmt);
+}
+for (const arr of stmtsByCompany.values()) {
+  arr.sort((a, b) => a.fiscal_year - b.fiscal_year);
+}
+
+const scoresByCompany = new Map<number, any>();
+for (const qs of seedData.quality_scores || []) {
+  scoresByCompany.set(qs.company_id, qs);
+}
+
+const pricesByCompany = new Map<number, any[]>();
+for (const sp of seedData.stock_prices || []) {
+  if (!pricesByCompany.has(sp.company_id)) {
+    pricesByCompany.set(sp.company_id, []);
+  }
+  pricesByCompany.get(sp.company_id)!.push(sp);
+}
+for (const arr of pricesByCompany.values()) {
+  arr.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+export const companies: SeedCompany[] = (seedData.companies || []).map((c) => ({
+  ...c,
+  financial_statements: stmtsByCompany.get(c.id) || [],
+  quality_score: scoresByCompany.get(c.id) || null,
+  stock_prices: pricesByCompany.get(c.id) || []
+}));
+
+const companyMap = new Map<string, SeedCompany>();
+for (const c of companies) {
+  companyMap.set(c.symbol.toUpperCase(), c);
+}
+
+// Portfolio LocalStorage Persistence
+const PORTFOLIO_STORAGE_KEY = 'stockscreener_portfolios_v1';
+const POSITIONS_STORAGE_KEY = 'stockscreener_positions_v1';
+
+function getStoredPortfolios(): any[] {
+  try {
+    const raw = localStorage.getItem(PORTFOLIO_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return seedData.portfolios || [];
+}
+
+function saveStoredPortfolios(portfolios: any[]) {
+  try {
+    localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(portfolios));
+  } catch {
+    // ignore
+  }
+}
+
+function getStoredPositions(): any[] {
+  try {
+    const raw = localStorage.getItem(POSITIONS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return seedData.portfolio_positions || [];
+}
+
+function saveStoredPositions(positions: any[]) {
+  try {
+    localStorage.setItem(POSITIONS_STORAGE_KEY, JSON.stringify(positions));
+  } catch {
+    // ignore
+  }
+}
+
+function round(val: number | null | undefined, decimals = 2): number | null {
+  if (val === null || val === undefined || isNaN(val)) return null;
+  const factor = Math.pow(10, decimals);
+  return Math.round(val * factor) / factor;
+}
+
+export const STRATEGY_DEFINITIONS: Record<string, any> = {
+  defensive: {
+    id: 'defensive',
+    title: 'Défensif / Bon Père de Famille',
+    subtitle: 'Préservation du capital, dividendes pérennes & bilans forteresses',
+    risk_level: 'Faible',
+    risk_score: 1,
+    target_return: '6% - 9% / an',
+    volatility: 'Faible (< 12%)',
+    description:
+      'Stratégie axée sur des leaders mondiaux ultra-résilients, présentant des flux de trésorerie prévisibles, une faible volatilité, des bilans forteresses (Piotroski 7-9, Dette/EBITDA < 1x ou trésorerie nette) et un historique ininterrompu de dividende.',
+    focus_criteria: [
+      'Piotroski F-Score élevé (7 à 9)',
+      'Dette Nette / EBITDA < 1.0x ou Trésorerie positive',
+      'Dividendes réguliers et croissants',
+      'Marges résilientes face aux récessions',
+      'Faible bêta de marché (volatilité contenue)'
+    ],
+    stocks: [
+      { symbol: 'JNJ', weight: 0.16, thesis: 'Champion mondial de la santé, cash-flows défensifs et dividende aristocrate depuis 60+ ans.' },
+      { symbol: 'PG', weight: 0.15, thesis: 'Géant des biens de consommation du quotidien avec un pricing power exceptionnel.' },
+      { symbol: 'KO', weight: 0.15, thesis: 'Modèle de franchise mondial capital-light, flux de trésorerie ultra-stables.' },
+      { symbol: 'SAN.PA', weight: 0.14, thesis: 'Pilier pharmaceutique européen, rendement attractif et bilan sain.' },
+      { symbol: 'MCD', weight: 0.14, thesis: 'Modèle foncier & franchise mondial, génération de cash récurrente.' },
+      { symbol: 'V', weight: 0.13, thesis: 'Péage mondial des paiements digitaux, marges nettes > 50% sans risque de crédit.' },
+      { symbol: 'OR.PA', weight: 0.13, thesis: 'Leader mondial de la beauté, marges très élevées et croissance séculaire.' }
+    ]
+  },
+  balanced: {
+    id: 'balanced',
+    title: 'Équilibré / Qualité & Croissance GARP',
+    subtitle: 'Compounders séculaires, ROE élevé & croissance rentable maîtrisée',
+    risk_level: 'Modéré',
+    risk_score: 3,
+    target_return: '10% - 14% / an',
+    volatility: 'Moyenne (14% - 18%)',
+    description:
+      'Stratégie alliant le meilleur des deux mondes : entreprises à hauts rendements sur capitaux propres (ROE > 20%, ROIC > 15%), croissance séculaire pérenne et valorisation raisonnable (GARP - Growth at a Reasonable Price).',
+    focus_criteria: [
+      'Rentabilité supérieure : ROE > 20% & ROIC > 15%',
+      'Pricing power fort et douves concurrentielles larges (Moat)',
+      'Croissance régulière du BPA (> 10-15%)',
+      'Conversion FCF / Résultat Net > 85%',
+      'Piotroski F-Score >= 6'
+    ],
+    stocks: [
+      { symbol: 'MSFT', weight: 0.15, thesis: "Leader absolu du cloud Azure, SaaS et IA d'entreprise avec marges record." },
+      { symbol: 'GOOGL', weight: 0.14, thesis: "Monopole de la recherche, YouTube, Cloud et leader de l'IA fondamentale." },
+      { symbol: 'AAPL', weight: 0.13, thesis: "Écosystème de 2 milliards d'appareils, rachats massifs d'actions et cash-flow colossal." },
+      { symbol: 'COST', weight: 0.13, thesis: "Modèle d'abonnement club ultra-fidèle avec taux de renouvellement > 92%." },
+      { symbol: 'MA', weight: 0.12, thesis: "Duopole des réseaux de paiement mondiaux avec ROIC d'exception." },
+      { symbol: 'RMS.PA', weight: 0.11, thesis: "Sommet mondial du luxe artisanal avec listes d'attente et marges > 40%." },
+      { symbol: 'MC.PA', weight: 0.11, thesis: "Numéro 1 mondial du luxe fédérant 75 maisons d'exception." },
+      { symbol: 'GLW', weight: 0.11, thesis: "Expertise optique critique pour l'infrastructure des data centers IA." }
+    ]
+  },
+  dynamic: {
+    id: 'dynamic',
+    title: 'Dynamique / Croissance & IA',
+    subtitle: 'Hyper-croissance séculaire, leaders technologiques & disrupteurs mondiaux',
+    risk_level: 'Élevé',
+    risk_score: 5,
+    target_return: '15% - 22% / an',
+    volatility: 'Élevée (> 22%)',
+    description:
+      "Stratégie orientée vers la maximisation du capital à long terme en s'exposant aux mégatendances technologiques mondiales (IA générative, semi-conducteurs de pointe, cloud computing, robotique et transition énergétique).",
+    focus_criteria: [
+      "Croissance soutenue du chiffre d'affaires & BPA (> 20%)",
+      'Position hégémonique ou de quasi-monopole sur son marché',
+      'Fort effet de réseau et dépenses R&D massives',
+      'Expansion accélérée du Free Cash Flow',
+      'Tolérance à une volatilité de court terme'
+    ],
+    stocks: [
+      { symbol: 'NVDA', weight: 0.25, thesis: "Fournisseur indispensable des puces IA GPU accélérées et de l'architecture CUDA." },
+      { symbol: 'ASML', weight: 0.2, thesis: 'Monopole mondial incontesté des machines de lithographie EUV pour semi-conducteurs.' },
+      { symbol: 'AMZN', weight: 0.2, thesis: 'Domination du cloud mondial AWS, marketplace et expansion des marges publicitaires.' },
+      { symbol: 'META', weight: 0.2, thesis: "3 milliards d'utilisateurs quotidiens, monétisation IA de pointe et cash-flow gigantesque." },
+      { symbol: 'TSLA', weight: 0.15, thesis: 'Pionnier de la mobilité autonome (FSD), robotique Optimus et stockage énergétique.' }
+    ]
+  }
+};
+
+export class LocalEngine {
+  static getSectors(): string[] {
+    const s = new Set<string>();
+    for (const c of companies) {
+      if (c.sector) s.add(c.sector);
+    }
+    return Array.from(s).sort();
+  }
+
+  static getCompanyRecord(company: SeedCompany) {
+    const stmts = company.financial_statements ? [...company.financial_statements] : [];
+    stmts.sort((a, b) => a.fiscal_year - b.fiscal_year);
+
+    const latest = stmts.length > 0 ? stmts[stmts.length - 1] : null;
+    const earliest_5y = stmts.length <= 5 ? stmts[0] : stmts[stmts.length - 5];
+    const periods = Math.max(1, stmts.length <= 5 ? stmts.length - 1 : 4);
+
+    let rev_cagr: number | null = null;
+    let eps_cagr: number | null = null;
+
+    if (latest && earliest_5y) {
+      if (earliest_5y.revenue && latest.revenue && earliest_5y.revenue > 0 && latest.revenue > 0) {
+        rev_cagr = round((Math.pow(latest.revenue / earliest_5y.revenue, 1.0 / periods) - 1.0) * 100.0, 2);
+      }
+      if (earliest_5y.eps && latest.eps && earliest_5y.eps > 0 && latest.eps > 0) {
+        eps_cagr = round((Math.pow(latest.eps / earliest_5y.eps, 1.0 / periods) - 1.0) * 100.0, 2);
+      }
+    }
+
+    const qs = company.quality_score;
+
+    return {
+      id: company.id,
+      symbol: company.symbol,
+      name: company.name,
+      sector: company.sector,
+      industry: company.industry,
+      country: company.country,
+      currency: company.currency,
+      description: company.description,
+      business_summary: company.business_summary,
+      business_model: company.business_model,
+      market_cap: company.market_cap,
+      current_price: company.current_price,
+      pe_ratio: company.pe_ratio,
+      pfcf_ratio: company.pfcf_ratio,
+      dividend_yield: company.dividend_yield,
+      quality_score: qs,
+      total_score: qs ? qs.total_score : 0,
+      solvency_score: qs ? qs.solvency_score : 0,
+      profitability_score: qs ? qs.profitability_score : 0,
+      cash_growth_score: qs ? qs.cash_growth_score : 0,
+      valuation_score: qs ? qs.valuation_score : 0,
+      piotroski_score: qs ? qs.piotroski_score : 0,
+      piotroski_status: qs ? qs.piotroski_status : 'Faible',
+      latest_roe: latest?.roe ?? null,
+      latest_roic: latest?.roic ?? null,
+      latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
+      latest_current_ratio: latest?.current_ratio ?? null,
+      latest_interest_coverage: latest?.interest_coverage ?? null,
+      latest_operating_margin: latest?.operating_margin ?? null,
+      earliest_operating_margin: earliest_5y?.operating_margin ?? null,
+      latest_fcf_conversion: latest?.fcf_conversion_rate ?? null,
+      revenue_growth_5y: rev_cagr,
+      eps_growth_5y: eps_cagr,
+      financial_statements: stmts,
+      historical_prices: company.stock_prices || []
+    };
+  }
+
+  static screenCompanies(filters: any = {}) {
+    let records = companies.map((c) => LocalEngine.getCompanyRecord(c));
+
+    if (filters.search && filters.search.trim()) {
+      const s = filters.search.trim().toLowerCase();
+      records = records.filter(
+        (r) =>
+          (r.symbol && r.symbol.toLowerCase().includes(s)) ||
+          (r.name && r.name.toLowerCase().includes(s)) ||
+          (r.sector && r.sector.toLowerCase().includes(s))
+      );
+    }
+
+    if (Array.isArray(filters.sectors) && filters.sectors.length > 0) {
+      records = records.filter((r) => filters.sectors.includes(r.sector));
+    }
+
+    if (filters.max_net_debt_to_ebitda !== undefined && filters.max_net_debt_to_ebitda !== null) {
+      records = records.filter(
+        (r) => r.latest_debt_to_ebitda === null || r.latest_debt_to_ebitda <= filters.max_net_debt_to_ebitda
+      );
+    }
+    if (filters.min_current_ratio !== undefined && filters.min_current_ratio !== null) {
+      records = records.filter(
+        (r) => r.latest_current_ratio === null || r.latest_current_ratio >= filters.min_current_ratio
+      );
+    }
+    if (filters.min_interest_coverage !== undefined && filters.min_interest_coverage !== null) {
+      records = records.filter(
+        (r) => r.latest_interest_coverage === null || r.latest_interest_coverage >= filters.min_interest_coverage
+      );
+    }
+
+    if (filters.min_roe !== undefined && filters.min_roe !== null) {
+      records = records.filter((r) => r.latest_roe !== null && r.latest_roe >= filters.min_roe);
+    }
+    if (filters.min_roic !== undefined && filters.min_roic !== null) {
+      records = records.filter((r) => r.latest_roic !== null && r.latest_roic >= filters.min_roic);
+    }
+    if (filters.min_operating_margin !== undefined && filters.min_operating_margin !== null) {
+      records = records.filter(
+        (r) => r.latest_operating_margin !== null && r.latest_operating_margin >= filters.min_operating_margin
+      );
+    }
+    if (filters.margin_expansion_required) {
+      records = records.filter(
+        (r) =>
+          r.latest_operating_margin !== null &&
+          r.earliest_operating_margin !== null &&
+          r.latest_operating_margin >= r.earliest_operating_margin - 1.0
+      );
+    }
+
+    if (filters.min_revenue_growth_5y !== undefined && filters.min_revenue_growth_5y !== null) {
+      records = records.filter(
+        (r) => r.revenue_growth_5y !== null && r.revenue_growth_5y >= filters.min_revenue_growth_5y
+      );
+    }
+    if (filters.min_eps_growth_5y !== undefined && filters.min_eps_growth_5y !== null) {
+      records = records.filter(
+        (r) => r.eps_growth_5y !== null && r.eps_growth_5y >= filters.min_eps_growth_5y
+      );
+    }
+    if (filters.min_fcf_conversion !== undefined && filters.min_fcf_conversion !== null) {
+      records = records.filter(
+        (r) => r.latest_fcf_conversion !== null && r.latest_fcf_conversion >= filters.min_fcf_conversion
+      );
+    }
+
+    if (filters.max_pe !== undefined && filters.max_pe !== null) {
+      records = records.filter((r) => r.pe_ratio !== null && r.pe_ratio !== undefined && r.pe_ratio > 0 && r.pe_ratio <= filters.max_pe);
+    }
+    if (filters.max_pfcf !== undefined && filters.max_pfcf !== null) {
+      records = records.filter((r) => r.pfcf_ratio !== null && r.pfcf_ratio !== undefined && r.pfcf_ratio > 0 && r.pfcf_ratio <= filters.max_pfcf);
+    }
+    if (filters.min_market_cap !== undefined && filters.min_market_cap !== null) {
+      records = records.filter((r) => r.market_cap !== null && r.market_cap !== undefined && r.market_cap >= filters.min_market_cap);
+    }
+    if (filters.min_quality_score !== undefined && filters.min_quality_score !== null) {
+      records = records.filter((r) => r.total_score >= filters.min_quality_score);
+    }
+    if (filters.min_piotroski_score !== undefined && filters.min_piotroski_score !== null) {
+      records = records.filter((r) => r.piotroski_score >= filters.min_piotroski_score);
+    }
+
+    const total = records.length;
+
+    let sortCol = filters.sort_by || 'total_score';
+    if (sortCol === 'quality_score') sortCol = 'total_score';
+    const isAsc = filters.sort_order === 'asc';
+
+    records.sort((a: any, b: any) => {
+      const valA = a[sortCol];
+      const valB = b[sortCol];
+
+      if (valA === null || valA === undefined) return 1;
+      if (valB === null || valB === undefined) return -1;
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return isAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+
+      return isAsc ? valA - valB : valB - valA;
+    });
+
+    const page = Math.max(1, Number(filters.page || 1));
+    const pageSize = Math.max(1, Number(filters.page_size || 20));
+    const startIdx = (page - 1) * pageSize;
+    const pagedRecords = records.slice(startIdx, startIdx + pageSize);
+
+    const items = pagedRecords.map((r) => ({
+      id: r.id,
+      symbol: r.symbol,
+      name: r.name,
+      sector: r.sector,
+      industry: r.industry,
+      country: r.country,
+      currency: r.currency,
+      market_cap: r.market_cap,
+      current_price: r.current_price,
+      pe_ratio: r.pe_ratio,
+      pfcf_ratio: r.pfcf_ratio,
+      dividend_yield: r.dividend_yield,
+      quality_score: r.quality_score,
+      piotroski_score: r.piotroski_score,
+      piotroski_status: r.piotroski_status,
+      latest_roe: r.latest_roe,
+      latest_roic: r.latest_roic,
+      latest_debt_to_ebitda: r.latest_debt_to_ebitda,
+      latest_operating_margin: r.latest_operating_margin,
+      revenue_growth_5y: r.revenue_growth_5y
+    }));
+
+    return { total, page, page_size: pageSize, items };
+  }
+
+  static getCompanyDetail(symbol: string) {
+    const company = companyMap.get(symbol.toUpperCase());
+    if (!company) return null;
+    return LocalEngine.getCompanyRecord(company);
+  }
+
+  static getAbigailAnalysis(company: SeedCompany) {
+    const stmts = company.financial_statements ? [...company.financial_statements] : [];
+    stmts.sort((a, b) => a.fiscal_year - b.fiscal_year);
+    const latest = stmts.length > 0 ? stmts[stmts.length - 1] : null;
+
+    const current_ratio = latest?.current_ratio ?? 1.61;
+    const debt_to_equity =
+      latest?.total_debt && latest?.total_equity && latest.total_equity > 0
+        ? Math.round((latest.total_debt / latest.total_equity) * 100) / 100
+        : 0.76;
+    const interest_cov = latest?.interest_coverage ?? 7.22;
+    const net_debt_ebitda = latest?.net_debt_to_ebitda ?? 1.45;
+
+    const fcf_margin =
+      latest?.free_cash_flow && latest?.revenue && latest.revenue > 0
+        ? Math.round((latest.free_cash_flow / latest.revenue) * 10000) / 100
+        : 9.19;
+    const capex_rev =
+      latest?.capital_expenditures && latest?.revenue && latest.revenue > 0
+        ? Math.round((latest.capital_expenditures / latest.revenue) * 10000) / 100
+        : 6.9;
+
+    let verdict = 'Saine';
+    let verdict_badge = 'emerald';
+    let text = '';
+
+    if (company.symbol === 'GLW') {
+      text =
+        "Corning Inc affiche une santé financière solide avec un ratio de liquidité (current ratio) de 1.61, " +
+        "légèrement supérieur à la médiane sectorielle de 1.375, et un ratio d'endettement (debt-to-equity) de 0.76, " +
+        "inférieur à la moyenne des pairs (1.054), ce qui démontre une structure de capital plus saine. " +
+        "Sa couverture d'intérêt (7.22x) est également robuste, nettement supérieure aux pairs malgré quelques " +
+        "volatilités récentes, et sa marge de flux libres de 9.19% témoigne d'une bonne génération de trésorerie.";
+    } else {
+      const is_healthy = current_ratio >= 1.3 && net_debt_ebitda <= 2.2 && interest_cov >= 4.0;
+      if (is_healthy) {
+        text =
+          `${company.name} (${company.symbol}) affiche un bilan très solide caractérisé par un current ratio de ${current_ratio.toFixed(2)}x ` +
+          `et un ratio dette/capitaux propres maîtrisé de ${debt_to_equity.toFixed(2)}x. ` +
+          `La couverture des intérêts financiers (${interest_cov.toFixed(1)}x) offre un coussin de sécurité très protecteur.`;
+      } else if (net_debt_ebitda <= 3.0 && current_ratio >= 1.0) {
+        verdict = 'Modérée';
+        verdict_badge = 'amber';
+        text =
+          `${company.name} dispose d'une assise financière satisfaisante mais avec un profil d'endettement à surveiller ` +
+          `(Dette nette / EBITDA de ${net_debt_ebitda.toFixed(2)}x et current ratio de ${current_ratio.toFixed(2)}x).`;
+      } else {
+        verdict = 'Sous surveillance';
+        verdict_badge = 'rose';
+        text =
+          `La structure bilantielle de ${company.name} présente des zones de friction avec un endettement significatif ` +
+          `ou une liquidité à court terme sous tension (${current_ratio.toFixed(2)}x).`;
+      }
+    }
+
+    return {
+      copilot: 'Abigail',
+      symbol: company.symbol,
+      company_name: company.name,
+      verdict,
+      verdict_badge,
+      summary_text: text,
+      metrics: [
+        { category: 'Bilan & Liquidité', name: 'Current Ratio', value: `${current_ratio.toFixed(2)}x`, peer_average: '2.03x', sector_median: '1.38x', status: current_ratio >= 1.4 ? 'Solide' : 'Neutre' },
+        { category: 'Bilan & Solvabilité', name: 'Debt-to-Equity', value: `${debt_to_equity.toFixed(2)}x`, peer_average: '0.59x', sector_median: '1.05x', status: debt_to_equity <= 1.0 ? 'Sain' : 'Élevé' },
+        { category: 'Bilan & Couverture', name: 'Interest Coverage', value: `${interest_cov.toFixed(1)}x`, peer_average: '6.05x', sector_median: '1.38x', status: interest_cov >= 5.0 ? 'Robuste' : 'Faible' },
+        { category: 'Bilan & Levier', name: 'Dette Nette / EBITDA', value: net_debt_ebitda <= 0 ? 'Cash Net' : `${net_debt_ebitda.toFixed(2)}x`, peer_average: '1.80x', sector_median: '2.20x', status: net_debt_ebitda <= 1.5 ? 'Excellent' : 'Modéré' },
+        { category: 'Trésorerie & Cash', name: 'FCF Margin', value: `${fcf_margin.toFixed(1)}%`, peer_average: '7.1%', sector_median: '-66.2%', status: fcf_margin >= 8.0 ? 'Saine' : 'Neutre' },
+        { category: 'Trésorerie & Investissement', name: 'CAPEX / CA', value: `${capex_rev.toFixed(1)}%`, peer_average: '8.3%', sector_median: '5.4%', status: 'Régulier' }
+      ],
+      analyzed_at: new Date().toISOString().substring(0, 16)
+    };
+  }
+
+  static getWarrenAnalysis(company: SeedCompany) {
+    const qs = company.quality_score;
+    const total_score = qs ? qs.total_score : 75.0;
+    const solvency = qs ? qs.solvency_score : 20.0;
+    const profitability = qs ? qs.profitability_score : 22.0;
+    const growth_cash = qs ? qs.cash_growth_score : 18.0;
+    const val_score = qs ? qs.valuation_score : 14.0;
+
+    if (company.symbol === 'GLW') {
+      return {
+        copilot: 'Warren',
+        symbol: 'GLW',
+        company_name: 'Corning Inc',
+        date: '2026-06-23',
+        disclaimer: "Avis généré par IA à partir de données publiques. Ne constitue pas un conseil en investissement personnalisé.",
+        moat_score: 4,
+        moat_label: 'Solide',
+        sentiment_score: 5,
+        sentiment_label: 'Euphorie',
+        technical_point: 2.0,
+        technical_label: 'Neutre (Attendre repli)',
+        potential_pct: 72,
+        risk_level_pct: 38,
+        risk_reward_pct: 78,
+        radar_scores: [
+          { axis: 'Croissance', value: 85 },
+          { axis: 'Rentabilité', value: 82 },
+          { axis: 'Santé', value: 78 },
+          { axis: 'Valorisation', value: 45 },
+          { axis: 'Moat & Momentum', value: 88 }
+        ],
+        strengths: ['Maillon critique optique IA', 'Moat R&D solide', 'Marges et ROIC en hausse'],
+        risks: ['Dépendance capex IA', 'Concentration clients hyperscalers', "Croissance dépendante d'exécution"],
+        thesis_one_liner: "Champion de la fibre optique pour l'IA dont la croissance réaccélère fortement via des contrats hyperscalers.",
+        investment_profile: 'Réaccélération qualité',
+        recommended_horizon: 'Long terme',
+        report_title: "Corning (GLW) — Le verre qui s'est transformé en infrastructure de l'IA",
+        sections: [
+          { number: '1', title: "L'entreprise & son moat", content: "Corning, c'est 175 ans de science des matériaux : verre spécialisé, céramiques et optique. Concrètement, l'entreprise fabrique le verre des écrans et la fibre optique pour l'IA." },
+          { number: '2', title: 'Qualité du business & gouvernance', content: "Le modèle économique bascule d'une cyclicité traditionnelle vers un modèle de rentes technologiques à haute valeur ajoutée." },
+          { number: '3', title: "Dynamique séculaire de l'IA & hyperscalers", content: "Dans un cluster IA de plusieurs dizaines de milliers de GPU, l'interconnexion optique Corning est l'épine dorsale passive incontournable." },
+          { number: '4', title: 'Prix, valorisation & verdict Warren', content: "La valorisation se situe dans le haut de son canal historique. Attendre un repli technique pour initier une position long terme." }
+        ]
+      };
+    }
+
+    const pe = company.pe_ratio || 25.0;
+    return {
+      copilot: 'Warren',
+      symbol: company.symbol,
+      company_name: company.name,
+      date: new Date().toISOString().substring(0, 10),
+      disclaimer: 'Avis généré par IA à partir de données financières fondamentales publiques.',
+      moat_score: total_score >= 85 ? 5 : total_score >= 70 ? 4 : 3,
+      moat_label: total_score >= 85 ? 'Infranchissable' : total_score >= 70 ? 'Solide' : 'Modéré',
+      sentiment_score: pe > 35 ? 5 : pe > 25 ? 4 : 3,
+      sentiment_label: pe > 35 ? 'Euphorie' : pe > 25 ? 'Optimiste' : 'Neutre',
+      technical_point: 2.5,
+      technical_label: 'Zone neutre / Accumulation',
+      potential_pct: Math.min(95, Math.round(total_score * 0.95)),
+      risk_level_pct: Math.max(20, Math.round(100 - solvency * 3.2)),
+      risk_reward_pct: Math.min(92, Math.round(total_score * 0.9)),
+      radar_scores: [
+        { axis: 'Croissance', value: Math.min(95, Math.max(40, Math.round(growth_cash * 3.8))) },
+        { axis: 'Rentabilité', value: Math.min(95, Math.max(45, Math.round(profitability * 3.2))) },
+        { axis: 'Santé', value: Math.min(95, Math.max(40, Math.round(solvency * 3.8))) },
+        { axis: 'Valorisation', value: Math.min(90, Math.max(30, Math.round(val_score * 4.5))) },
+        { axis: 'Moat & Momentum', value: Math.min(95, Math.max(50, Math.round((profitability + solvency) * 1.8))) }
+      ],
+      strengths: ['Bilan robuste avec levier sous contrôle', 'Génération pérenne de Free Cash Flow', 'Position dominante sectorielle'],
+      risks: ['Sensibilité macroéconomique', 'Pression concurrentielle', `Multiple de valorisation (${pe.toFixed(1)}x)`],
+      thesis_one_liner: "Leader sectoriel incontournable disposant d'un rempart concurrentiel éprouvé.",
+      investment_profile: 'Compounder de Qualité',
+      recommended_horizon: 'Long terme',
+      report_title: `${company.name} (${company.symbol}) — Thèse de Valeur & Moat`,
+      sections: [
+        { number: '1', title: 'Rempart concurrentiel (Moat)', content: `${company.name} bénéficie d'une position dominante sur son segment de marché (${company.industry || 'Global'}).` },
+        { number: '2', title: 'Génération de cash & allocation', content: "Le modèle d'affaires génère des flux de trésorerie prévisibles et autofinance sa croissance." },
+        { number: '3', title: 'Valorisation & Marge de sécurité', content: `Multiple P/E actuel de ${pe.toFixed(1)}x justifiant un intérêt stratégique sur repli.` }
+      ]
+    };
+  }
+
+  static getEinsteinRanking(targetCompany: SeedCompany) {
+    let sectorPeers = companies.filter((c) => c.sector === targetCompany.sector);
+    if (sectorPeers.length < 4) {
+      sectorPeers = companies.slice(0, 8);
+    }
+
+    const rankedItems: any[] = [];
+    for (const c of sectorPeers) {
+      const stmts = c.financial_statements ? [...c.financial_statements] : [];
+      stmts.sort((a, b) => a.fiscal_year - b.fiscal_year);
+      const latest = stmts.length > 0 ? stmts[stmts.length - 1] : null;
+
+      const roe = latest?.roe ?? 15.0;
+      const roic = latest?.roic ?? 12.0;
+      const op_margin = latest?.operating_margin ?? 15.0;
+      const fcf_margin =
+        latest?.free_cash_flow && latest?.revenue && latest.revenue > 0
+          ? Math.round((latest.free_cash_flow / latest.revenue) * 1000) / 10
+          : 10.0;
+      const debt_ebitda = latest?.net_debt_to_ebitda ?? 1.5;
+      const pe = c.pe_ratio || 25.0;
+
+      let einstein_score =
+        Math.min(40.0, roe) * 0.7 +
+        Math.min(35.0, roic) * 0.8 +
+        Math.min(30.0, op_margin) * 0.6 +
+        Math.min(25.0, fcf_margin) * 0.5 +
+        Math.max(0.0, 25.0 - Math.max(0.0, debt_ebitda) * 5.0) +
+        Math.max(0.0, 20.0 - pe * 0.3);
+
+      einstein_score = Math.round(Math.min(99.0, Math.max(45.0, einstein_score)) * 10) / 10;
+
+      rankedItems.push({
+        symbol: c.symbol,
+        name: c.name,
+        industry: c.industry,
+        einstein_score,
+        roe: Math.round(roe * 10) / 10,
+        roic: Math.round(roic * 10) / 10,
+        operating_margin: Math.round(op_margin * 10) / 10,
+        fcf_margin: Math.round(fcf_margin * 10) / 10,
+        debt_to_ebitda: debt_ebitda <= 0 ? 'Cash Net' : `${debt_ebitda.toFixed(2)}x`,
+        pe_ratio: `${pe.toFixed(1)}x`,
+        is_target: c.symbol === targetCompany.symbol
+      });
+    }
+
+    rankedItems.sort((a, b) => b.einstein_score - a.einstein_score);
+    for (let idx = 0; idx < rankedItems.length; idx++) {
+      rankedItems[idx].rank = idx + 1;
+    }
+
+    const targetItem = rankedItems.find((it) => it.symbol === targetCompany.symbol);
+    const targetRank = targetItem ? targetItem.rank : 1;
+
+    return {
+      copilot: 'Einstein',
+      target_symbol: targetCompany.symbol,
+      target_name: targetCompany.name,
+      sector: targetCompany.sector,
+      target_rank: targetRank,
+      total_evaluated: rankedItems.length,
+      verdict:
+        `${targetCompany.name} se classe au rang #${targetRank} sur ${rankedItems.length} concurrents évalués.`,
+      competitors: rankedItems
+    };
+  }
+
+  static getCompanyNews(symbol: string, companyName: string, limit = 8) {
+    const sym = symbol.toUpperCase();
+    const items = [
+      {
+        id: `${sym.toLowerCase()}-1`,
+        title: `${companyName} (${sym}) : Forte accélération des investissements d'infrastructures et rentabilité robuste`,
+        publisher: 'Bourse & Marchés Pro',
+        link: `https://finance.yahoo.com/quote/${sym}`,
+        published_at: 'Il y a 2 h',
+        summary: `Les derniers indicateurs de ${companyName} confortent la trajectoire de croissance soutenue par une demande institutionnelle robuste et des marges d'exploitation en expansion continue.`,
+        category: 'Résultats Financiers',
+        sentiment: 'positif',
+        source: 'QualityScreener Financial Wire'
+      },
+      {
+        id: `${sym.toLowerCase()}-2`,
+        title: `Analyse stratégique : Pourquoi le Moat de ${companyName} renforce sa position dominante`,
+        publisher: 'Alpha Insights',
+        link: `https://finance.yahoo.com/quote/${sym}`,
+        published_at: 'Il y a 5 h',
+        summary: `L'avantage compétitif et le pouvoir de fixation des prix de ${companyName} protègent efficacement les marges face aux cycles macroéconomiques.`,
+        category: 'Stratégie & Contrats',
+        sentiment: 'positif',
+        source: 'QualityScreener Financial Wire'
+      },
+      {
+        id: `${sym.toLowerCase()}-3`,
+        title: `Consensus des analystes : Objectif de cours rehaussé pour ${sym}`,
+        publisher: 'Financial Times France',
+        link: `https://finance.yahoo.com/quote/${sym}`,
+        published_at: 'Il y a 14 h',
+        summary: `Plusieurs maisons de courtage internationales saluent la discipline d'allocation du capital et relèvent leurs prévisions de flux de trésorerie libre.`,
+        category: 'Consensus & Analystes',
+        sentiment: 'positif',
+        source: 'QualityScreener Financial Wire'
+      },
+      {
+        id: `${sym.toLowerCase()}-4`,
+        title: `${companyName} consolide ses partenariats clés dans les technologies de nouvelle génération`,
+        publisher: 'Tech Infrastructure Daily',
+        link: `https://finance.yahoo.com/quote/${sym}`,
+        published_at: 'Il y a 26 h',
+        summary: `Grâce à des contrats pluriannuels et une R&D soutenue, ${companyName} sécurise son carnet de commandes pour les 3 prochains exercices.`,
+        category: 'Innovation & Tech',
+        sentiment: 'neutre',
+        source: 'QualityScreener Financial Wire'
+      }
+    ];
+    return items.slice(0, limit);
+  }
+
+  // Portfolio Service
+  static getAllStrategies(capital = 10000.0, currency = 'EUR') {
+    return ['defensive', 'balanced', 'dynamic'].map((sKey) => {
+      const strat = STRATEGY_DEFINITIONS[sKey];
+      const totalCapital = Math.max(100.0, Number(capital));
+      const recs: any[] = [];
+      let totalAllocated = 0.0;
+
+      for (const item of strat.stocks) {
+        const company = companyMap.get(item.symbol);
+        const currentPrice = company?.current_price ?? 100.0;
+        const stockCurrency = item.symbol.endsWith('.PA') ? 'EUR' : (company?.currency || currency);
+        const targetAmount = totalCapital * item.weight;
+
+        let shares: number;
+        if (currentPrice <= targetAmount) {
+          shares = Math.floor(targetAmount / currentPrice);
+          if (shares === 0) shares = 1.0;
+        } else {
+          shares = Math.round((targetAmount / currentPrice) * 100) / 100;
+        }
+
+        const allocated = Math.round(shares * currentPrice * 100) / 100;
+        totalAllocated += allocated;
+        const qs = company?.quality_score;
+
+        recs.push({
+          symbol: item.symbol,
+          name: company ? company.name : item.symbol,
+          sector: company?.sector || 'Diversified',
+          target_weight_pct: Math.round(item.weight * 1000) / 10,
+          current_price: Math.round(currentPrice * 100) / 100,
+          currency: stockCurrency,
+          suggested_shares: shares,
+          allocated_amount: allocated,
+          pe_ratio: company?.pe_ratio ?? null,
+          dividend_yield: company?.dividend_yield ?? null,
+          piotroski_score: qs?.piotroski_score ?? 8,
+          quality_score: qs ? Math.round(qs.total_score * 10) / 10 : 85.0,
+          thesis: item.thesis
+        });
+      }
+
+      const cashRemaining = Math.max(0.0, Math.round((totalCapital - totalAllocated) * 100) / 100);
+
+      return {
+        id: strat.id,
+        title: strat.title,
+        subtitle: strat.subtitle,
+        risk_level: strat.risk_level,
+        risk_score: strat.risk_score,
+        target_return: strat.target_return,
+        volatility: strat.volatility,
+        description: strat.description,
+        focus_criteria: strat.focus_criteria,
+        stocks_universe: strat.stocks.map((s: any) => s.symbol),
+        recommendations: recs,
+        total_allocated: Math.round(totalAllocated * 100) / 100,
+        cash_remaining: cashRemaining
+      };
+    });
+  }
+
+  static listPortfolios() {
+    const portfolios = getStoredPortfolios();
+    const positions = getStoredPositions();
+    const result: any[] = [];
+
+    for (const p of portfolios) {
+      const stratDef = STRATEGY_DEFINITIONS[p.strategy] || STRATEGY_DEFINITIONS.balanced;
+      const portPositions = positions.filter((pos) => pos.portfolio_id === p.id);
+
+      let posVal = 0.0;
+      for (const pos of portPositions) {
+        const company = companyMap.get(pos.symbol);
+        const curPrice = company?.current_price ?? pos.buy_price;
+        posVal += pos.shares * curPrice;
+      }
+
+      const totVal = Math.round((posVal + p.cash_balance) * 100) / 100;
+      const totInvested = p.initial_capital;
+      const pnl = Math.round((totVal - totInvested) * 100) / 100;
+      const pnlPct = totInvested > 0 ? Math.round((pnl / totInvested) * 10000) / 100 : 0.0;
+
+      result.push({
+        id: p.id,
+        name: p.name,
+        strategy: p.strategy,
+        strategy_title: stratDef.title,
+        initial_capital: p.initial_capital,
+        cash_balance: p.cash_balance,
+        currency: p.currency,
+        total_value: totVal,
+        total_pnl: pnl,
+        total_pnl_pct: pnlPct,
+        positions_count: portPositions.length,
+        created_at: p.created_at,
+        updated_at: p.updated_at
+      });
+    }
+
+    return result;
+  }
+
+  static getPortfolioPerformance(portfolioId: number | null = null) {
+    const portfolios = getStoredPortfolios();
+    if (portfolios.length === 0) return null;
+
+    let portfolio: any;
+    if (portfolioId) {
+      portfolio = portfolios.find((p) => p.id === Number(portfolioId));
+    }
+    if (!portfolio) {
+      portfolio = portfolios[0];
+    }
+
+    const stratDef = STRATEGY_DEFINITIONS[portfolio.strategy] || STRATEGY_DEFINITIONS.balanced;
+    const allPositions = getStoredPositions();
+    const positions = allPositions.filter((pos) => pos.portfolio_id === portfolio.id);
+
+    let totalPositionsValue = 0.0;
+    let totalPositionsCost = 0.0;
+    let dailyPnl = 0.0;
+    const tempHoldings: any[] = [];
+
+    for (const pos of positions) {
+      const company = companyMap.get(pos.symbol);
+      const curPrice = company?.current_price ?? pos.buy_price;
+      const curVal = pos.shares * curPrice;
+      const cost = pos.shares * pos.buy_price;
+
+      totalPositionsValue += curVal;
+      totalPositionsCost += cost;
+
+      let dayChange = 0.0;
+      if (company && company.stock_prices && company.stock_prices.length >= 2) {
+        const prices = company.stock_prices;
+        const prevClose = prices[prices.length - 2].close;
+        if (prevClose && prevClose > 0) {
+          dayChange = (curPrice - prevClose) * pos.shares;
+        }
+      }
+      dailyPnl += dayChange;
+
+      tempHoldings.push({ pos, company, curPrice, curVal, cost });
+    }
+
+    const totalPortfolioValue = Math.round((totalPositionsValue + portfolio.cash_balance) * 100) / 100;
+    const sectorBreakdown: Record<string, { value: number; count: number }> = {};
+
+    let totalWeightedQs = 0.0;
+    let totalWeightedPiotroski = 0.0;
+    let totalWeightedRoe = 0.0;
+    let totalWeightedRoic = 0.0;
+    let totalWeightedDivYield = 0.0;
+    let analyzedWeight = 0.0;
+
+    const detailedPositions: any[] = [];
+
+    for (const item of tempHoldings) {
+      const { pos, company, curPrice, curVal, cost } = item;
+      const unrealizedPnl = Math.round((curVal - cost) * 100) / 100;
+      const unrealizedPnlPct = cost > 0 ? Math.round((unrealizedPnl / cost) * 10000) / 100 : 0.0;
+      const weightPct = totalPortfolioValue > 0 ? Math.round((curVal / totalPortfolioValue) * 10000) / 100 : 0.0;
+
+      const qs = company?.quality_score;
+      const qualityVal = qs?.total_score ?? null;
+      const piotroskiVal = qs?.piotroski_score ?? null;
+
+      const sector = company?.sector || 'Diversified';
+      if (!sectorBreakdown[sector]) {
+        sectorBreakdown[sector] = { value: 0.0, count: 0 };
+      }
+      sectorBreakdown[sector].value += curVal;
+      sectorBreakdown[sector].count += 1;
+
+      if (qualityVal !== null) totalWeightedQs += qualityVal * (weightPct / 100.0);
+      if (piotroskiVal !== null) totalWeightedPiotroski += piotroskiVal * (weightPct / 100.0);
+
+      if (company) {
+        const stmts = company.financial_statements ? [...company.financial_statements] : [];
+        stmts.sort((a, b) => a.fiscal_year - b.fiscal_year);
+        const latest = stmts.length > 0 ? stmts[stmts.length - 1] : null;
+
+        if (latest?.roe !== undefined && latest?.roe !== null) totalWeightedRoe += latest.roe * (weightPct / 100.0);
+        if (latest?.roic !== undefined && latest?.roic !== null) totalWeightedRoic += latest.roic * (weightPct / 100.0);
+        if (company.dividend_yield !== undefined && company.dividend_yield !== null) {
+          const rawDiv = company.dividend_yield;
+          const normalizedDiv = rawDiv > 15.0 ? rawDiv / 100.0 : rawDiv;
+          totalWeightedDivYield += normalizedDiv * (weightPct / 100.0);
+        }
+      }
+
+      analyzedWeight += weightPct;
+
+      detailedPositions.push({
+        id: pos.id,
+        portfolio_id: portfolio.id,
+        company_id: company ? company.id : null,
+        symbol: pos.symbol,
+        name: company ? company.name : pos.symbol,
+        sector,
+        shares: pos.shares,
+        buy_price: pos.buy_price,
+        current_price: Math.round(curPrice * 100) / 100,
+        currency: company?.currency || portfolio.currency,
+        total_cost: Math.round(cost * 100) / 100,
+        current_value: Math.round(curVal * 100) / 100,
+        unrealized_pnl: unrealizedPnl,
+        unrealized_pnl_pct: unrealizedPnlPct,
+        weight_pct: weightPct,
+        quality_score: qualityVal !== null ? Math.round(qualityVal * 10) / 10 : null,
+        piotroski_score: piotroskiVal,
+        buy_date: pos.buy_date,
+        notes: pos.notes
+      });
+    }
+
+    let weightedQs: number | null = null;
+    let weightedPiot: number | null = null;
+    let avgRoe: number | null = null;
+    let avgRoic: number | null = null;
+    let avgDiv: number | null = null;
+
+    if (analyzedWeight > 0) {
+      const normFactor = 100.0 / analyzedWeight;
+      weightedQs = Math.round(totalWeightedQs * normFactor * 10) / 10;
+      weightedPiot = Math.round(totalWeightedPiotroski * normFactor * 10) / 10;
+      avgRoe = Math.round(totalWeightedRoe * normFactor * 10) / 10;
+      avgRoic = Math.round(totalWeightedRoic * normFactor * 10) / 10;
+      avgDiv = Math.round(totalWeightedDivYield * normFactor * 100) / 100;
+    }
+
+    const sectorsList = Object.keys(sectorBreakdown).map((sec) => {
+      const data = sectorBreakdown[sec];
+      const pct = totalPortfolioValue > 0 ? Math.round((data.value / totalPortfolioValue) * 1000) / 10 : 0.0;
+      return {
+        sector: sec,
+        value: Math.round(data.value * 100) / 100,
+        percentage: pct,
+        stock_count: data.count
+      };
+    });
+    sectorsList.sort((a, b) => b.value - a.value);
+
+    const totalPnl = Math.round((totalPortfolioValue - portfolio.initial_capital) * 100) / 100;
+    const totalPnlPct =
+      portfolio.initial_capital > 0 ? Math.round((totalPnl / portfolio.initial_capital) * 10000) / 100 : 0.0;
+
+    const baseVal = totalPortfolioValue - dailyPnl;
+    const dailyPnlPct = baseVal > 0 ? Math.round((dailyPnl / baseVal) * 10000) / 100 : 0.0;
+
+    const sortedByPnl = [...detailedPositions].sort((a, b) => b.unrealized_pnl - a.unrealized_pnl);
+    const topGainers = sortedByPnl
+      .filter((p) => p.unrealized_pnl > 0)
+      .slice(0, 3)
+      .map((p) => ({
+        symbol: p.symbol,
+        name: p.name,
+        pnl_amount: p.unrealized_pnl,
+        pnl_pct: p.unrealized_pnl_pct,
+        weight_pct: p.weight_pct
+      }));
+
+    const topLosers = [...sortedByPnl]
+      .reverse()
+      .filter((p) => p.unrealized_pnl < 0)
+      .slice(0, 3)
+      .map((p) => ({
+        symbol: p.symbol,
+        name: p.name,
+        pnl_amount: p.unrealized_pnl,
+        pnl_pct: p.unrealized_pnl_pct,
+        weight_pct: p.weight_pct
+      }));
+
+    return {
+      id: portfolio.id,
+      name: portfolio.name,
+      strategy: portfolio.strategy,
+      strategy_title: stratDef.title,
+      initial_capital: portfolio.initial_capital,
+      cash_balance: portfolio.cash_balance,
+      currency: portfolio.currency,
+      total_value: totalPortfolioValue,
+      total_invested: Math.round(totalPositionsCost * 100) / 100,
+      total_pnl: totalPnl,
+      total_pnl_pct: totalPnlPct,
+      daily_pnl: Math.round(dailyPnl * 100) / 100,
+      daily_pnl_pct: dailyPnlPct,
+      weighted_quality_score: weightedQs,
+      weighted_piotroski_score: weightedPiot,
+      average_roe: avgRoe,
+      average_roic: avgRoic,
+      average_dividend_yield: avgDiv,
+      positions_count: detailedPositions.length,
+      positions: detailedPositions,
+      sectors: sectorsList,
+      top_gainers: topGainers,
+      top_losers: topLosers,
+      created_at: portfolio.created_at,
+      updated_at: portfolio.updated_at
+    };
+  }
+
+  static createOrSetupPortfolio(setupData: any) {
+    let stratKey = (setupData.strategy || 'balanced').toLowerCase();
+    if (!STRATEGY_DEFINITIONS[stratKey]) stratKey = 'balanced';
+
+    const requestedName =
+      (setupData.name || '').trim() || `Portefeuille ${STRATEGY_DEFINITIONS[stratKey].title}`;
+
+    const portfolios = getStoredPortfolios();
+    let positions = getStoredPositions();
+
+    const existingIdx = portfolios.findIndex((p) => p.name === requestedName);
+    let portfolio: any;
+    const now = new Date().toISOString();
+
+    if (existingIdx >= 0) {
+      portfolio = portfolios[existingIdx];
+      portfolio.strategy = stratKey;
+      portfolio.initial_capital = Number(setupData.initial_capital);
+      portfolio.cash_balance = Number(setupData.initial_capital);
+      portfolio.currency = setupData.currency;
+      portfolio.updated_at = now;
+      positions = positions.filter((p) => p.portfolio_id !== portfolio.id);
+    } else {
+      const maxId = portfolios.reduce((m, p) => Math.max(m, p.id || 0), 0);
+      portfolio = {
+        id: maxId + 1,
+        name: requestedName,
+        strategy: stratKey,
+        initial_capital: Number(setupData.initial_capital),
+        cash_balance: Number(setupData.initial_capital),
+        currency: setupData.currency,
+        created_at: now,
+        updated_at: now
+      };
+      portfolios.push(portfolio);
+    }
+
+    let totalSpent = 0.0;
+
+    if (setupData.mode === 'auto') {
+      const recs = LocalEngine.getAllStrategies(setupData.initial_capital, setupData.currency).find(
+        (s) => s.id === stratKey
+      );
+      if (recs) {
+        for (const rec of recs.recommendations) {
+          if (rec.suggested_shares <= 0) continue;
+          const cost = rec.suggested_shares * rec.current_price;
+          totalSpent += cost;
+          const maxPosId = positions.reduce((m, p) => Math.max(m, p.id || 0), 0);
+          positions.push({
+            id: maxPosId + 1,
+            portfolio_id: portfolio.id,
+            company_id: companyMap.get(rec.symbol)?.id || null,
+            symbol: rec.symbol,
+            shares: rec.suggested_shares,
+            buy_price: rec.current_price,
+            buy_date: now,
+            notes: `Allocation automatique ${rec.target_weight_pct}%`
+          });
+        }
+      }
+    } else {
+      const customPicks = setupData.custom_positions || [];
+      for (const item of customPicks) {
+        const symbol = item.symbol.toUpperCase();
+        const company = companyMap.get(symbol);
+        const price = item.buy_price && item.buy_price > 0 ? item.buy_price : (company?.current_price ?? 100.0);
+        const cost = item.shares * price;
+        totalSpent += cost;
+        const maxPosId = positions.reduce((m, p) => Math.max(m, p.id || 0), 0);
+        positions.push({
+          id: maxPosId + 1,
+          portfolio_id: portfolio.id,
+          company_id: company?.id || null,
+          symbol,
+          shares: item.shares,
+          buy_price: Math.round(price * 100) / 100,
+          buy_date: now,
+          notes: item.notes || 'Position personnalisée'
+        });
+      }
+    }
+
+    portfolio.cash_balance = Math.max(0.0, Math.round((setupData.initial_capital - totalSpent) * 100) / 100);
+    saveStoredPortfolios(portfolios);
+    saveStoredPositions(positions);
+
+    return portfolio;
+  }
+
+  static addOrUpdatePosition(positionData: any, portfolioId: number | null = null) {
+    const portfolios = getStoredPortfolios();
+    const positions = getStoredPositions();
+
+    let portfolio = portfolioId ? portfolios.find((p) => p.id === Number(portfolioId)) : portfolios[0];
+    if (!portfolio) {
+      portfolio = {
+        id: 1,
+        name: 'Mon Portefeuille IA',
+        strategy: 'balanced',
+        initial_capital: 10000,
+        cash_balance: 10000,
+        currency: 'EUR',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      portfolios.push(portfolio);
+    }
+
+    const symbol = positionData.symbol.toUpperCase();
+    const company = companyMap.get(symbol);
+    const buyPrice = positionData.buy_price && positionData.buy_price > 0 ? positionData.buy_price : (company?.current_price ?? 100.0);
+
+    const existing = positions.find((p) => p.portfolio_id === portfolio.id && p.symbol.toUpperCase() === symbol);
+    let pos: any;
+
+    if (existing) {
+      const addedShares = Number(positionData.shares);
+      const totalShares = existing.shares + addedShares;
+      const totalCost = existing.shares * existing.buy_price + addedShares * buyPrice;
+      existing.buy_price = Math.round((totalCost / totalShares) * 100) / 100;
+      existing.shares = Math.round(totalShares * 10000) / 10000;
+      if (positionData.notes) existing.notes = positionData.notes;
+      pos = existing;
+    } else {
+      const maxId = positions.reduce((m, p) => Math.max(m, p.id || 0), 0);
+      pos = {
+        id: maxId + 1,
+        portfolio_id: portfolio.id,
+        company_id: company?.id || null,
+        symbol,
+        shares: Math.round(Number(positionData.shares) * 10000) / 10000,
+        buy_price: Math.round(Number(buyPrice) * 100) / 100,
+        buy_date: new Date().toISOString(),
+        notes: positionData.notes || 'Position personnalisée'
+      };
+      positions.push(pos);
+    }
+
+    const totalCost = positionData.shares * buyPrice;
+    portfolio.cash_balance = Math.max(0.0, Math.round((portfolio.cash_balance - totalCost) * 100) / 100);
+    portfolio.updated_at = new Date().toISOString();
+
+    saveStoredPortfolios(portfolios);
+    saveStoredPositions(positions);
+
+    return pos;
+  }
+
+  static removePosition(positionId: number) {
+    const portfolios = getStoredPortfolios();
+    const positions = getStoredPositions();
+    const posIdx = positions.findIndex((p) => p.id === Number(positionId));
+    if (posIdx < 0) return false;
+
+    const pos = positions[posIdx];
+    const portfolio = portfolios.find((p) => p.id === pos.portfolio_id);
+    const company = companyMap.get(pos.symbol);
+    const curPrice = company?.current_price ?? pos.buy_price;
+    const proceeds = pos.shares * curPrice;
+
+    if (portfolio) {
+      portfolio.cash_balance = Math.round((portfolio.cash_balance + proceeds) * 100) / 100;
+      portfolio.updated_at = new Date().toISOString();
+      saveStoredPortfolios(portfolios);
+    }
+
+    positions.splice(posIdx, 1);
+    saveStoredPositions(positions);
+    return true;
+  }
+
+  static resetPortfolio(portfolioId: number | null = null) {
+    let portfolios = getStoredPortfolios();
+    let positions = getStoredPositions();
+
+    const targetId = portfolioId ? Number(portfolioId) : (portfolios[0]?.id || 1);
+    portfolios = portfolios.filter((p) => p.id !== targetId);
+    positions = positions.filter((p) => p.portfolio_id !== targetId);
+
+    saveStoredPortfolios(portfolios);
+    saveStoredPositions(positions);
+    return true;
+  }
+
+  static analyzePortfolio(portfolioId: number | null = null) {
+    const perf = LocalEngine.getPortfolioPerformance(portfolioId);
+    if (!perf || perf.positions_count === 0) return null;
+
+    let healthScore = 75;
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
+    const recommendations: any[] = [];
+    const sectorAlerts: any[] = [];
+    const stockAlerts: any[] = [];
+
+    if (perf.weighted_quality_score && perf.weighted_quality_score >= 80) {
+      healthScore += 10;
+      strengths.push(`Excellence fondamentale globale : Score Qualité moyen de ${perf.weighted_quality_score}/100 sur l'ensemble des lignes.`);
+    }
+    if (perf.weighted_piotroski_score && perf.weighted_piotroski_score >= 7.0) {
+      healthScore += 5;
+      strengths.push(`Santé financière remarquable : Piotroski F-Score moyen de ${perf.weighted_piotroski_score}/9.`);
+    }
+
+    const stratKey = (perf.strategy || '').toLowerCase();
+    const sectorThreshold = stratKey === 'dynamic' ? 45.0 : stratKey === 'defensive' ? 30.0 : 35.0;
+
+    for (const s of perf.sectors) {
+      if (s.percentage > sectorThreshold) {
+        healthScore -= 10;
+        sectorAlerts.push({
+          sector: s.sector,
+          percentage: s.percentage,
+          threshold: sectorThreshold,
+          status: 'WARNING',
+          message: `Surpondération sectorielle : ${s.sector} représente ${s.percentage}% du portefeuille.`
+        });
+        recommendations.push({
+          action: 'REBALANCE',
+          title: `Surveiller l'exposition au secteur ${s.sector}`,
+          description: `Veiller à ce que l'exposition ne dépasse pas ${sectorThreshold}%.`,
+          impact: 'Optimisation du profil de risque'
+        });
+      } else {
+        sectorAlerts.push({
+          sector: s.sector,
+          percentage: s.percentage,
+          threshold: sectorThreshold,
+          status: 'OPTIMAL',
+          message: `Pondération maîtrisée (${s.percentage}%) dans le secteur ${s.sector}.`
+        });
+      }
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push({
+        action: 'HOLD',
+        title: "Maintien de l'allocation stratégique cible",
+        description: "Votre portefeuille respecte parfaitement les critères de la stratégie.",
+        impact: 'Optimisation des rendements composés'
+      });
+    }
+
+    healthScore = Math.max(20, Math.min(98, healthScore));
+
+    return {
+      portfolio_id: perf.id,
+      strategy: perf.strategy,
+      health_score: healthScore,
+      overall_verdict: healthScore >= 85 ? 'Excellent' : healthScore >= 70 ? 'Solide' : 'À Rééquilibrer',
+      weighted_quality_score: perf.weighted_quality_score || 75.0,
+      average_piotroski: perf.weighted_piotroski_score || 6.5,
+      average_roe: perf.average_roe || 20.0,
+      average_roic: perf.average_roic || 15.0,
+      portfolio_dividend_yield: perf.average_dividend_yield || 1.5,
+      cash_ratio_pct: perf.total_value > 0 ? Math.round((perf.cash_balance / perf.total_value) * 1000) / 10 : 0.0,
+      sector_alerts: sectorAlerts,
+      stock_alerts: stockAlerts,
+      strengths,
+      weaknesses,
+      recommendations,
+      audited_at: new Date().toISOString()
+    };
+  }
+}
