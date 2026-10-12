@@ -1,0 +1,146 @@
+{
+  "portfolios": [
+    {
+      "id": 1,
+      "name": "Mon Portefeuille IA",
+      "strategy": "dynamic",
+      "initial_capital": 10000,
+      "cash_balance": 1504.41,
+      "currency": "EUR",
+      "created_at": "2026-10-12 12:49:05.559537",
+      "updated_at": "2026-10-12 12:49:05.563159"
+    },
+    {
+      "id": 2,
+      "name": "Portefeuille Défensif / Bon Père de Famille",
+      "strategy": "defensive",
+      "initial_capital": 10000,
+      "cash_balance": 718.8,
+      "currency": "EUR",
+      "created_at": "2026-10-12 13:26:21.958846",
+      "updated_at": "2026-10-12 13:26:21.965441"
+    }
+  ],
+  "portfolio_positions": [
+    {
+      "id": 1,
+      "portfolio_id": 1,
+      "company_id": 5,
+      "symbol": "NVDA",
+      "shares": 10,
+      "buy_price": 229.28,
+      "buy_date": "2026-10-12 12:49:05.563380",
+      "notes": "Allocation automatique 25.0%"
+    },
+    {
+      "id": 2,
+      "portfolio_id": 1,
+      "company_id": 6,
+      "symbol": "ASML",
+      "shares": 1,
+      "buy_price": 1780.34,
+      "buy_date": "2026-10-12 12:49:05.563382",
+      "notes": "Allocation automatique 20.0%"
+    },
+    {
+      "id": 3,
+      "portfolio_id": 1,
+      "company_id": 22,
+      "symbol": "AMZN",
+      "shares": 7,
+      "buy_price": 262.43,
+      "buy_date": "2026-10-12 12:49:05.563383",
+      "notes": "Allocation automatique 20.0%"
+    },
+    {
+      "id": 4,
+      "portfolio_id": 1,
+      "company_id": 23,
+      "symbol": "META",
+      "shares": 2,
+      "buy_price": 718.67,
+      "buy_date": "2026-10-12 12:49:05.563384",
+      "notes": "Allocation automatique 20.0%"
+    },
+    {
+      "id": 5,
+      "portfolio_id": 1,
+      "company_id": 24,
+      "symbol": "TSLA",
+      "shares": 3,
+      "buy_price": 382.7,
+      "buy_date": "2026-10-12 12:49:05.563385",
+      "notes": "Allocation automatique 15.0%"
+    },
+    {
+      "id": 6,
+      "portfolio_id": 2,
+      "company_id": 7,
+      "symbol": "JNJ",
+      "shares": 6,
+      "buy_price": 261.44,
+      "buy_date": "2026-10-12 13:26:21.966206",
+      "notes": "Allocation automatique 16.0%"
+    },
+    {
+      "id": 7,
+      "portfolio_id": 2,
+      "company_id": 11,
+      "symbol": "PG",
+      "shares": 9,
+      "buy_price": 151.23,
+      "buy_date": "2026-10-12 13:26:21.966209",
+      "notes": "Allocation automatique 15.0%"
+    },
+    {
+      "id": 8,
+      "portfolio_id": 2,
+      "company_id": 12,
+      "symbol": "KO",
+      "shares": 17,
+      "buy_price": 88.05,
+      "buy_date": "2026-10-12 13:26:21.966213",
+      "notes": "Allocation automatique 15.0%"
+    },
+    {
+      "id": 9,
+      "portfolio_id": 2,
+      "company_id": 21,
+      "symbol": "SAN.PA",
+      "shares": 19,
+      "buy_price": 72.16,
+      "buy_date": "2026-10-12 13:26:21.966216",
+      "notes": "Allocation automatique 14.0%"
+    },
+    {
+      "id": 10,
+      "portfolio_id": 2,
+      "company_id": 13,
+      "symbol": "MCD",
+      "shares": 5,
+      "buy_price": 235.23,
+      "buy_date": "2026-10-12 13:26:21.966217",
+      "notes": "Allocation automatique 14.0%"
+    },
+    {
+      "id": 11,
+      "portfolio_id": 2,
+      "company_id": 17,
+      "symbol": "V",
+      "shares": 3,
+      "buy_price": 385.45,
+      "buy_date": "2026-10-12 13:26:21.966219",
+      "notes": "Allocation automatique 13.0%"
+    },
+    {
+      "id": 12,
+      "portfolio_id": 2,
+      "company_id": 14,
+      "symbol": "OR.PA",
+      "shares": 3,
+      "buy_price": 383.7,
+      "buy_date": "2026-10-12 13:26:21.966220",
+      "notes": "Allocation automatique 13.0%"
+    }
+  ]
+}
