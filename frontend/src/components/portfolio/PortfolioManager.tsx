@@ -434,7 +434,7 @@ export const PortfolioManager: React.FC<Props> = ({
                           </div>
                           <div className="text-right flex-shrink-0">
                             <div className={`font-mono font-bold text-xs ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                              {isProfit ? '+' : ''}{item.total_pnl_pct.toFixed(1)}%
+                              {isProfit ? '+' : ''}{(item.total_pnl_pct ?? 0).toFixed(1)}%
                             </div>
                             <div className="text-[10px] text-slate-400 font-mono">
                               {item.total_value.toLocaleString(undefined, { maximumFractionDigits: 0 })} {item.currency === 'EUR' ? '€' : '$'}

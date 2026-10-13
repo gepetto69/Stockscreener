@@ -83,14 +83,14 @@ export const PortfolioDashboard: React.FC<Props> = ({
     }
   };
 
-  const pieData = portfolio.sectors.map((s, idx) => ({
+  const pieData = (portfolio.sectors || []).map((s, idx) => ({
     name: s.sector,
     value: s.value,
     percentage: s.percentage,
     color: SECTOR_COLORS[idx % SECTOR_COLORS.length]
   }));
 
-  const contributorsData = portfolio.positions.map(p => ({
+  const contributorsData = (portfolio.positions || []).map(p => ({
     symbol: p.symbol,
     pnl: p.unrealized_pnl,
     pnl_pct: p.unrealized_pnl_pct
@@ -148,11 +148,11 @@ export const PortfolioDashboard: React.FC<Props> = ({
         <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Valeur Totale</div>
           <div className="text-xl sm:text-2xl font-black text-white font-mono mt-1">
-            {portfolio.total_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+            {(portfolio.total_value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
             <span className="text-sm font-normal text-slate-400">{portfolio.currency === 'EUR' ? '€' : '$'}</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            Investi: {portfolio.total_invested.toLocaleString()} {portfolio.currency}
+            Investi: {(portfolio.total_invested ?? 0).toLocaleString()} {portfolio.currency}
           </div>
         </div>
 
@@ -165,11 +165,11 @@ export const PortfolioDashboard: React.FC<Props> = ({
             {isProfitable ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> : <ArrowDownRight className="w-3.5 h-3.5 text-rose-400" />}
           </div>
           <div className={`text-xl sm:text-2xl font-black font-mono mt-1 ${isProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isProfitable ? '+' : ''}{portfolio.total_pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+            {isProfitable ? '+' : ''}{(portfolio.total_pnl ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
             <span className="text-sm font-normal">{portfolio.currency === 'EUR' ? '€' : '$'}</span>
           </div>
           <div className={`text-xs font-bold font-mono mt-1 ${isProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isProfitable ? '+' : ''}{portfolio.total_pnl_pct.toFixed(2)}%
+            {isProfitable ? '+' : ''}{(portfolio.total_pnl_pct ?? 0).toFixed(2)}%
           </div>
         </div>
 
@@ -177,10 +177,10 @@ export const PortfolioDashboard: React.FC<Props> = ({
         <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">P&L Journée (Est.)</div>
           <div className={`text-lg sm:text-xl font-bold font-mono mt-1 ${isDailyProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isDailyProfitable ? '+' : ''}{portfolio.daily_pnl.toFixed(2)} {portfolio.currency === 'EUR' ? '€' : '$'}
+            {isDailyProfitable ? '+' : ''}{(portfolio.daily_pnl ?? 0).toFixed(2)} {portfolio.currency === 'EUR' ? '€' : '$'}
           </div>
           <div className={`text-xs font-medium font-mono mt-1 ${isDailyProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {isDailyProfitable ? '+' : ''}{portfolio.daily_pnl_pct.toFixed(2)}%
+            {isDailyProfitable ? '+' : ''}{(portfolio.daily_pnl_pct ?? 0).toFixed(2)}%
           </div>
         </div>
 
@@ -188,11 +188,11 @@ export const PortfolioDashboard: React.FC<Props> = ({
         <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
           <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Cash Disponible</div>
           <div className="text-xl sm:text-2xl font-bold text-white font-mono mt-1">
-            {portfolio.cash_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+            {(portfolio.cash_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
             <span className="text-sm font-normal text-slate-400">{portfolio.currency === 'EUR' ? '€' : '$'}</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {((portfolio.cash_balance / portfolio.total_value) * 100).toFixed(1)}% du portefeuille
+            {(((portfolio.cash_balance ?? 0) / (portfolio.total_value || 1)) * 100).toFixed(1)}% du portefeuille
           </div>
         </div>
 
@@ -227,7 +227,7 @@ export const PortfolioDashboard: React.FC<Props> = ({
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-indigo-400" />
-                <h2 className="font-bold text-sm text-white">Détail des Positions ({portfolio.positions.length})</h2>
+                <h2 className="font-bold text-sm text-white">Détail des Positions ({(portfolio.positions || []).length})</h2>
               </div>
               <span className="text-xs text-slate-400">Cliquez sur une ligne pour ouvrir l'analyse</span>
             </div>
@@ -409,7 +409,7 @@ export const PortfolioDashboard: React.FC<Props> = ({
                 <PieIcon className="w-4 h-4 text-cyan-400" />
                 <h3 className="font-bold text-sm text-white">Répartition Sectorielle</h3>
               </div>
-              <span className="text-xs text-slate-400">{portfolio.sectors.length} secteurs</span>
+              <span className="text-xs text-slate-400">{(portfolio.sectors || []).length} secteurs</span>
             </div>
 
             <div className="h-48 w-full">

@@ -77,6 +77,7 @@ export const DuelArena: React.FC<Props> = ({ initialSymbolA, initialSymbolB, onO
 
   const radarMerged = useMemo(() => {
     if (!result) return [];
+    if (!result.radar_a) return [];
     return result.radar_a.map((row, i) => ({
       axis: row.axis,
       A: row.value,
@@ -159,7 +160,7 @@ export const DuelArena: React.FC<Props> = ({ initialSymbolA, initialSymbolB, onO
           <select
             value={symbolA}
             onChange={(e) => setSymbolA(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white min-w-[180px]"
+            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-base sm:text-sm text-white w-full min-w-0 sm:min-w-[180px]"
           >
             {universe.map((c) => (
               <option key={c.symbol} value={c.symbol} disabled={c.symbol === symbolB}>
@@ -171,7 +172,7 @@ export const DuelArena: React.FC<Props> = ({ initialSymbolA, initialSymbolB, onO
           <select
             value={symbolB}
             onChange={(e) => setSymbolB(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white min-w-[180px]"
+            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-base sm:text-sm text-white w-full min-w-0 sm:min-w-[180px]"
           >
             {universe.map((c) => (
               <option key={c.symbol} value={c.symbol} disabled={c.symbol === symbolA}>
@@ -189,7 +190,7 @@ export const DuelArena: React.FC<Props> = ({ initialSymbolA, initialSymbolB, onO
         </div>
       )}
 
-      {result && (
+      {result && result.company_a && result.company_b && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <button
@@ -203,7 +204,7 @@ export const DuelArena: React.FC<Props> = ({ initialSymbolA, initialSymbolB, onO
               <div className="text-xl font-black text-white mt-1">{result.company_a.symbol}</div>
               <div className="text-xs text-slate-400 truncate">{result.company_a.name}</div>
               <div className="mt-2 text-2xl font-black text-sky-400 font-mono">{result.wins_a} victoires</div>
-              <div className="text-[11px] text-amber-300">{result.company_a.moat_stars.toFixed(1)}★ {result.company_a.moat_label}</div>
+              <div className="text-[11px] text-amber-300">{(result.company_a.moat_stars ?? 0).toFixed(1)}★ {result.company_a.moat_label}</div>
             </button>
             <div className="bg-slate-950 border border-indigo-800/50 rounded-2xl p-4 text-center flex flex-col items-center justify-center">
               <Trophy className="w-6 h-6 text-amber-400 mb-1" />
@@ -222,7 +223,7 @@ export const DuelArena: React.FC<Props> = ({ initialSymbolA, initialSymbolB, onO
               <div className="text-xl font-black text-white mt-1">{result.company_b.symbol}</div>
               <div className="text-xs text-slate-400 truncate">{result.company_b.name}</div>
               <div className="mt-2 text-2xl font-black text-fuchsia-400 font-mono">{result.wins_b} victoires</div>
-              <div className="text-[11px] text-amber-300">{result.company_b.moat_stars.toFixed(1)}★ {result.company_b.moat_label}</div>
+              <div className="text-[11px] text-amber-300">{(result.company_b.moat_stars ?? 0).toFixed(1)}★ {result.company_b.moat_label}</div>
             </button>
           </div>
 

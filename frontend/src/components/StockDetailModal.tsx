@@ -645,12 +645,12 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-1.5 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md p-0 sm:p-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl max-h-[96vh] sm:max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+      <div className="bg-slate-900 border-0 sm:border border-slate-800 rounded-none sm:rounded-2xl w-full max-w-6xl h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         
           {/* Top row on mobile: Company Identity + Close Button */}
           <div className="p-3 sm:p-5 border-b border-slate-800 bg-slate-950/80">
@@ -695,6 +695,16 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare 
                   >
                     <Bell className="w-4 h-4 text-sky-400" />
                   </button>
+                  {onCompare && (
+                    <button
+                      type="button"
+                      onClick={() => onCompare(company.symbol)}
+                      className="p-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/40"
+                      title="Comparer"
+                    >
+                      <Swords className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={onClose}
                     className="p-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition"
