@@ -305,8 +305,10 @@ export const App: React.FC = () => {
       if (payload.companies_updated > 0) {
         applyFetchedQuotes(payload);
         setQuotesAsOf(payload.fetched_at);
-        setQuotesLive(payload.source !== 'none');
+        setQuotesLive(true);
         applyQuotesToUi();
+      } else {
+        setQuotesLive(false);
       }
     } catch (err) {
       console.error('Live quote refresh failed', err);
@@ -605,7 +607,7 @@ export const App: React.FC = () => {
                 className="flex-1 flex items-center justify-center gap-2 text-xs bg-slate-900 hover:bg-slate-850 text-slate-300 p-2 rounded-xl border border-slate-800"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-400' : ''}`} />
-                <span>Rafraîchir Cours</span>
+                <span>{refreshing ? 'Maj cours…' : quotesLive ? 'Cours live' : 'Rafraîchir cours'}</span>
               </button>
 
               <button
@@ -622,6 +624,12 @@ export const App: React.FC = () => {
           </div>
         )}
       </header>
+
+      {quotesAsOf && (
+        <div className="md:hidden text-center text-[10px] text-emerald-400/90 py-1 px-3">
+          Cours live {new Date(quotesAsOf).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      )}
 
       {/* Hero Stats Ribbon — desktop/tablet only (too tall on phones) */}
       {activeTab === 'screener' && (

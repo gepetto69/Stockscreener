@@ -3,6 +3,9 @@ DirectoryIndex dist/index.html index.html index.htm
 
 RewriteEngine On
 
+# Same-origin PHP Yahoo proxy (works even when Node /api is 503)
+RewriteRule ^quotes\.php$ - [L]
+
 # 1. Reverse proxy vers l'application Node.js si gérée par proxy interne ou port d'écoute
 # (Fallback pour les environnements Apache/LiteSpeed devant Node.js)
 <IfModule mod_proxy.c>

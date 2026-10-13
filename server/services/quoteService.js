@@ -26,7 +26,10 @@ async function fetchOneQuote(symbol, fetchImpl = fetch) {
   const hosts = ['query1', 'query2'];
   for (const host of hosts) {
     try {
-      const res = await fetchImpl(yahooChartUrl(symbol, host), { headers: YAHOO_HEADERS });
+      const res = await fetchImpl(yahooChartUrl(symbol, host), {
+        headers: YAHOO_HEADERS,
+        signal: AbortSignal.timeout(4000)
+      });
       if (!res.ok) continue;
       const quote = parseYahooChart(await res.json());
       if (quote) return quote;
