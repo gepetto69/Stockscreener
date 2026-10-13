@@ -18,19 +18,27 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import { FlaskConical, Loader2, Activity, Landmark, PieChart } from 'lucide-react';
+import { FlaskConical, Loader2, Activity, Landmark, PieChart, Check, Mail, Printer } from 'lucide-react';
+import { buildNewsletterHtml, collectNewsletterData, openNewsletterPdf, sendNewsletterEmail } from '../services/newsletterEngine';
 
 interface Props {
   portfolio: PortfolioPerformance | null;
+  userEmail?: string;
   onOpenStock?: (symbol: string) => void;
+  onPortfolioChange?: (portfolio: PortfolioPerformance | null) => void;
 }
 
 type LabTab = 'swing' | 'backtest' | 'stress' | 'markowitz' | 'dividends';
 
-export const LabArena: React.FC<Props> = ({ portfolio, onOpenStock }) => {
+export const LabArena: React.FC<Props> = ({ portfolio, userEmail, onOpenStock, onPortfolioChange }) => {
   const [tab, setTab] = useState<LabTab>('swing');
   const [playbook, setPlaybook] = useState<SwingPlaybook | null>(null);
   const [swingLoading, setSwingLoading] = useState(false);
+  const [applyBusy, setApplyBusy] = useState<string | null>(null);
+  const [applyMessage, setApplyMessage] = useState<string | null>(null);
+  const [newsletterEmail, setNewsletterEmail] = useState<string>(userEmail || '');
+  const [newsletterBusy, setNewsletterBusy] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState<string | null>(null);
   const [years, setYears] = useState<number>(15);
   const [rebalance, setRebalance] = useState<'quarterly' | 'annual'>('quarterly');
   const [backtest, setBacktest] = useState<BacktestResult | null>(null);
@@ -151,6 +159,79 @@ export const LabArena: React.FC<Props> = ({ portfolio, onOpenStock }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, portfolio?.id, portfolio?.positions_count]);
 
+  useEffect(() => {
+    if (userEmail) setNewsletterEmail(userEmail);
+  }, [userEmail]);
+
+  const applyOrders = async (orders: SwingPlaybook['orders'], key = 'all') => {
+    if (!orders?.length) return;
+    setApplyBusy(key);
+    setApplyMessage(null);
+    const payload = { portfolio_id: portfolio?.id, orders };
+    try {
+      const res = await axios.post(`${API_BASE}/portfolio/apply-swing`, payload, {
+        params: portfolio?.id ? { portfolio_id: portfolio.id } : undefined
+      });
+      if (res.data?.portfolio) onPortfolioChange?.(res.data.portfolio);
+      const n = res.data?.applied?.length || 0;
+      const skip = res.data?.skipped?.length || 0;
+      setApplyMessage(`${n} ordre${n > 1 ? 's' : ''} appliqué${n > 1 ? 's' : ''}${skip ? ` · ${skip} ignoré${skip > 1 ? 's' : ''}` : ''}.`);
+      const appliedSet = new Set((res.data?.applied || []).map((a: { symbol: string }) => String(a.symbol).toUpperCase()));
+      setPlaybook((prev) => {
+        if (!prev) return prev;
+        const remaining = (prev.orders || []).filter((o) => !appliedSet.has(String(o.symbol).toUpperCase()));
+        const counts = { ...prev.counts };
+        for (const a of res.data?.applied || []) {
+          const act = a.action as keyof typeof counts;
+          if (typeof counts[act] === 'number' && counts[act] > 0) counts[act] -= 1;
+        }
+        return { ...prev, orders: remaining, counts };
+      });
+    } catch (err: any) {
+      setApplyMessage(err?.response?.data?.error || err?.message || 'Application impossible');
+    } finally {
+      setApplyBusy(null);
+    }
+  };
+
+  const handleNewsletterPdf = async () => {
+    const base = collectNewsletterData();
+    const html = buildNewsletterHtml(base);
+    openNewsletterPdf(html);
+  };
+
+  const handleNewsletterSend = async () => {
+    const to = newsletterEmail.trim();
+    if (!to || !to.includes('@')) {
+      setNewsletterMessage('Indiquez un email valide.');
+      return;
+    }
+    setNewsletterBusy(true);
+    setNewsletterMessage(null);
+    try {
+      const base = collectNewsletterData();
+      const newsBySymbol: Record<string, any[]> = { ...base.newsBySymbol };
+      const symbols = Object.keys(newsBySymbol);
+      await Promise.all(
+        symbols.map(async (sym) => {
+          try {
+            const res = await axios.get(`${API_BASE}/companies/${sym}/news`, { params: { limit: 3 } });
+            if (Array.isArray(res.data) && res.data.length) newsBySymbol[sym] = res.data;
+          } catch {
+            // curated already filled
+          }
+        })
+      );
+      const html = buildNewsletterHtml({ ...base, newsBySymbol });
+      await sendNewsletterEmail(to, html, `Revue QualityScreener — ${new Date().toLocaleDateString('fr-FR')}`);
+      setNewsletterMessage(`Newsletter envoyée à ${to} (copie info@qualityscreenerpro.com).`);
+    } catch (err: any) {
+      setNewsletterMessage(err?.message || 'Envoi impossible. Utilisez « PDF » en secours.');
+    } finally {
+      setNewsletterBusy(false);
+    }
+  };
+
   const metricRows = useMemo(() => {
     if (!backtest) return [];
     const ids = ['defensive', 'balanced', 'dynamic', 'SPX', 'MSCI', 'CAC'];
@@ -267,18 +348,77 @@ export const LabArena: React.FC<Props> = ({ portfolio, onOpenStock }) => {
           </div>
           {playbook?.orders?.length ? (
             <div className="space-y-2">
-              <div className="text-xs font-semibold text-slate-300">Ordres de la revue (max 2 à exécuter)</div>
-              {playbook.orders.slice(0, 4).map((o) => (
-                <div key={o.symbol} className="text-xs bg-slate-950 border border-slate-800 rounded-xl p-3">
-                  <span className="font-bold text-white">{o.action.toUpperCase()} {o.symbol}</span>
-                  <span className="font-mono text-cyan-300"> {o.delta_shares} tit. ({o.delta_value})</span>
-                  <p className="text-slate-400 mt-1">{o.reason}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-slate-300">Ordres de la revue</div>
+                <button
+                  type="button"
+                  disabled={!!applyBusy}
+                  onClick={() => applyOrders(playbook.orders, 'all')}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg disabled:opacity-50"
+                >
+                  {applyBusy === 'all' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  Tout accepter
+                </button>
+              </div>
+              {applyMessage && <div className="text-xs text-emerald-300 bg-emerald-950/30 border border-emerald-800 rounded-lg px-3 py-2">{applyMessage}</div>}
+              {playbook.orders.slice(0, 6).map((o) => (
+                <div key={o.symbol} className="text-xs bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-start gap-2 justify-between">
+                  <div className="min-w-0">
+                    <span className="font-bold text-white">{o.action.toUpperCase()} {o.symbol}</span>
+                    <span className="font-mono text-cyan-300"> {o.delta_shares} tit. ({o.delta_value})</span>
+                    <p className="text-slate-400 mt-1">{o.reason}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!!applyBusy}
+                    onClick={() => applyOrders([o], o.symbol)}
+                    className="shrink-0 flex items-center justify-center gap-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-800 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                  >
+                    {applyBusy === o.symbol ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    Accepter
+                  </button>
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-xs text-slate-500">Aucun ordre 10j : le noyau est dans ses bandes. On ne touche à rien.</p>
           )}
+
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div className="text-sm font-bold text-white">Newsletter portefeuilles</div>
+            <p className="text-xs text-slate-400">
+              Revue PDF + email HTML depuis <span className="text-cyan-300">info@qualityscreenerpro.com</span> : allocation, P&amp;L, ordres 10 jours et actualités de vos lignes.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="vous@email.com"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base sm:text-sm text-white"
+              />
+              <button
+                type="button"
+                onClick={handleNewsletterPdf}
+                className="flex items-center justify-center gap-1.5 text-xs font-semibold bg-slate-800 text-slate-100 border border-slate-700 px-3 py-2 rounded-lg"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                PDF
+              </button>
+              <button
+                type="button"
+                disabled={newsletterBusy}
+                onClick={handleNewsletterSend}
+                className="flex items-center justify-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg disabled:opacity-50"
+              >
+                {newsletterBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                Envoyer
+              </button>
+            </div>
+            {newsletterMessage && <div className="text-xs text-slate-300">{newsletterMessage}</div>}
+          </div>
         </div>
       )}
 

@@ -241,6 +241,11 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
     return { status: 'success', message: 'Portfolio reset' };
   }
 
+  if (cleanPath === '/portfolio/apply-swing' || cleanPath === 'portfolio/apply-swing') {
+    const portId = effectiveParams?.portfolio_id ? Number(effectiveParams.portfolio_id) : (data?.portfolio_id ? Number(data.portfolio_id) : LocalEngine.getActivePortfolioId());
+    return LocalEngine.applySwingOrders(portId, data?.orders || []);
+  }
+
   // 15. /portfolio/analyze
   if (cleanPath === '/portfolio/analyze' || cleanPath === 'portfolio/analyze') {
     const portId = effectiveParams?.portfolio_id ? Number(effectiveParams.portfolio_id) : LocalEngine.getActivePortfolioId();
@@ -310,6 +315,9 @@ axios.interceptors.response.use(
     if (!config) return Promise.reject(error);
 
     const url = config.url || '';
+    if (config.headers?.['X-QS-No-Local'] === '1' || config.headers?.['x-qs-no-local'] === '1') {
+      return Promise.reject(error);
+    }
     if (url.includes('/api/') || url.startsWith('/api') || url.includes('api')) {
       const method = config.method || 'get';
       let body: any = config.data;

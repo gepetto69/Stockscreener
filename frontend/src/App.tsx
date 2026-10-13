@@ -795,6 +795,8 @@ export const App: React.FC = () => {
         ) : activeTab === 'lab' ? (
           <LabArena
             portfolio={activePortfolio}
+            userEmail={currentUser?.email || ''}
+            onPortfolioChange={setActivePortfolio}
             onOpenStock={(symbol) => {
               const rec = LocalEngine.getCompanyDetail(symbol);
               if (rec) handleSelectCompany(rec as Company);
