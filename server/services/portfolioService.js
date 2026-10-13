@@ -225,12 +225,12 @@ class PortfolioService {
       totalPositionsCost += cost;
 
       let dayChange = 0.0;
-      if (company && company.stock_prices && company.stock_prices.length >= 2) {
-        const prices = company.stock_prices;
-        const prevClose = prices[prices.length - 2].close;
-        if (prevClose && prevClose > 0) {
-          dayChange = (curPrice - prevClose) * pos.shares;
-        }
+      const prevClose = company?.previous_close
+        || (company?.stock_prices && company.stock_prices.length >= 2
+          ? company.stock_prices[company.stock_prices.length - 2].close
+          : null);
+      if (prevClose && prevClose > 0) {
+        dayChange = (curPrice - prevClose) * pos.shares;
       }
       dailyPnl += dayChange;
 

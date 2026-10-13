@@ -75,6 +75,18 @@ export const WatchlistManager: React.FC<Props> = ({ onOpenStockDetail }) => {
     fetchItems();
   }, []);
 
+  useEffect(() => {
+    const onQuotes = () => {
+      try {
+        setWatchlist(LocalEngine.getWatchlist());
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('qs-quotes-updated', onQuotes);
+    return () => window.removeEventListener('qs-quotes-updated', onQuotes);
+  }, []);
+
   const handleAddWatchlist = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSymbol.trim()) return;

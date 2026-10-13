@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { API_BASE } from './config/api';
 import { LocalEngine } from './services/localEngine';
+import { applyFetchedQuotes, fetchLiveQuotes } from './services/quoteService';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'screener' | 'portfolio' | 'watchlist' | 'duel'>('screener');
@@ -91,6 +92,8 @@ export const App: React.FC = () => {
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [keyboardOpen, setKeyboardOpen] = useState<boolean>(false);
+  const [quotesAsOf, setQuotesAsOf] = useState<string | null>(() => LocalEngine.getQuotesFetchedAt());
+  const [quotesLive, setQuotesLive] = useState<boolean>(() => LocalEngine.hasFreshQuotes());
 
   // Verify auth on mount if token exists
   useEffect(() => {
@@ -274,31 +277,54 @@ export const App: React.FC = () => {
     }
   };
 
-  // Refresh universe pipeline
-  const handleRefreshUniverse = async () => {
+  const applyQuotesToUi = () => {
+    try {
+      const localRes = LocalEngine.screenCompanies(filters);
+      setScreenerData(localRes);
+    } catch {
+      // ignore
+    }
+    const activeId = LocalEngine.getActivePortfolioId();
+    try {
+      const localPerf = LocalEngine.getPortfolioPerformance(activeId);
+      if (localPerf) setActivePortfolio(localPerf);
+    } catch {
+      // ignore
+    }
+    if (selectedCompany?.symbol) {
+      const detail = LocalEngine.getCompanyDetail(selectedCompany.symbol);
+      if (detail) setSelectedCompany(detail as any);
+    }
+    window.dispatchEvent(new CustomEvent('qs-quotes-updated'));
+  };
+
+  const refreshLiveQuotes = async () => {
     setRefreshing(true);
     try {
-      await axios.post(`${API_BASE}/pipeline/refresh`);
-      await fetchScreenerData();
-      if (selectedCompany?.symbol) {
-        const res = await axios.get(`${API_BASE}/companies/${selectedCompany.symbol}?refresh=true`);
-        if (res.data) setSelectedCompany(res.data);
+      const payload = await fetchLiveQuotes();
+      if (payload.companies_updated > 0) {
+        applyFetchedQuotes(payload);
+        setQuotesAsOf(payload.fetched_at);
+        setQuotesLive(payload.source !== 'none');
+        applyQuotesToUi();
       }
     } catch (err) {
-      console.error("Failed to refresh universe via API, fallback to local recalculation", err);
-      try {
-        const localRes = LocalEngine.screenCompanies(filters);
-        setScreenerData(localRes);
-        if (selectedCompany?.symbol) {
-          const detail = LocalEngine.getCompanyDetail(selectedCompany.symbol);
-          if (detail) setSelectedCompany(detail as any);
-        }
-      } catch (localErr) {
-        console.error("Local refresh error", localErr);
-      }
+      console.error('Live quote refresh failed', err);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  useEffect(() => {
+    refreshLiveQuotes();
+    const timer = window.setInterval(refreshLiveQuotes, 90_000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refresh universe pipeline
+  const handleRefreshUniverse = async () => {
+    await refreshLiveQuotes();
   };
 
   const handleResetFilters = () => {
@@ -410,10 +436,10 @@ export const App: React.FC = () => {
               onClick={handleRefreshUniverse}
               disabled={refreshing}
               className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white px-3 py-2 rounded-lg border border-slate-700 transition"
-              title="Rafraîchir les cours et recalculer les scores"
+              title={quotesAsOf ? `Dernier cours live ${new Date(quotesAsOf).toLocaleTimeString('fr-FR')}` : 'Rafraîchir les cours'}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-indigo-400' : ''}`} />
-              <span>Rafraîchir Données</span>
+              <span>{quotesLive ? 'Cours live' : 'Rafraîchir Données'}</span>
             </button>
 
             <button

@@ -132,6 +132,24 @@ export const PortfolioManager: React.FC<Props> = ({
     fetchPortfolioData();
   }, []);
 
+  useEffect(() => {
+    const onQuotes = () => {
+      const activeId = portfolio?.id ?? LocalEngine.getActivePortfolioId();
+      try {
+        const localPerf = LocalEngine.getPortfolioPerformance(activeId);
+        if (localPerf) {
+          setPortfolio(localPerf);
+          onPortfolioStatusChange?.(localPerf);
+        }
+        setPortfolioList(LocalEngine.listPortfolios());
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('qs-quotes-updated', onQuotes);
+    return () => window.removeEventListener('qs-quotes-updated', onQuotes);
+  }, [portfolio?.id, onPortfolioStatusChange]);
+
   // Switch to another portfolio
   const handleSelectPortfolio = async (id: number) => {
     setPortfolioDropdownOpen(false);

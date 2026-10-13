@@ -540,6 +540,40 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
       assert.equal(res.status, 400);
     });
 
+    test('GET /api/quotes applies Yahoo prices onto the universe and portfolios', async () => {
+      const origFetch = global.fetch;
+      global.fetch = async (url, opts) => {
+        const href = String(url);
+        if (href.includes('finance.yahoo.com')) {
+          return {
+            ok: true,
+            json: async () => ({
+              chart: {
+                result: [{ meta: { regularMarketPrice: 321.5, chartPreviousClose: 300, currency: 'USD' } }]
+              }
+            })
+          };
+        }
+        return origFetch(url, opts);
+      };
+      try {
+        const res = await fetch(`${baseUrl}/api/quotes`);
+        assert.equal(res.status, 200);
+        const data = await res.json();
+        assert.equal(data.status, 'success');
+        assert.equal(data.source, 'yahoo');
+        assert.ok(data.companies_updated >= 20);
+        assert.equal(data.quotes.MSFT.price, 321.5);
+        assert.equal(data.quotes.MSFT.previousClose, 300);
+
+        const company = await fetch(`${baseUrl}/api/companies/MSFT`);
+        const msft = await company.json();
+        assert.equal(msft.current_price, 321.5);
+      } finally {
+        global.fetch = origFetch;
+      }
+    });
+
     test('POST /api/screen includes moat fields and honors min_moat_stars', async () => {
       const res = await fetch(`${baseUrl}/api/screen`, {
         method: 'POST',
