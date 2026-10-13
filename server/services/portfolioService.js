@@ -771,6 +771,86 @@ class PortfolioService {
       audited_at: new Date().toISOString()
     };
   }
+
+  static applySwingOrders(portfolioId, orders = []) {
+    let portfolio = portfolioId ? store.getPortfolioById(portfolioId) : store.getLatestPortfolio();
+    if (!portfolio) {
+      throw new Error('Aucun portefeuille à ajuster.');
+    }
+    const rank = { sortir: 0, alléger: 1, renforcer: 2, ouvrir: 3 };
+    const queue = [...orders]
+      .filter((o) => o && o.symbol && rank[o.action] !== undefined)
+      .sort((a, b) => (rank[a.action] ?? 9) - (rank[b.action] ?? 9));
+
+    const applied = [];
+    const skipped = [];
+
+    for (const order of queue) {
+      const symbol = String(order.symbol).toUpperCase();
+      const company = store.getCompanyBySymbol(symbol);
+      const px = Number(order.price || company?.current_price || 0);
+      if (!(px > 0)) {
+        skipped.push({ symbol, reason: 'Cours indisponible' });
+        continue;
+      }
+      const existing = store.getPositionsForPortfolio(portfolio.id).find((p) => p.symbol.toUpperCase() === symbol);
+      const delta = Number(order.delta_shares || 0);
+
+      if (order.action === 'sortir') {
+        if (!existing) {
+          skipped.push({ symbol, reason: 'Ligne absente' });
+          continue;
+        }
+        store.deletePosition(existing.id);
+        applied.push({ symbol, action: 'sortir', delta_shares: -existing.shares, price: px });
+        continue;
+      }
+
+      if (!delta) {
+        skipped.push({ symbol, reason: 'Quantité nulle' });
+        continue;
+      }
+
+      if (delta < 0 && !existing) {
+        skipped.push({ symbol, reason: 'Ligne absente' });
+        continue;
+      }
+
+      if (delta > 0) {
+        const cost = delta * px;
+        portfolio = store.getPortfolioById(portfolio.id);
+        if (portfolio.cash_balance + 0.01 < cost) {
+          skipped.push({ symbol, reason: `Cash insuffisant (${portfolio.cash_balance})` });
+          continue;
+        }
+      }
+
+      if (existing && existing.shares + delta <= 0.0001) {
+        store.deletePosition(existing.id);
+        applied.push({ symbol, action: 'sortir', delta_shares: -existing.shares, price: px });
+        continue;
+      }
+
+      store.addOrUpdatePosition(portfolio.id, {
+        symbol,
+        shares: delta,
+        buy_price: px,
+        notes: `Ajustement 10j · ${order.action}`
+      });
+      portfolio = store.getPortfolioById(portfolio.id);
+      portfolio.cash_balance = Math.round((portfolio.cash_balance - delta * px) * 100) / 100;
+      if (portfolio.cash_balance < 0) portfolio.cash_balance = 0;
+      store.savePortfolio(portfolio);
+      applied.push({ symbol, action: order.action, delta_shares: delta, price: px });
+    }
+
+    return {
+      status: 'success',
+      applied,
+      skipped,
+      portfolio: PortfolioService.getPortfolioPerformance(portfolio.id)
+    };
+  }
 }
 
 module.exports = PortfolioService;

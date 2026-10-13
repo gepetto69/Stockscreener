@@ -600,6 +600,21 @@ api.delete('/portfolio/reset', (req, res) => {
 });
 
 // Portfolio Audit Analyze
+api.post('/portfolio/apply-swing', (req, res) => {
+  try {
+    const portfolioId = req.query.portfolio_id ? Number(req.query.portfolio_id) : (req.body?.portfolio_id ? Number(req.body.portfolio_id) : null);
+    const orders = Array.isArray(req.body?.orders) ? req.body.orders : [];
+    if (!orders.length) {
+      return res.status(400).json({ error: 'Aucun ordre à appliquer.' });
+    }
+    const result = portfolioService.applySwingOrders(portfolioId, orders);
+    res.json(result);
+  } catch (err) {
+    console.error('Error in /api/portfolio/apply-swing:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 api.post('/portfolio/analyze', (req, res) => {
   try {
     const portfolioId = req.query.portfolio_id ? Number(req.query.portfolio_id) : null;
@@ -754,6 +769,14 @@ app.use('/api', api);
 // Direct health check at /health
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', app: 'Stockscreener Quality Engine (Node.js)' });
+});
+
+// Hostinger sends via PHP mail() at document root. Node has no mailbox here.
+app.post('/newsletter.php', (req, res) => {
+  res.status(501).json({
+    ok: false,
+    error: 'Envoi email via newsletter.php sur Hostinger (info@qualityscreenerpro.com). Ici, utilisez le bouton PDF.'
+  });
 });
 
 // Static assets: serve compiled frontend

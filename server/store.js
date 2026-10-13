@@ -401,8 +401,10 @@ class DataStore {
       const addedShares = Number(positionData.shares);
       const addedPrice = Number(positionData.buy_price || company?.current_price || 100);
       const totalShares = existing.shares + addedShares;
-      const totalCost = existing.shares * existing.buy_price + addedShares * addedPrice;
-      existing.buy_price = Math.round((totalCost / totalShares) * 100) / 100;
+      if (addedShares >= 0 && totalShares > 0) {
+        const totalCost = existing.shares * existing.buy_price + addedShares * addedPrice;
+        existing.buy_price = Math.round((totalCost / totalShares) * 100) / 100;
+      }
       existing.shares = Math.round(totalShares * 10000) / 10000;
       if (positionData.notes) existing.notes = positionData.notes;
       position = existing;

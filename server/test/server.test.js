@@ -655,6 +655,64 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
       assert.ok(Math.abs(wsum - 100) < 2);
     });
 
+    test('POST /api/portfolio/apply-swing executes accepted 10-day orders', async () => {
+      const setupRes = await fetch(`${baseUrl}/api/portfolio/setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Swing Apply Test',
+          strategy: 'balanced',
+          initial_capital: 20000,
+          currency: 'EUR',
+          mode: 'auto'
+        })
+      });
+      assert.equal(setupRes.status, 200);
+      const created = await setupRes.json();
+      const line = created.positions.find((p) => p.shares > 1);
+      assert.ok(line);
+      const beforeShares = line.shares;
+      const res = await fetch(`${baseUrl}/api/portfolio/apply-swing?portfolio_id=${created.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          portfolio_id: created.id,
+          orders: [{
+            symbol: line.symbol,
+            action: 'alléger',
+            delta_shares: -1,
+            price: line.current_price
+          }]
+        })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.status, 'success');
+      assert.ok(data.applied.length >= 1);
+      const updated = data.portfolio.positions.find((p) => p.symbol === line.symbol);
+      assert.ok(updated.shares < beforeShares);
+      assert.equal(updated.buy_price, line.buy_price);
+      assert.ok(data.portfolio.cash_balance >= created.cash_balance);
+
+      const exitRes = await fetch(`${baseUrl}/api/portfolio/apply-swing?portfolio_id=${created.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          portfolio_id: created.id,
+          orders: [{
+            symbol: line.symbol,
+            action: 'sortir',
+            delta_shares: -updated.shares,
+            price: line.current_price
+          }]
+        })
+      });
+      assert.equal(exitRes.status, 200);
+      const exited = await exitRes.json();
+      assert.ok(exited.applied.some((a) => a.action === 'sortir' && a.symbol === line.symbol));
+      assert.ok(!exited.portfolio.positions.find((p) => p.symbol === line.symbol));
+    });
+
     test('POST /api/lab/swing returns a 10-day adjustment playbook', async () => {
       const res = await fetch(`${baseUrl}/api/lab/swing`, {
         method: 'POST',

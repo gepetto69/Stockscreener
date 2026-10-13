@@ -1507,8 +1507,10 @@ export class LocalEngine {
     if (existing) {
       const addedShares = Number(positionData.shares);
       const totalShares = existing.shares + addedShares;
-      const totalCost = existing.shares * existing.buy_price + addedShares * buyPrice;
-      existing.buy_price = Math.round((totalCost / totalShares) * 100) / 100;
+      if (addedShares >= 0 && totalShares > 0) {
+        const totalCost = existing.shares * existing.buy_price + addedShares * buyPrice;
+        existing.buy_price = Math.round((totalCost / totalShares) * 100) / 100;
+      }
       existing.shares = Math.round(totalShares * 10000) / 10000;
       if (positionData.notes) existing.notes = positionData.notes;
       pos = existing;
@@ -1535,6 +1537,79 @@ export class LocalEngine {
     saveStoredPositions(positions);
 
     return pos;
+  }
+
+  static applySwingOrders(portfolioId: number | null, orders: any[] = []) {
+    const pid = portfolioId || getStoredActivePortfolioId();
+    const rank: Record<string, number> = { sortir: 0, alléger: 1, renforcer: 2, ouvrir: 3 };
+    const queue = [...orders]
+      .filter((o) => o && o.symbol && rank[o.action] !== undefined)
+      .sort((a, b) => (rank[a.action] ?? 9) - (rank[b.action] ?? 9));
+
+    const applied: any[] = [];
+    const skipped: any[] = [];
+
+    for (const order of queue) {
+      const symbol = String(order.symbol).toUpperCase();
+      const company = companyMap.get(symbol);
+      const px = Number(order.price || company?.current_price || 0);
+      if (!(px > 0)) {
+        skipped.push({ symbol, reason: 'Cours indisponible' });
+        continue;
+      }
+      const positions = getStoredPositions();
+      const existing = positions.find((p) => p.portfolio_id === Number(pid) && p.symbol.toUpperCase() === symbol);
+      const delta = Number(order.delta_shares || 0);
+
+      if (order.action === 'sortir') {
+        if (!existing) {
+          skipped.push({ symbol, reason: 'Ligne absente' });
+          continue;
+        }
+        LocalEngine.removePosition(existing.id);
+        applied.push({ symbol, action: 'sortir', delta_shares: -existing.shares, price: px });
+        continue;
+      }
+
+      if (!delta) {
+        skipped.push({ symbol, reason: 'Quantité nulle' });
+        continue;
+      }
+
+      if (delta < 0 && !existing) {
+        skipped.push({ symbol, reason: 'Ligne absente' });
+        continue;
+      }
+
+      if (delta > 0) {
+        const portfolios = getStoredPortfolios();
+        const portfolio = portfolios.find((p) => p.id === Number(pid));
+        const cash = Number(portfolio?.cash_balance || 0);
+        if (cash + 0.01 < delta * px) {
+          skipped.push({ symbol, reason: `Cash insuffisant (${cash})` });
+          continue;
+        }
+      }
+
+      if (existing && existing.shares + delta <= 0.0001) {
+        LocalEngine.removePosition(existing.id);
+        applied.push({ symbol, action: 'sortir', delta_shares: -existing.shares, price: px });
+        continue;
+      }
+
+      LocalEngine.addOrUpdatePosition(
+        { symbol, shares: delta, buy_price: px, notes: `Ajustement 10j · ${order.action}` },
+        Number(pid)
+      );
+      applied.push({ symbol, action: order.action, delta_shares: delta, price: px });
+    }
+
+    return {
+      status: 'success',
+      applied,
+      skipped,
+      portfolio: LocalEngine.getPortfolioPerformance(Number(pid))
+    };
   }
 
   static removePosition(positionId: number) {
