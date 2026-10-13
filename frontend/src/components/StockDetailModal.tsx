@@ -559,12 +559,12 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
             <span className="truncate">← Page {prevTab.pageNumber} : {prevTab.label}</span>
           </button>
         ) : (
-          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Page de garde du dossier (1/8)</div>
+          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Page de garde du dossier (1/{TABS_CONFIG.length})</div>
         )}
       </div>
 
       <div className="text-center px-4 py-1.5 rounded-full bg-slate-900 border border-slate-750 text-xs font-bold text-slate-300 shadow-inner">
-        Page <span className="text-sky-400 font-extrabold">{currentTab.pageNumber}</span> sur <span className="text-slate-400">8</span>
+        Page <span className="text-sky-400 font-extrabold">{currentTab.pageNumber}</span> sur <span className="text-slate-400">{TABS_CONFIG.length}</span>
       </div>
 
       <div className="w-full sm:w-auto">
@@ -577,7 +577,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
             <ChevronRight className="w-4 h-4 shrink-0" />
           </button>
         ) : (
-          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Dernière page du dossier (8/8)</div>
+          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Dernière page du dossier ({TABS_CONFIG.length}/{TABS_CONFIG.length})</div>
         )}
       </div>
     </div>
@@ -750,7 +750,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
               >
                 {TABS_CONFIG.map((tab) => (
                   <option key={tab.id} value={tab.id} className="bg-slate-900 text-white py-1">
-                    Page {tab.pageNumber}/8 : {tab.icon} {tab.label}
+                    Page {tab.pageNumber}/{TABS_CONFIG.length} : {tab.icon} {tab.label}
                   </option>
                 ))}
               </select>
@@ -805,7 +805,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       }`}
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>8. {tab.shortLabel}</span>
+                      <span>{tab.pageNumber}. {tab.shortLabel}</span>
                       <span className="text-[9px] px-1 py-0.2 rounded font-black bg-amber-900/80 text-amber-200 border border-amber-700">
                         IA
                       </span>
@@ -930,7 +930,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 </div>
               </div>
 
-              {/* 📑 SOMMAIRE INTERACTIF DU DOSSIER D'ANALYSE (8 pages & 3 copilotes) */}
+              {/* 📑 SOMMAIRE INTERACTIF DU DOSSIER D'ANALYSE (9 pages & 3 copilotes) */}
               <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xl">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2.5">
@@ -940,7 +940,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                         Sommaire du dossier d'analyse
                       </h3>
                       <p className="text-[11px] text-slate-400">
-                        8 pages d'expertise fondamentale & 3 copilotes IA intégrés
+                        {TABS_CONFIG.length} volets d'expertise fondamentale, forensic, reverse DCF & copilotes IA
                       </p>
                     </div>
                   </div>
@@ -963,7 +963,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 group-hover:bg-sky-600 group-hover:text-white transition">
-                            Page {t.pageNumber}/8
+                            Page {t.pageNumber}/{TABS_CONFIG.length}
                           </span>
                           {t.badge && (
                             <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${t.badgeColor || 'bg-slate-800 text-slate-300 border-slate-700'}`}>

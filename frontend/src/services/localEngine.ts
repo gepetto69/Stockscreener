@@ -427,12 +427,12 @@ export class LocalEngine {
       valuation_score: qs ? qs.valuation_score : 0,
       piotroski_score: qs ? qs.piotroski_score : 0,
       piotroski_status: qs ? qs.piotroski_status : 'Faible',
-      altman_z_score: forensic.altman_z_score,
-      beneish_m_score: forensic.beneish_m_score,
-      accruals_quality: forensic.accruals_quality,
-      security_summary: forensic.summary_verdict,
-      security_risk: forensic.risk_level,
-      security_color: forensic.summary_color,
+      altman_z_score: forensic?.altman_z_score ?? null,
+      beneish_m_score: forensic?.beneish_m_score ?? null,
+      accruals_quality: forensic?.accruals_quality ?? null,
+      security_summary: forensic?.summary_verdict ?? 'Non évalué',
+      security_risk: forensic?.risk_level ?? 'Faible',
+      security_color: forensic?.summary_color ?? 'emerald',
       latest_roe: latest?.roe ?? null,
       latest_roic: latest?.roic ?? null,
       latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
@@ -1761,7 +1761,15 @@ export class LocalEngine {
     };
   }
 
-  static getForensicAnalysis(company: SeedCompany) {
+  static getForensicAnalysis(companyOrSymbol: SeedCompany | string) {
+    let company: SeedCompany | undefined;
+    if (typeof companyOrSymbol === 'string') {
+      company = companyMap.get(companyOrSymbol.toUpperCase());
+    } else {
+      company = companyOrSymbol;
+    }
+    if (!company) return null;
+
     const stmts = company.financial_statements || [];
     const altman = LocalEngine.computeAltmanZScore(company, stmts);
     const beneish = LocalEngine.computeBeneishMScore(stmts);

@@ -264,7 +264,7 @@ export const ResultsTable: React.FC<Props> = ({
           <tbody className="divide-y divide-slate-800/60 text-sm">
             {companies.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-12 text-center text-slate-400">
+                <td colSpan={12} className="py-12 text-center text-slate-400">
                   Aucune entreprise ne correspond aux critères de qualité sélectionnés.
                 </td>
               </tr>
@@ -338,15 +338,15 @@ export const ResultsTable: React.FC<Props> = ({
                           </span>
                         ) : c.altman_z_score?.zone === 'distress' ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800" title="Altman Z-Score < 1.81 : Risque faillite">
-                            Z: {c.altman_z_score.score} (Détresse)
+                            Z: {c.altman_z_score.score != null ? c.altman_z_score.score.toFixed(1) : '—'} (Détresse)
                           </span>
                         ) : c.altman_z_score?.zone === 'safe' ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800" title={`Altman Z: ${c.altman_z_score.score} | Beneish: ${c.beneish_m_score?.score || -2.4}`}>
-                            Z: {c.altman_z_score.score} ✓ Sain
+                            Z: {c.altman_z_score.score != null ? c.altman_z_score.score.toFixed(1) : '—'} ✓ Sain
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-950 text-amber-300 border border-amber-800" title="Zone grise Altman">
-                            Z: {c.altman_z_score?.score || 2.4} Gris
+                            Z: {c.altman_z_score?.score != null ? c.altman_z_score.score.toFixed(1) : '—'} Gris
                           </span>
                         )}
                       </div>
