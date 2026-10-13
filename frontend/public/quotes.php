@@ -32,51 +32,63 @@ function parse_chart($raw) {
   ];
 }
 
-$quotes = [];
+function curl_opts() {
+  return [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_TIMEOUT => 8,
+    CURLOPT_CONNECTTIMEOUT => 4,
+    CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; QualityScreener/1.0)',
+    CURLOPT_HTTPHEADER => ['Accept: application/json'],
+  ];
+}
 
-if (function_exists('curl_multi_init')) {
+function fetch_batch($batch) {
+  $out = [];
+  if (!function_exists('curl_multi_init')) {
+    $ctx = stream_context_create([
+      'http' => [
+        'method' => 'GET',
+        'timeout' => 8,
+        'header' => "User-Agent: Mozilla/5.0 (compatible; QualityScreener/1.0)\r\nAccept: application/json\r\n"
+      ]
+    ]);
+    foreach ($batch as $symbol) {
+      $raw = @file_get_contents(yahoo_url($symbol), false, $ctx);
+      $parsed = is_string($raw) ? parse_chart($raw) : null;
+      if ($parsed) $out[$symbol] = $parsed;
+    }
+    return $out;
+  }
+
   $mh = curl_multi_init();
   $handles = [];
-  foreach ($symbols as $symbol) {
+  foreach ($batch as $symbol) {
     $ch = curl_init(yahoo_url($symbol));
-    curl_setopt_array($ch, [
-      CURLOPT_RETURNTRANSFER => true,
-      CURLOPT_FOLLOWLOCATION => true,
-      CURLOPT_TIMEOUT => 6,
-      CURLOPT_CONNECTTIMEOUT => 3,
-      CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; QualityScreener/1.0)',
-      CURLOPT_HTTPHEADER => ['Accept: application/json'],
-    ]);
+    curl_setopt_array($ch, curl_opts());
     curl_multi_add_handle($mh, $ch);
     $handles[$symbol] = $ch;
   }
-  $running = null;
+  $running = 0;
   do {
-    curl_multi_exec($mh, $running);
-    curl_multi_select($mh, 0.2);
-  } while ($running > 0);
+    $status = curl_multi_exec($mh, $running);
+    if ($running) curl_multi_select($mh, 1.0);
+  } while ($running && $status === CURLM_OK);
 
   foreach ($handles as $symbol => $ch) {
     $raw = curl_multi_getcontent($ch);
     $parsed = is_string($raw) ? parse_chart($raw) : null;
-    if ($parsed) $quotes[$symbol] = $parsed;
+    if ($parsed) $out[$symbol] = $parsed;
     curl_multi_remove_handle($mh, $ch);
     curl_close($ch);
   }
   curl_multi_close($mh);
-} else {
-  $ctx = stream_context_create([
-    'http' => [
-      'method' => 'GET',
-      'timeout' => 6,
-      'header' => "User-Agent: Mozilla/5.0 (compatible; QualityScreener/1.0)\r\nAccept: application/json\r\n"
-    ]
-  ]);
-  foreach ($symbols as $symbol) {
-    $raw = @file_get_contents(yahoo_url($symbol), false, $ctx);
-    $parsed = is_string($raw) ? parse_chart($raw) : null;
-    if ($parsed) $quotes[$symbol] = $parsed;
-  }
+  return $out;
+}
+
+$quotes = [];
+foreach (array_chunk($symbols, 8) as $batch) {
+  $quotes += fetch_batch($batch);
 }
 
 echo json_encode([
