@@ -167,6 +167,52 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
     return LocalEngine.getPortfolioPerformance(portId);
   }
 
+  // 17. /companies/:symbol/security
+  const secMatch = cleanPath.match(/\/companies\/([^/]+)\/security/);
+  if (secMatch) {
+    const sym = secMatch[1].toUpperCase();
+    return LocalEngine.getForensicAnalysis(sym);
+  }
+
+  // 18. /companies/:symbol/valuation/reverse-dcf
+  const dcfMatch = cleanPath.match(/\/companies\/([^/]+)\/valuation\/reverse-dcf/);
+  if (dcfMatch) {
+    const sym = dcfMatch[1].toUpperCase();
+    return LocalEngine.getReverseDCFAnalysis(sym, data || {});
+  }
+
+  // 19. /watchlist
+  if (cleanPath === '/watchlist' || cleanPath === 'watchlist') {
+    if (method.toUpperCase() === 'GET') {
+      return LocalEngine.getWatchlist();
+    }
+    if (method.toUpperCase() === 'POST') {
+      return LocalEngine.addToWatchlist(data || {});
+    }
+  }
+
+  const delWatchlistMatch = cleanPath.match(/\/watchlist\/([^/]+)/);
+  if (delWatchlistMatch && method.toUpperCase() === 'DELETE') {
+    const symOrId = delWatchlistMatch[1];
+    return LocalEngine.removeFromWatchlist(symOrId);
+  }
+
+  // 20. /alerts
+  if (cleanPath === '/alerts' || cleanPath === 'alerts') {
+    if (method.toUpperCase() === 'GET') {
+      return LocalEngine.getAlerts();
+    }
+    if (method.toUpperCase() === 'POST') {
+      return LocalEngine.createAlert(data || {});
+    }
+  }
+
+  const delAlertMatch = cleanPath.match(/\/alerts\/([^/]+)/);
+  if (delAlertMatch && method.toUpperCase() === 'DELETE') {
+    const alertId = Number(delAlertMatch[1]);
+    return LocalEngine.deleteAlert(alertId);
+  }
+
   return null;
 }
 
