@@ -415,6 +415,45 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
         </div>
       </div>
 
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dividendes</h3>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs text-slate-300">
+            <span>Safety min.</span>
+            <span className="font-semibold text-emerald-300">
+              {filters.min_dividend_safety !== undefined ? `≥ ${filters.min_dividend_safety}` : 'Non filtré'}
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="90"
+            step="5"
+            value={filters.min_dividend_safety ?? 0}
+            onChange={(e) => handleInputChange('min_dividend_safety', Number(e.target.value) > 0 ? Number(e.target.value) : undefined)}
+            className="w-full accent-emerald-500"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!filters.aristocrats_only}
+            onChange={(e) => handleInputChange('aristocrats_only', e.target.checked)}
+            className="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700 focus:ring-0"
+          />
+          <span>Aristocrates / Kings uniquement</span>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!filters.exclude_yield_traps}
+            onChange={(e) => handleInputChange('exclude_yield_traps', e.target.checked)}
+            className="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700 focus:ring-0"
+          />
+          <span>Exclure les pièges à rendement</span>
+        </label>
+      </div>
+
       {/* 7. Secteurs */}
       {sectorsList.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-slate-800">

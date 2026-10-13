@@ -2,6 +2,7 @@
 // Allows QualityScreener PRO to run 100% autonomously in the browser without any backend
 import seedDataRaw from '../data/seedData.json';
 import { QualitativeEngine } from './qualitativeEngine';
+import { Phase3Engine } from './phase3Engine';
 
 export interface SeedCompany {
   id: number;
@@ -74,6 +75,7 @@ const companyMap = new Map<string, SeedCompany>();
 for (const c of companies) {
   companyMap.set(c.symbol.toUpperCase(), c);
 }
+Phase3Engine.bindUniverse(companies);
 
 // Portfolio & Auth LocalStorage Persistence
 const LIVE_QUOTES_KEY = 'stockscreener_live_quotes_v1';
@@ -408,6 +410,15 @@ export class LocalEngine {
     const qs = company.quality_score;
     const forensic = LocalEngine.getForensicAnalysis(company);
     const moat = QualitativeEngine.getMoatAnalysis(company);
+    const dividend = Phase3Engine.getDividendSafety(company) || {
+      dividend_yield_pct: null,
+      safety_score: null,
+      safety_label: null,
+      safety_color: null,
+      aristocrat: false,
+      king: false,
+      yield_trap: false
+    };
 
     return {
       id: company.id,
@@ -444,6 +455,13 @@ export class LocalEngine {
       moat_color: moat.moat_color,
       primary_moat_type: moat.primary_moat_type,
       pricing_power_score: moat.pricing_power_score,
+      dividend_yield_pct: dividend.dividend_yield_pct,
+      dividend_safety_score: dividend.safety_score,
+      dividend_safety_label: dividend.safety_label,
+      dividend_safety_color: dividend.safety_color,
+      dividend_aristocrat: dividend.aristocrat,
+      dividend_king: dividend.king,
+      dividend_yield_trap: dividend.yield_trap,
       latest_roe: latest?.roe ?? null,
       latest_roic: latest?.roic ?? null,
       latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
@@ -552,12 +570,22 @@ export class LocalEngine {
     if (filters.min_moat_stars !== undefined && filters.min_moat_stars !== null) {
       records = records.filter((r) => r.moat_stars != null && r.moat_stars >= filters.min_moat_stars);
     }
+    if (filters.min_dividend_safety !== undefined && filters.min_dividend_safety !== null) {
+      records = records.filter((r) => r.dividend_safety_score != null && r.dividend_safety_score >= filters.min_dividend_safety);
+    }
+    if (filters.exclude_yield_traps) {
+      records = records.filter((r) => !r.dividend_yield_trap);
+    }
+    if (filters.aristocrats_only) {
+      records = records.filter((r) => r.dividend_aristocrat);
+    }
 
     const total = records.length;
 
     let sortCol = filters.sort_by || 'total_score';
     if (sortCol === 'quality_score') sortCol = 'total_score';
     if (sortCol === 'moat') sortCol = 'moat_stars';
+    if (sortCol === 'dividend' || sortCol === 'dividend_safety') sortCol = 'dividend_safety_score';
     const isAsc = filters.sort_order === 'asc';
 
     records.sort((a: any, b: any) => {
@@ -606,6 +634,13 @@ export class LocalEngine {
       moat_color: r.moat_color,
       primary_moat_type: r.primary_moat_type,
       pricing_power_score: r.pricing_power_score,
+      dividend_yield_pct: r.dividend_yield_pct,
+      dividend_safety_score: r.dividend_safety_score,
+      dividend_safety_label: r.dividend_safety_label,
+      dividend_safety_color: r.dividend_safety_color,
+      dividend_aristocrat: r.dividend_aristocrat,
+      dividend_king: r.dividend_king,
+      dividend_yield_trap: r.dividend_yield_trap,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -2267,6 +2302,43 @@ export class LocalEngine {
     const forensicA = LocalEngine.getForensicAnalysis(a);
     const forensicB = LocalEngine.getForensicAnalysis(b);
     return QualitativeEngine.compareCompanies(a, b, forensicA, forensicB);
+  }
+
+  static backtestStrategies(options: any = {}) {
+    return Phase3Engine.backtestStrategies(options);
+  }
+
+  static stressTest(options: any = {}) {
+    return Phase3Engine.stressTest(options);
+  }
+
+  static optimizeMarkowitz(payload: any = {}) {
+    return Phase3Engine.optimizeMarkowitz(payload);
+  }
+
+  static getDividendSafety(symbol: string) {
+    const company = companyMap.get(String(symbol).toUpperCase());
+    if (!company) return null;
+    return Phase3Engine.getDividendSafety(company);
+  }
+
+  static listDividendSafety(minScore = 0, aristocratsOnly = false, excludeTraps = false) {
+    return Phase3Engine.listDividendSafety(minScore, aristocratsOnly, excludeTraps);
+  }
+
+  static getPortfolioDividendCalendar(positions: any[] = []) {
+    return Phase3Engine.getPortfolioDividendCalendar(positions);
+  }
+
+  static getInvestmentMemo(symbol: string) {
+    const company = companyMap.get(String(symbol).toUpperCase());
+    if (!company) return null;
+    return Phase3Engine.getInvestmentMemo(company, {
+      forensic: LocalEngine.getForensicAnalysis(company),
+      moat: QualitativeEngine.getMoatAnalysis(company),
+      abigail: LocalEngine.getAbigailAnalysis(company),
+      warren: LocalEngine.getWarrenAnalysis(company)
+    });
   }
 }
 

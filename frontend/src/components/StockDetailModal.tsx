@@ -9,10 +9,13 @@ import type {
   NewsItem,
   ReverseDCFResult,
   EarningsCallAudit,
-  MoatAnalysis
+  MoatAnalysis,
+  DividendSafety,
+  InvestmentMemo
 } from '../types/stock';
 import { EarningsCallPanel } from './EarningsCallPanel';
 import { MoatAnalysisPanel } from './MoatAnalysisPanel';
+import { DividendSafetyPanel, openInvestmentMemoPrint } from './DividendSafetyPanel';
 import axios from 'axios';
 import {
   X,
@@ -38,7 +41,8 @@ import {
   Star,
   Bell,
   SlidersHorizontal,
-  Swords
+  Swords,
+  Printer
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -77,6 +81,7 @@ type TabType =
   | 'news'
   | 'earnings_call'
   | 'moat'
+  | 'dividends'
   | 'full_analysis';
 
 interface TabConfig {
@@ -190,8 +195,18 @@ const TABS_CONFIG: TabConfig[] = [
     description: "Barrières à l'entrée et pouvoir de prix"
   },
   {
-    id: 'full_analysis',
+    id: 'dividends',
     pageNumber: 11,
+    label: 'Dividendes & Aristocrates',
+    shortLabel: 'Dividendes',
+    icon: '💵',
+    badge: 'Safety',
+    badgeColor: 'bg-emerald-950 text-emerald-300 border-emerald-800',
+    description: "Pérennité, calendrier et pièges à rendement"
+  },
+  {
+    id: 'full_analysis',
+    pageNumber: 12,
     label: 'Analyse complète Warren',
     shortLabel: 'Warren IA',
     icon: '💎',
@@ -241,6 +256,8 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare 
   const [earningsLoading, setEarningsLoading] = useState<boolean>(false);
   const [moatData, setMoatData] = useState<MoatAnalysis | null>(null);
   const [moatLoading, setMoatLoading] = useState<boolean>(false);
+  const [dividendData, setDividendData] = useState<DividendSafety | null>(null);
+  const [dividendLoading, setDividendLoading] = useState<boolean>(false);
 
   // Refs for tab scrolling and content scrolling
   const contentAreaRef = React.useRef<HTMLDivElement>(null);
@@ -272,6 +289,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare 
       setAlertTargetPrice(company.current_price ? String(Math.round(company.current_price * 0.95)) : '');
       setEarningsData(null);
       setMoatData(null);
+      setDividendData(null);
     } catch {
       // ignore
     }
@@ -520,6 +538,19 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare 
         .catch(() => {})
         .finally(() => setMoatLoading(false));
     }
+    if (activeTab === 'dividends') {
+      setDividendLoading(true);
+      try {
+        const local = LocalEngine.getDividendSafety(company.symbol);
+        if (local) setDividendData(local as DividendSafety);
+      } catch {
+        // ignore
+      }
+      axios.get(`${API_BASE}/companies/${company.symbol}/dividend-safety`)
+        .then((res) => { if (res.data) setDividendData(res.data); })
+        .catch(() => {})
+        .finally(() => setDividendLoading(false));
+    }
   }, [activeTab, company?.symbol]);
 
   const stmts = company?.financial_statements
@@ -705,6 +736,24 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare 
                       <Swords className="w-4 h-4" />
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        const local = LocalEngine.getInvestmentMemo(company.symbol);
+                        if (local) openInvestmentMemoPrint(local as InvestmentMemo);
+                      } catch {
+                        // ignore
+                      }
+                      axios.get(`${API_BASE}/companies/${company.symbol}/memo`)
+                        .then((res) => { if (res.data) openInvestmentMemoPrint(res.data); })
+                        .catch(() => {});
+                    }}
+                    className="p-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 border border-slate-750"
+                    title="Mémo PDF"
+                  >
+                    <Printer className="w-4 h-4 text-cyan-300" />
+                  </button>
                   <button
                     onClick={onClose}
                     className="p-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition"
@@ -2381,6 +2430,10 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare 
 
           {activeTab === 'moat' && (
             <MoatAnalysisPanel data={moatData} loading={moatLoading} />
+          )}
+
+          {activeTab === 'dividends' && (
+            <DividendSafetyPanel data={dividendData} loading={dividendLoading} />
           )}
 
           {/* 11. TAB: ANALYSE COMPLÈTE (Full Warren Report with Fiche Résumé, Moat, Gauges, Radar) */}

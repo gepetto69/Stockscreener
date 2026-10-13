@@ -131,6 +131,40 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
     return LocalEngine.compareCompanies(a, b);
   }
 
+  if (cleanPath === '/lab/backtest' || cleanPath === 'lab/backtest') {
+    return LocalEngine.backtestStrategies({
+      years: effectiveParams?.years || data?.years,
+      rebalance: effectiveParams?.rebalance || data?.rebalance
+    });
+  }
+  if (cleanPath === '/lab/stress' || cleanPath === 'lab/stress') {
+    return LocalEngine.stressTest({
+      scenario: effectiveParams?.scenario || data?.scenario,
+      strategy: effectiveParams?.strategy || data?.strategy
+    });
+  }
+  if (cleanPath === '/lab/markowitz' || cleanPath === 'lab/markowitz') {
+    return LocalEngine.optimizeMarkowitz(data || {});
+  }
+  if (cleanPath === '/lab/dividends' || cleanPath === 'lab/dividends') {
+    return LocalEngine.listDividendSafety(
+      Number(effectiveParams?.min_score || 0),
+      effectiveParams?.aristocrats === '1' || effectiveParams?.aristocrats === 'true',
+      effectiveParams?.exclude_traps === '1' || effectiveParams?.exclude_traps === 'true'
+    );
+  }
+  if (cleanPath === '/portfolio/dividend-calendar' || cleanPath === 'portfolio/dividend-calendar') {
+    return LocalEngine.getPortfolioDividendCalendar(data?.positions || []);
+  }
+  const divMatch = cleanPath.match(/\/companies\/([^/]+)\/dividend-safety/);
+  if (divMatch) {
+    return LocalEngine.getDividendSafety(divMatch[1].toUpperCase());
+  }
+  const memoMatch = cleanPath.match(/\/companies\/([^/]+)\/memo/);
+  if (memoMatch) {
+    return LocalEngine.getInvestmentMemo(memoMatch[1].toUpperCase());
+  }
+
   // 8. /companies/:symbol/news
   const newsMatch = cleanPath.match(/\/companies\/([^/]+)\/news/);
   if (newsMatch) {

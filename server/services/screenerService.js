@@ -1,6 +1,7 @@
 const store = require('../store');
 const SecurityAnalysisService = require('./securityAnalysisService');
 const QualitativeIntelligenceService = require('./qualitativeIntelligenceService');
+const Phase3Service = require('./phase3Service');
 
 function round(val, decimals = 2) {
   if (val === null || val === undefined || isNaN(val)) return null;
@@ -32,6 +33,7 @@ class ScreenerService {
     const qs = company.quality_score;
     const forensic = SecurityAnalysisService.getForensicAnalysis(company);
     const moat = QualitativeIntelligenceService.getMoatAnalysis(company);
+    const dividend = Phase3Service.getDividendSafety(company);
 
     return {
       id: company.id,
@@ -68,6 +70,13 @@ class ScreenerService {
       moat_color: moat.moat_color,
       primary_moat_type: moat.primary_moat_type,
       pricing_power_score: moat.pricing_power_score,
+      dividend_yield_pct: dividend.dividend_yield_pct,
+      dividend_safety_score: dividend.safety_score,
+      dividend_safety_label: dividend.safety_label,
+      dividend_safety_color: dividend.safety_color,
+      dividend_aristocrat: dividend.aristocrat,
+      dividend_king: dividend.king,
+      dividend_yield_trap: dividend.yield_trap,
       latest_roe: latest?.roe ?? null,
       latest_roic: latest?.roic ?? null,
       latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
@@ -183,6 +192,15 @@ class ScreenerService {
     if (filters.min_moat_stars !== undefined && filters.min_moat_stars !== null) {
       records = records.filter((r) => r.moat_stars != null && r.moat_stars >= filters.min_moat_stars);
     }
+    if (filters.min_dividend_safety !== undefined && filters.min_dividend_safety !== null) {
+      records = records.filter((r) => r.dividend_safety_score >= filters.min_dividend_safety);
+    }
+    if (filters.exclude_yield_traps) {
+      records = records.filter((r) => !r.dividend_yield_trap);
+    }
+    if (filters.aristocrats_only) {
+      records = records.filter((r) => r.dividend_aristocrat);
+    }
 
     const total = records.length;
 
@@ -190,6 +208,7 @@ class ScreenerService {
     let sortCol = filters.sort_by || 'total_score';
     if (sortCol === 'quality_score') sortCol = 'total_score';
     if (sortCol === 'moat') sortCol = 'moat_stars';
+    if (sortCol === 'dividend' || sortCol === 'dividend_safety') sortCol = 'dividend_safety_score';
     const isAsc = filters.sort_order === 'asc';
 
     records.sort((a, b) => {
@@ -239,6 +258,13 @@ class ScreenerService {
       moat_color: r.moat_color,
       primary_moat_type: r.primary_moat_type,
       pricing_power_score: r.pricing_power_score,
+      dividend_yield_pct: r.dividend_yield_pct,
+      dividend_safety_score: r.dividend_safety_score,
+      dividend_safety_label: r.dividend_safety_label,
+      dividend_safety_color: r.dividend_safety_color,
+      dividend_aristocrat: r.dividend_aristocrat,
+      dividend_king: r.dividend_king,
+      dividend_yield_trap: r.dividend_yield_trap,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -289,6 +315,13 @@ class ScreenerService {
       moat_color: r.moat_color,
       primary_moat_type: r.primary_moat_type,
       pricing_power_score: r.pricing_power_score,
+      dividend_yield_pct: r.dividend_yield_pct,
+      dividend_safety_score: r.dividend_safety_score,
+      dividend_safety_label: r.dividend_safety_label,
+      dividend_safety_color: r.dividend_safety_color,
+      dividend_aristocrat: r.dividend_aristocrat,
+      dividend_king: r.dividend_king,
+      dividend_yield_trap: r.dividend_yield_trap,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -323,6 +356,10 @@ class ScreenerService {
       'Moat Label',
       'Pricing Power',
       'Primary Moat',
+      'Dividend Yield %',
+      'Dividend Safety',
+      'Aristocrat',
+      'Yield Trap',
       'Solvency (25)',
       'Profitability (30)',
       'Growth/Cash (25)',
@@ -359,6 +396,10 @@ class ScreenerService {
         it.moat_label ?? '',
         it.pricing_power_score ?? '',
         it.primary_moat_type ?? '',
+        it.dividend_yield_pct ?? '',
+        it.dividend_safety_score ?? '',
+        it.dividend_aristocrat ? 'OUI' : 'NON',
+        it.dividend_yield_trap ? 'OUI' : 'NON',
         qs?.solvency_score ?? '',
         qs?.profitability_score ?? '',
         qs?.cash_growth_score ?? '',

@@ -12,6 +12,7 @@ const securityAnalysisService = require('./services/securityAnalysisService');
 const valuationService = require('./services/valuationService');
 const qualitativeIntelligenceService = require('./services/qualitativeIntelligenceService');
 const quoteService = require('./services/quoteService');
+const phase3Service = require('./services/phase3Service');
 
 const app = express();
 
@@ -294,6 +295,97 @@ api.get('/duel/universe', (req, res) => {
     res.json(qualitativeIntelligenceService.listUniverseLite(store.getAllCompanies()));
   } catch (err) {
     console.error('Error in /api/duel/universe:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 3 — Backtest, stress, dividends, Markowitz, memo
+api.get('/lab/backtest', (req, res) => {
+  try {
+    res.json(phase3Service.backtestStrategies({
+      years: req.query.years,
+      rebalance: req.query.rebalance
+    }));
+  } catch (err) {
+    console.error('Error in /api/lab/backtest:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.get('/lab/stress', (req, res) => {
+  try {
+    res.json(phase3Service.stressTest({
+      scenario: req.query.scenario,
+      strategy: req.query.strategy
+    }));
+  } catch (err) {
+    console.error('Error in /api/lab/stress:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.post('/lab/markowitz', (req, res) => {
+  try {
+    const result = phase3Service.optimizeMarkowitz(req.body || {});
+    if (result?.error) return res.status(400).json(result);
+    res.json(result);
+  } catch (err) {
+    console.error('Error in /api/lab/markowitz:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.get('/lab/dividends', (req, res) => {
+  try {
+    res.json(phase3Service.listDividendSafety(
+      Number(req.query.min_score || 0),
+      req.query.aristocrats === '1' || req.query.aristocrats === 'true',
+      req.query.exclude_traps === '1' || req.query.exclude_traps === 'true'
+    ));
+  } catch (err) {
+    console.error('Error in /api/lab/dividends:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.get('/companies/:symbol/dividend-safety', (req, res) => {
+  try {
+    const company = store.getCompanyBySymbol(req.params.symbol);
+    if (!company) {
+      return res.status(404).json({ detail: `Company with symbol '${req.params.symbol}' not found` });
+    }
+    res.json(phase3Service.getDividendSafety(company));
+  } catch (err) {
+    console.error('Error in /api/companies/:symbol/dividend-safety:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.get('/companies/:symbol/memo', (req, res) => {
+  try {
+    const company = store.getCompanyBySymbol(req.params.symbol);
+    if (!company) {
+      return res.status(404).json({ detail: `Company with symbol '${req.params.symbol}' not found` });
+    }
+    const memo = phase3Service.getInvestmentMemo(company, {
+      forensic: securityAnalysisService.getForensicAnalysis(company),
+      moat: qualitativeIntelligenceService.getMoatAnalysis(company),
+      abigail: copilotService.getAbigailAnalysis(company),
+      warren: copilotService.getWarrenAnalysis(company)
+    });
+    res.json(memo);
+  } catch (err) {
+    console.error('Error in /api/companies/:symbol/memo:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.post('/portfolio/dividend-calendar', (req, res) => {
+  try {
+    const positions = Array.isArray(req.body?.positions) ? req.body.positions : [];
+    res.json(phase3Service.getPortfolioDividendCalendar(positions));
+  } catch (err) {
+    console.error('Error in /api/portfolio/dividend-calendar:', err);
     res.status(500).json({ error: err.message });
   }
 });

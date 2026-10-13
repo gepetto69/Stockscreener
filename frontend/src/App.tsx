@@ -9,6 +9,7 @@ import { StockDetailModal } from './components/StockDetailModal';
 import { PortfolioManager } from './components/portfolio/PortfolioManager';
 import { WatchlistManager } from './components/WatchlistManager';
 import { DuelArena } from './components/DuelArena';
+import { LabArena } from './components/LabArena';
 import { AuthModal } from './components/auth/AuthModal';
 import {
   TrendingUp,
@@ -22,6 +23,7 @@ import {
   Briefcase,
   Star,
   Swords,
+  FlaskConical,
   LogOut,
   LogIn,
   MoreVertical,
@@ -32,7 +34,7 @@ import { LocalEngine } from './services/localEngine';
 import { applyFetchedQuotes, fetchLiveQuotes } from './services/quoteService';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'screener' | 'portfolio' | 'watchlist' | 'duel'>('screener');
+  const [activeTab, setActiveTab] = useState<'screener' | 'portfolio' | 'watchlist' | 'duel' | 'lab'>('screener');
   const [duelSymbolA, setDuelSymbolA] = useState<string>('MSFT');
   const [duelSymbolB, setDuelSymbolB] = useState<string>('GOOGL');
   // Immediately populate active portfolio from LocalEngine so UI is instantaneous (<1ms)
@@ -430,6 +432,20 @@ export const App: React.FC = () => {
               <span className="hidden lg:inline">Face-à-Face</span>
               <span className="lg:hidden">Duel</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('lab')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'lab'
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-850'
+              }`}
+            >
+              <FlaskConical className="w-3.5 h-3.5 text-cyan-300" />
+              <span className="hidden xl:inline">Lab Quant</span>
+              <span className="xl:hidden">Lab</span>
+            </button>
           </nav>
 
           {/* Desktop Right Actions */}
@@ -776,6 +792,14 @@ export const App: React.FC = () => {
           />
         ) : activeTab === 'watchlist' ? (
           <WatchlistManager onOpenStockDetail={handleSelectCompany} />
+        ) : activeTab === 'lab' ? (
+          <LabArena
+            portfolio={activePortfolio}
+            onOpenStock={(symbol) => {
+              const rec = LocalEngine.getCompanyDetail(symbol);
+              if (rec) handleSelectCompany(rec as Company);
+            }}
+          />
         ) : (
           <DuelArena
             initialSymbolA={duelSymbolA}
@@ -818,13 +842,14 @@ export const App: React.FC = () => {
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="grid grid-cols-4 h-[4.25rem]">
+        <div className="grid grid-cols-5 h-[4.25rem]">
           {(
             [
               { id: 'screener' as const, label: 'Screener', Icon: Search, active: 'text-indigo-300' },
               { id: 'portfolio' as const, label: 'Portefeuille', Icon: Briefcase, active: 'text-cyan-300' },
               { id: 'watchlist' as const, label: 'Watchlist', Icon: Star, active: 'text-amber-300' },
-              { id: 'duel' as const, label: 'Duel', Icon: Swords, active: 'text-fuchsia-300' }
+              { id: 'duel' as const, label: 'Duel', Icon: Swords, active: 'text-fuchsia-300' },
+              { id: 'lab' as const, label: 'Lab', Icon: FlaskConical, active: 'text-cyan-300' }
             ]
           ).map((item) => {
             const isActive = activeTab === item.id;

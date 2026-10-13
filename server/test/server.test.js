@@ -574,6 +574,101 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
       }
     });
 
+    test('GET /api/lab/backtest returns Sharpe/Sortino/max DD vs benchmarks', async () => {
+      const res = await fetch(`${baseUrl}/api/lab/backtest?years=15&rebalance=quarterly`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.ok(data.strategies.defensive);
+      assert.ok(data.strategies.balanced);
+      assert.ok(data.strategies.dynamic);
+      assert.ok(data.benchmarks.SPX);
+      assert.ok(data.benchmarks.MSCI);
+      assert.ok(data.benchmarks.CAC);
+      assert.ok(typeof data.strategies.balanced.metrics.sharpe === 'number');
+      assert.ok(typeof data.strategies.balanced.metrics.sortino === 'number');
+      assert.ok(typeof data.strategies.balanced.metrics.max_drawdown === 'number');
+      assert.ok(Array.isArray(data.chart));
+      assert.ok(data.chart.length > 10);
+      assert.ok(data.chart[0].balanced);
+      assert.ok(data.strategies.defensive.crisis.gfc < -5, '2008 drawdown should be computed on the full 2008–2026 path');
+      assert.ok(data.strategies.defensive.metrics.max_drawdown > data.strategies.dynamic.metrics.max_drawdown,
+        'defensive max DD should be milder than dynamic');
+    });
+
+    test('GET /api/lab/stress returns portfolio shock vs indices', async () => {
+      const res = await fetch(`${baseUrl}/api/lab/stress?scenario=rates&strategy=dynamic`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.scenario, 'rates');
+      assert.ok(data.portfolio_shock_pct < 0);
+      assert.ok(data.lines.length >= 5);
+      assert.equal(data.benchmarks.length, 3);
+    });
+
+    test('GET /api/companies/:symbol/dividend-safety scores aristocrats', async () => {
+      const res = await fetch(`${baseUrl}/api/companies/JNJ/dividend-safety`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.symbol, 'JNJ');
+      assert.ok(data.king);
+      assert.ok(data.aristocrat);
+      assert.ok(data.safety_score >= 70);
+      assert.ok(data.dividend_yield_pct > 0 && data.dividend_yield_pct < 10);
+      assert.ok(Array.isArray(data.calendar));
+      assert.equal(data.calendar.length, 4);
+    });
+
+    test('GET /api/companies/:symbol/memo bundles copilots for print', async () => {
+      const res = await fetch(`${baseUrl}/api/companies/MSFT/memo`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.symbol, 'MSFT');
+      assert.ok(data.abigail);
+      assert.ok(data.warren);
+      assert.ok(data.moat);
+      assert.ok(data.forensic);
+      assert.ok(data.dividend);
+      assert.ok(data.disclaimer);
+    });
+
+    test('POST /api/lab/markowitz returns frontier and rebalance orders', async () => {
+      const res = await fetch(`${baseUrl}/api/lab/markowitz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cash: 1000,
+          risk_slider: 70,
+          positions: [
+            { symbol: 'MSFT', name: 'Microsoft', shares: 10, current_price: 400 },
+            { symbol: 'JNJ', name: 'J&J', shares: 15, current_price: 160 },
+            { symbol: 'NVDA', name: 'Nvidia', shares: 5, current_price: 180 }
+          ]
+        })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.orders.length, 3);
+      assert.ok(data.correlation.length === 3);
+      assert.ok(data.frontier.length > 5);
+      assert.ok(typeof data.sharpe === 'number');
+      const wsum = data.orders.reduce((a, o) => a + o.target_weight_pct, 0);
+      assert.ok(Math.abs(wsum - 100) < 2);
+    });
+
+    test('POST /api/screen honors min_dividend_safety', async () => {
+      const res = await fetch(`${baseUrl}/api/screen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: 1, page_size: 50, min_dividend_safety: 60 })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.ok(data.items.length > 0);
+      for (const item of data.items) {
+        assert.ok(item.dividend_safety_score >= 60);
+      }
+    });
+
     test('POST /api/screen includes moat fields and honors min_moat_stars', async () => {
       const res = await fetch(`${baseUrl}/api/screen`, {
         method: 'POST',

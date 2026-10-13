@@ -166,6 +166,13 @@ export interface Company {
   moat_color?: string | null;
   primary_moat_type?: string | null;
   pricing_power_score?: number | null;
+  dividend_yield_pct?: number | null;
+  dividend_safety_score?: number | null;
+  dividend_safety_label?: string | null;
+  dividend_safety_color?: string | null;
+  dividend_aristocrat?: boolean;
+  dividend_king?: boolean;
+  dividend_yield_trap?: boolean;
   security_summary?: string;
   security_risk?: string;
   security_color?: string;
@@ -199,6 +206,9 @@ export interface FilterParams {
   min_altman_z?: number;
   exclude_beneish_manipulators?: boolean;
   min_moat_stars?: number;
+  min_dividend_safety?: number;
+  exclude_yield_traps?: boolean;
+  aristocrats_only?: boolean;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   page: number;
@@ -473,6 +483,133 @@ export interface DuelUniverseItem {
   industry?: string;
   currency?: string;
   current_price?: number;
+}
+
+export interface DividendCalendarEvent {
+  ex_date: string;
+  pay_date: string;
+  estimate_per_share: number | null;
+  currency: string;
+}
+
+export interface DividendSafety {
+  symbol: string;
+  name: string;
+  currency: string;
+  current_price: number | null;
+  dividend_yield_pct: number | null;
+  fcf_payout_pct: number | null;
+  net_debt_to_ebitda: number | null;
+  fcf_trend_pct: number | null;
+  safety_score: number;
+  safety_label: string;
+  safety_color: string;
+  yield_trap: boolean;
+  yield_trap_reason: string | null;
+  aristocrat: boolean;
+  king: boolean;
+  streak_years: number;
+  status: string;
+  history: { year: number; dividends_paid: number | null; free_cash_flow: number | null; payout_pct: number | null }[];
+  calendar: DividendCalendarEvent[];
+}
+
+export interface BacktestMetrics {
+  cagr: number | null;
+  volatility: number | null;
+  sharpe: number | null;
+  sortino: number | null;
+  max_drawdown: number | null;
+  calmar: number | null;
+  total_return: number | null;
+}
+
+export interface BacktestResult {
+  years: number;
+  rebalance: string;
+  rf_rate: number;
+  note: string;
+  strategies: Record<string, {
+    id: string;
+    title: string;
+    color: string;
+    metrics: BacktestMetrics;
+    crisis: { gfc: number | null; covid: number | null; inf: number | null };
+    holdings: { symbol: string; weight_pct: number; name: string }[];
+  }>;
+  benchmarks: Record<string, {
+    id: string;
+    title: string;
+    color: string;
+    metrics: BacktestMetrics;
+    crisis: { gfc: number | null; covid: number | null; inf: number | null };
+  }>;
+  chart: Record<string, string | number>[];
+  crises: { key: string; start: string; end: string; label: string }[];
+}
+
+export interface StressResult {
+  scenario: string;
+  label: string;
+  strategy: { id: string; title: string };
+  portfolio_shock_pct: number;
+  lines: { symbol: string; name: string; weight_pct: number; beta: number; shock_pct: number; contribution_pct: number }[];
+  benchmarks: { id: string; title: string; shock_pct: number }[];
+  commentary: string;
+}
+
+export interface MarkowitzResult {
+  error?: string;
+  risk_slider: number;
+  objective: string;
+  expected_return_pct: number;
+  expected_vol_pct: number;
+  sharpe: number;
+  min_variance: { return_pct: number; vol_pct: number; sharpe: number };
+  max_sharpe: { return_pct: number; vol_pct: number; sharpe: number };
+  cash_weight_pct: number;
+  cash: number;
+  total_value: number;
+  symbols: string[];
+  correlation: number[][];
+  frontier: { risk: number; return: number; sharpe: number }[];
+  orders: {
+    symbol: string;
+    name: string;
+    current_weight_pct: number;
+    target_weight_pct: number;
+    current_value: number;
+    target_value: number;
+    delta_value: number;
+    delta_shares: number;
+    action: string;
+    price: number;
+  }[];
+  note: string;
+}
+
+export interface InvestmentMemo {
+  generated_at: string;
+  symbol: string;
+  name: string;
+  sector?: string;
+  industry?: string;
+  country?: string;
+  currency?: string;
+  current_price?: number;
+  market_cap?: number;
+  pe_ratio?: number;
+  pfcf_ratio?: number;
+  description?: string;
+  quality_score?: QualityScore | null;
+  statements: any[];
+  prices: { date: string; close: number }[];
+  dividend: DividendSafety | null;
+  forensic?: ForensicAnalysis | null;
+  moat?: MoatAnalysis | null;
+  abigail?: AbigailAnalysis | null;
+  warren?: WarrenAnalysis | null;
+  disclaimer: string;
 }
 
 export interface AlertItem {
