@@ -276,6 +276,18 @@ function roundNum(val: number, decimals = 2): number {
   return Math.round(val * factor) / factor;
 }
 
+/**
+ * Statements are stored in millions; market cap and price are in currency units.
+ * A price/FCF above 50,000 is a 1e6 unit gap, which floors every per-share DCF to 0.
+ */
+function statementUnitScale(marketCap: number, statementAmount: number): number {
+  const cap = Number(marketCap) || 0;
+  const amount = Math.abs(Number(statementAmount) || 0);
+  if (cap <= 0 || amount <= 0) return 1;
+  if (cap / amount > 50000) return 1e6;
+  return 1;
+}
+
 export const STRATEGY_DEFINITIONS: Record<string, any> = {
   defensive: {
     id: 'defensive',
@@ -1908,11 +1920,26 @@ export class LocalEngine {
     const sharesOutstanding = marketCap > 0 && currentPrice > 0 ? marketCap / currentPrice : 1e7;
 
     let baseFCF = Number(latest?.free_cash_flow);
-    if (!baseFCF || baseFCF <= 0) {
-      baseFCF = Number(latest?.operating_cash_flow) * 0.75 || marketCap / (company.pfcf_ratio || 25);
+    let sourcedFromStatements = Number.isFinite(baseFCF) && baseFCF > 0;
+    if (!sourcedFromStatements) {
+      const operatingCashFlow = Number(latest?.operating_cash_flow);
+      if (Number.isFinite(operatingCashFlow) && operatingCashFlow > 0) {
+        baseFCF = operatingCashFlow * 0.75;
+        sourcedFromStatements = true;
+      } else {
+        baseFCF = marketCap / (company.pfcf_ratio || 25);
+      }
+    }
+
+    let netDebt = Number(latest?.net_debt);
+    if (!Number.isFinite(netDebt)) netDebt = 0;
+
+    if (sourcedFromStatements) {
+      const scale = statementUnitScale(marketCap, baseFCF);
+      baseFCF *= scale;
+      netDebt *= scale;
     }
     baseFCF = Math.max(10, baseFCF);
-    const netDebt = Number(latest?.net_debt) || 0;
 
     const discountRate = customParams.discountRate !== undefined ? Number(customParams.discountRate) : 9.0;
     const terminalGrowth = customParams.terminalGrowth !== undefined ? Number(customParams.terminalGrowth) : 2.5;

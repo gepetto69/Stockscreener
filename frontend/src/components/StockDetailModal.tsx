@@ -200,6 +200,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const [growthRate5y, setGrowthRate5y] = useState<number>(10.0);
   const [reverseDcfData, setReverseDcfData] = useState<ReverseDCFResult | null>(null);
   const [_reverseDcfLoading, setReverseDcfLoading] = useState<boolean>(false);
+  const reverseDcfRequestRef = React.useRef(0);
 
   // Watchlist & Alert state for current stock
   const [inWatchlist, setInWatchlist] = useState<boolean>(false);
@@ -245,34 +246,31 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   // Compute Reverse DCF when parameters change or tab selected
   const fetchOrComputeReverseDCF = async () => {
     if (!company?.symbol) return;
+    const requestId = ++reverseDcfRequestRef.current;
     setReverseDcfLoading(true);
 
-    // Compute locally immediately for 0ms delay
+    const params = {
+      discountRate,
+      terminalGrowth,
+      growthRate5y,
+      growthRate10y: Number((growthRate5y * 0.7).toFixed(2))
+    };
+
+    // Local result paints immediately so the sliders feel live.
     try {
-      const localRes = LocalEngine.getReverseDCFAnalysis(company.symbol, {
-        discountRate,
-        terminalGrowth,
-        growthRate5y,
-        growthRate10y: Number((growthRate5y * 0.7).toFixed(2))
-      });
-      if (localRes) setReverseDcfData(localRes);
+      const localRes = LocalEngine.getReverseDCFAnalysis(company.symbol, params);
+      if (localRes && requestId === reverseDcfRequestRef.current) setReverseDcfData(localRes);
     } catch {
       // ignore
     }
 
-    // Attempt remote update
     try {
-      const res = await axios.post(`${API_BASE}/companies/${company.symbol}/valuation/reverse-dcf`, {
-        discountRate,
-        terminalGrowth,
-        growthRate5y,
-        growthRate10y: Number((growthRate5y * 0.7).toFixed(2))
-      });
-      if (res.data) setReverseDcfData(res.data);
-    } catch (e) {
+      const res = await axios.post(`${API_BASE}/companies/${company.symbol}/valuation/reverse-dcf`, params);
+      if (res.data && requestId === reverseDcfRequestRef.current) setReverseDcfData(res.data);
+    } catch {
       // remote error silently ignored as local result is already set
     } finally {
-      setReverseDcfLoading(false);
+      if (requestId === reverseDcfRequestRef.current) setReverseDcfLoading(false);
     }
   };
 
@@ -1682,7 +1680,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       Simulateur Interactif « Reverse DCF » & Valeur Intrinsèque
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Révèle le taux de croissance des flux de trésorerie (FCF) que le cours actuel intègre déjà dans les cours.
+                      Le curseur de croissance FCF est votre scénario : il recalcule la valeur intrinsèque, la marge de sécurité et toute la matrice. Le WACC et la croissance terminale servent en plus à lire la croissance déjà payée dans le cours.
                     </p>
                   </div>
                 </div>
@@ -1713,7 +1711,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-500">
-                    Hypothèses : WACC {discountRate}% | Terminal {terminalGrowth}%
+                    Bouge avec le WACC ({discountRate.toFixed(1)}%) et g ({terminalGrowth.toFixed(1)}%), pas avec votre hypothèse de croissance.
                   </div>
                 </div>
 
@@ -1879,11 +1877,14 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       <thead>
                         <tr className="bg-slate-950 text-slate-400 border-b border-slate-800">
                           <th className="p-2.5 text-left font-semibold">WACC \ g Terminal</th>
-                          {reverseDcfData.sensitivity_matrix.terminalGrowthRange.map((tg) => (
-                            <th key={tg} className="p-2.5 font-bold text-slate-300">
-                              g = {tg.toFixed(1)}%
-                            </th>
-                          ))}
+                          {reverseDcfData.sensitivity_matrix.terminalGrowthRange.map((tg) => {
+                            const isCurrentTg = Math.abs(Number(tg) - terminalGrowth) < 0.2;
+                            return (
+                              <th key={tg} className={`p-2.5 font-bold ${isCurrentTg ? 'text-emerald-300' : 'text-slate-300'}`}>
+                                g = {tg.toFixed(1)}%{isCurrentTg ? ' ▲' : ''}
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/60 font-mono">
@@ -1897,6 +1898,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                               {reverseDcfData.sensitivity_matrix.terminalGrowthRange.map((tg) => {
                                 const val = row[`tg_${tg}`];
                                 const isPremium = val != null && val >= currentPrice;
+                                const isScenarioCell = isCurrentWacc && Math.abs(Number(tg) - terminalGrowth) < 0.2;
                                 return (
                                   <td
                                     key={tg}
@@ -1906,7 +1908,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                                         : isPremium
                                         ? 'text-emerald-400 bg-emerald-950/20'
                                         : 'text-rose-400/90'
-                                    }`}
+                                    } ${isScenarioCell ? 'ring-1 ring-inset ring-purple-400/80' : ''}`}
                                   >
                                     {val != null ? `${Number(val).toFixed(1)}` : '—'}
                                   </td>

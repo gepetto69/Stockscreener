@@ -13,6 +13,19 @@ function round(val, decimals = 2) {
   return Math.round(val * factor) / factor;
 }
 
+/**
+ * Financial statements are stored in millions, while market cap and price are
+ * in currency units. A price/FCF above 50,000 is not a valuation, it is a
+ * 1e6 unit gap — and it collapses every per-share DCF result to 0.
+ */
+function statementUnitScale(marketCap, statementAmount) {
+  const cap = Number(marketCap) || 0;
+  const amount = Math.abs(Number(statementAmount) || 0);
+  if (cap <= 0 || amount <= 0) return 1;
+  if (cap / amount > 50000) return 1e6;
+  return 1;
+}
+
 class ValuationService {
   /**
    * Calculate Present Value of 10-year projected Free Cash Flows plus Terminal Value.
@@ -205,14 +218,29 @@ class ValuationService {
     // Diluted shares approximation: Market Cap / Current Price
     const sharesOutstanding = marketCap > 0 && currentPrice > 0 ? marketCap / currentPrice : 1e7;
 
-    // Latest Free Cash Flow or proxy from Operating Cash Flow
+    // Latest Free Cash Flow or proxy from Operating Cash Flow.
+    // Statement lines stay in millions until we align them with market cap.
     let baseFCF = Number(latest?.free_cash_flow);
-    if (!baseFCF || baseFCF <= 0) {
-      baseFCF = Number(latest?.operating_cash_flow) * 0.75 || (marketCap / (company.pfcf_ratio || 25));
+    let sourcedFromStatements = Number.isFinite(baseFCF) && baseFCF > 0;
+    if (!sourcedFromStatements) {
+      const operatingCashFlow = Number(latest?.operating_cash_flow);
+      if (Number.isFinite(operatingCashFlow) && operatingCashFlow > 0) {
+        baseFCF = operatingCashFlow * 0.75;
+        sourcedFromStatements = true;
+      } else {
+        baseFCF = marketCap / (company.pfcf_ratio || 25);
+      }
+    }
+
+    let netDebt = Number(latest?.net_debt);
+    if (!Number.isFinite(netDebt)) netDebt = 0;
+
+    if (sourcedFromStatements) {
+      const scale = statementUnitScale(marketCap, baseFCF);
+      baseFCF *= scale;
+      netDebt *= scale;
     }
     baseFCF = Math.max(10, baseFCF);
-
-    const netDebt = Number(latest?.net_debt) || 0;
 
     // Parameters from user or industry defaults
     const discountRate = customParams.discountRate !== undefined ? Number(customParams.discountRate) : 9.0;
