@@ -160,9 +160,11 @@ export const ResultsTable: React.FC<Props> = ({
                     </div>
 
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-medium">Moat</div>
-                      <div className="text-xs font-bold text-amber-300 mt-0.5 font-mono">
-                        {c.moat_stars != null ? `${c.moat_stars.toFixed(1)}★` : '—'}
+                      <div className="text-[10px] text-slate-400 uppercase font-medium">Div. safety</div>
+                      <div className={`text-xs font-bold mt-0.5 font-mono ${
+                        c.dividend_yield_trap ? 'text-rose-300' : 'text-emerald-300'
+                      }`}>
+                        {c.dividend_safety_score != null ? c.dividend_safety_score : '—'}
                       </div>
                     </div>
                     <div>
@@ -233,6 +235,12 @@ export const ResultsTable: React.FC<Props> = ({
                   {renderSortIndicator('moat_stars')}
                 </div>
               </th>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('dividend_safety_score')}>
+                <div className="flex items-center">
+                  <span>Div. Safety</span>
+                  {renderSortIndicator('dividend_safety_score')}
+                </div>
+              </th>
               <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('current_price')}>
                 <div className="flex items-center">
                   <span>Cours</span>
@@ -283,7 +291,7 @@ export const ResultsTable: React.FC<Props> = ({
           <tbody className="divide-y divide-slate-800/60 text-sm">
             {companies.length === 0 ? (
               <tr>
-                <td colSpan={13} className="py-12 text-center text-slate-400">
+                <td colSpan={14} className="py-12 text-center text-slate-400">
                   Aucune entreprise ne correspond aux critères de qualité sélectionnés.
                 </td>
               </tr>
@@ -378,6 +386,17 @@ export const ResultsTable: React.FC<Props> = ({
                         </span>
                         <span className="text-[10px] text-slate-500 truncate max-w-[90px]">
                           {c.moat_label || c.primary_moat_type || ''}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-3 sm:px-4">
+                      <div className="flex flex-col gap-0.5">
+                        <span className={`text-xs font-black font-mono ${c.dividend_yield_trap ? 'text-rose-300' : 'text-emerald-300'}`}>
+                          {c.dividend_safety_score != null ? c.dividend_safety_score : '—'}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {c.dividend_yield_trap ? 'Yield trap' : c.dividend_king ? 'King' : c.dividend_aristocrat ? 'Aristocrat' : c.dividend_yield_pct != null ? `${c.dividend_yield_pct}%` : ''}
                         </span>
                       </div>
                     </td>
