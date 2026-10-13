@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { API_BASE } from '../config/api';
 import { LocalEngine } from '../services/localEngine';
-import type { BacktestResult, DividendSafety, MarkowitzResult, StressResult } from '../types/stock';
+import type { BacktestResult, DividendSafety, MarkowitzResult, StressResult, SwingPlaybook } from '../types/stock';
 import type { PortfolioPerformance } from '../types/portfolio';
 import {
   LineChart,
@@ -25,10 +25,12 @@ interface Props {
   onOpenStock?: (symbol: string) => void;
 }
 
-type LabTab = 'backtest' | 'stress' | 'markowitz' | 'dividends';
+type LabTab = 'swing' | 'backtest' | 'stress' | 'markowitz' | 'dividends';
 
 export const LabArena: React.FC<Props> = ({ portfolio, onOpenStock }) => {
-  const [tab, setTab] = useState<LabTab>('backtest');
+  const [tab, setTab] = useState<LabTab>('swing');
+  const [playbook, setPlaybook] = useState<SwingPlaybook | null>(null);
+  const [swingLoading, setSwingLoading] = useState(false);
   const [years, setYears] = useState<number>(15);
   const [rebalance, setRebalance] = useState<'quarterly' | 'annual'>('quarterly');
   const [backtest, setBacktest] = useState<BacktestResult | null>(null);
@@ -111,6 +113,40 @@ export const LabArena: React.FC<Props> = ({ portfolio, onOpenStock }) => {
   };
 
   useEffect(() => {
+    if (tab !== 'swing') return;
+    const watchlist = (() => {
+      try {
+        return (LocalEngine.getWatchlist() || []).map((w: any) => w.symbol);
+      } catch {
+        return [];
+      }
+    })();
+    const payload = {
+      positions: (portfolio?.positions || []).map((p) => ({
+        symbol: p.symbol,
+        name: p.name,
+        shares: p.shares,
+        current_price: p.current_price,
+        buy_price: p.buy_price
+      })),
+      cash: portfolio?.cash_balance || 0,
+      total_value: portfolio?.total_value || 0,
+      watchlist
+    };
+    setSwingLoading(true);
+    try {
+      setPlaybook(LocalEngine.getTenDayPlaybook(payload) as SwingPlaybook);
+    } catch {
+      // ignore
+    }
+    axios
+      .post(`${API_BASE}/lab/swing`, payload)
+      .then((res) => { if (res.data) setPlaybook(res.data); })
+      .catch(() => {})
+      .finally(() => setSwingLoading(false));
+  }, [tab, portfolio?.id, portfolio?.positions_count, portfolio?.cash_balance]);
+
+  useEffect(() => {
     if (tab === 'markowitz') runMarkowitz(riskSlider);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, portfolio?.id, portfolio?.positions_count]);
@@ -134,12 +170,13 @@ export const LabArena: React.FC<Props> = ({ portfolio, onOpenStock }) => {
           <div>
             <div className="text-sm font-bold text-white">Laboratoire quantitatif</div>
             <p className="text-xs text-slate-400 max-w-xl">
-              Backtest des 3 profils, stress macro, frontière de Markowitz et sécurité des dividendes.
+              Ajustement 10 jours autour de la VI, backtest, stress, Markowitz et dividendes.
             </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {([
+            ['swing', '10 jours'],
             ['backtest', 'Backtest'],
             ['stress', 'Stress test'],
             ['markowitz', 'Markowitz'],
@@ -158,6 +195,92 @@ export const LabArena: React.FC<Props> = ({ portfolio, onOpenStock }) => {
           ))}
         </div>
       </div>
+
+      {tab === 'swing' && (
+        <div className="space-y-4">
+          <div className="bg-slate-950 border border-cyan-800/40 rounded-xl p-4">
+            <div className="text-sm font-bold text-white">{playbook?.protocol.title || 'Ajustement 10 jours'}</div>
+            <ol className="mt-2 space-y-1 text-xs text-slate-400 list-decimal list-inside">
+              {(playbook?.protocol.steps || []).map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ol>
+            {swingLoading && <Loader2 className="w-4 h-4 animate-spin text-cyan-400 mt-2" />}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {[
+              ['Renforcer', playbook?.counts.renforcer, 'text-emerald-300'],
+              ['Alléger', playbook?.counts.alléger, 'text-amber-300'],
+              ['Ouvrir', playbook?.counts.ouvrir, 'text-cyan-300'],
+              ['Sortir', playbook?.counts.sortir, 'text-rose-300']
+            ].map(([label, n, color]) => (
+              <div key={String(label)} className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                <div className="text-[10px] uppercase text-slate-500">{label}</div>
+                <div className={`text-xl font-black font-mono ${color}`}>{n ?? 0}</div>
+              </div>
+            ))}
+          </div>
+          {playbook && playbook.cash_shortfall != null && playbook.cash_shortfall > 0 && (
+            <div className="text-xs text-amber-300 bg-amber-950/30 border border-amber-800 rounded-xl p-3">
+              Cash insuffisant : il manque {playbook.cash_shortfall} pour exécuter tous les renforcements. Priorise 1–2 tickets.
+            </div>
+          )}
+          <div className="overflow-x-auto bg-slate-900 border border-slate-800 rounded-xl">
+            <table className="w-full text-xs">
+              <thead className="text-slate-500">
+                <tr>
+                  <th className="text-left p-2">Titre</th>
+                  <th className="p-2">10j</th>
+                  <th className="p-2">MOS</th>
+                  <th className="p-2">Signal</th>
+                  <th className="p-2">Ordre</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(playbook?.ideas || []).slice(0, 16).map((r) => (
+                  <tr key={r.symbol} className="border-t border-slate-800">
+                    <td className="p-2">
+                      <button type="button" className="text-indigo-300 font-semibold" onClick={() => onOpenStock?.(r.symbol)}>{r.symbol}</button>
+                      <div className="text-[10px] text-slate-500">{r.in_portfolio ? `poids ${r.weight_pct}%` : 'hors portefeuille'}</div>
+                    </td>
+                    <td className={`p-2 text-center font-mono ${(r.ret_10d || 0) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {r.ret_10d == null ? '—' : `${r.ret_10d}%`}
+                    </td>
+                    <td className={`p-2 text-center font-mono ${(r.mos || 0) >= 15 ? 'text-emerald-300' : (r.mos || 0) < 0 ? 'text-rose-300' : 'text-slate-300'}`}>
+                      {r.mos == null ? '—' : `${r.mos}%`}
+                    </td>
+                    <td className="p-2 text-center font-semibold">
+                      <span className={
+                        r.action === 'renforcer' || r.action === 'ouvrir' ? 'text-emerald-300'
+                          : r.action === 'alléger' ? 'text-amber-300'
+                            : r.action === 'sortir' || r.action === 'eviter' ? 'text-rose-300'
+                              : 'text-slate-400'
+                      }>{r.action}</span>
+                    </td>
+                    <td className="p-2 text-center font-mono text-slate-300">
+                      {r.delta_shares ? `${r.delta_shares > 0 ? '+' : ''}${r.delta_shares}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {playbook?.orders?.length ? (
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-slate-300">Ordres de la revue (max 2 à exécuter)</div>
+              {playbook.orders.slice(0, 4).map((o) => (
+                <div key={o.symbol} className="text-xs bg-slate-950 border border-slate-800 rounded-xl p-3">
+                  <span className="font-bold text-white">{o.action.toUpperCase()} {o.symbol}</span>
+                  <span className="font-mono text-cyan-300"> {o.delta_shares} tit. ({o.delta_value})</span>
+                  <p className="text-slate-400 mt-1">{o.reason}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">Aucun ordre 10j : le noyau est dans ses bandes. On ne touche à rien.</p>
+          )}
+        </div>
+      )}
 
       {tab === 'backtest' && (
         <div className="space-y-4">

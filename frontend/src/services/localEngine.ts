@@ -3,6 +3,7 @@
 import seedDataRaw from '../data/seedData.json';
 import { QualitativeEngine } from './qualitativeEngine';
 import { Phase3Engine } from './phase3Engine';
+import { SwingEngine } from './swingEngine';
 
 export interface SeedCompany {
   id: number;
@@ -2328,6 +2329,14 @@ export class LocalEngine {
 
   static getPortfolioDividendCalendar(positions: any[] = []) {
     return Phase3Engine.getPortfolioDividendCalendar(positions);
+  }
+
+  static getTenDayPlaybook(payload: any = {}) {
+    return SwingEngine.getTenDayPlaybook(payload, {
+      universe: companies,
+      getDcf: (c: SeedCompany) => LocalEngine.getReverseDCFAnalysis(c.symbol),
+      getForensic: (c: SeedCompany) => LocalEngine.getForensicAnalysis(c)
+    });
   }
 
   static getInvestmentMemo(symbol: string) {

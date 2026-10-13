@@ -13,6 +13,7 @@ const valuationService = require('./services/valuationService');
 const qualitativeIntelligenceService = require('./services/qualitativeIntelligenceService');
 const quoteService = require('./services/quoteService');
 const phase3Service = require('./services/phase3Service');
+const swingService = require('./services/swingService');
 
 const app = express();
 
@@ -331,6 +332,24 @@ api.post('/lab/markowitz', (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Error in /api/lab/markowitz:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.post('/lab/swing', (req, res) => {
+  try {
+    res.json(swingService.getTenDayPlaybook(req.body || {}));
+  } catch (err) {
+    console.error('Error in /api/lab/swing:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.get('/lab/swing', (req, res) => {
+  try {
+    res.json(swingService.getTenDayPlaybook({}));
+  } catch (err) {
+    console.error('Error in GET /api/lab/swing:', err);
     res.status(500).json({ error: err.message });
   }
 });

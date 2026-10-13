@@ -443,8 +443,8 @@ export const App: React.FC = () => {
               }`}
             >
               <FlaskConical className="w-3.5 h-3.5 text-cyan-300" />
-              <span className="hidden xl:inline">Lab Quant</span>
-              <span className="xl:hidden">Lab</span>
+              <span className="hidden xl:inline">10 jours</span>
+              <span className="xl:hidden">10j</span>
             </button>
           </nav>
 
@@ -849,7 +849,7 @@ export const App: React.FC = () => {
               { id: 'portfolio' as const, label: 'Portefeuille', Icon: Briefcase, active: 'text-cyan-300' },
               { id: 'watchlist' as const, label: 'Watchlist', Icon: Star, active: 'text-amber-300' },
               { id: 'duel' as const, label: 'Duel', Icon: Swords, active: 'text-fuchsia-300' },
-              { id: 'lab' as const, label: 'Lab', Icon: FlaskConical, active: 'text-cyan-300' }
+              { id: 'lab' as const, label: '10j', Icon: FlaskConical, active: 'text-cyan-300' }
             ]
           ).map((item) => {
             const isActive = activeTab === item.id;
