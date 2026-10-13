@@ -143,7 +143,7 @@ export const ResultsTable: React.FC<Props> = ({
                   </div>
 
                   {/* 4-col Key Ratios Grid */}
-                  <div className="grid grid-cols-4 gap-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-center">
+                  <div className="grid grid-cols-5 gap-1 bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-center">
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-medium">Cours</div>
                       <div className="text-xs font-bold text-white mt-0.5 font-mono truncate">
@@ -158,6 +158,12 @@ export const ResultsTable: React.FC<Props> = ({
                       </div>
                     </div>
 
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase font-medium">Moat</div>
+                      <div className="text-xs font-bold text-amber-300 mt-0.5 font-mono">
+                        {c.moat_stars != null ? `${c.moat_stars.toFixed(1)}★` : '—'}
+                      </div>
+                    </div>
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-medium">Altman Z</div>
                       <div className={`text-xs font-bold mt-0.5 font-mono ${
@@ -214,6 +220,12 @@ export const ResultsTable: React.FC<Props> = ({
               <th className="py-3.5 px-3 sm:px-4 text-center">
                 <span>Sécurité (Altman/Beneish)</span>
               </th>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('moat_stars')}>
+                <div className="flex items-center">
+                  <span>Moat</span>
+                  {renderSortIndicator('moat_stars')}
+                </div>
+              </th>
               <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('current_price')}>
                 <div className="flex items-center">
                   <span>Cours</span>
@@ -264,7 +276,7 @@ export const ResultsTable: React.FC<Props> = ({
           <tbody className="divide-y divide-slate-800/60 text-sm">
             {companies.length === 0 ? (
               <tr>
-                <td colSpan={12} className="py-12 text-center text-slate-400">
+                <td colSpan={13} className="py-12 text-center text-slate-400">
                   Aucune entreprise ne correspond aux critères de qualité sélectionnés.
                 </td>
               </tr>
@@ -349,6 +361,17 @@ export const ResultsTable: React.FC<Props> = ({
                             Z: {c.altman_z_score?.score != null ? c.altman_z_score.score.toFixed(1) : '—'} Gris
                           </span>
                         )}
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-3 sm:px-4">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black text-amber-300 font-mono">
+                          {c.moat_stars != null ? `${c.moat_stars.toFixed(1)}★` : '—'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 truncate max-w-[90px]">
+                          {c.moat_label || c.primary_moat_type || ''}
+                        </span>
                       </div>
                     </td>
 

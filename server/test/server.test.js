@@ -492,4 +492,67 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
       assert.equal(delRes.status, 200);
     });
   });
+
+  describe('Phase 2 Innovation Suite: Earnings Call, Economic Moat & Head-to-Head Duel', () => {
+    test('GET /api/companies/:symbol/earnings-call returns Clarissa audit with tone radar', async () => {
+      const res = await fetch(`${baseUrl}/api/companies/GLW/earnings-call`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.copilot, 'Clarissa');
+      assert.equal(data.symbol, 'GLW');
+      assert.ok(data.latest);
+      assert.ok(data.latest.sincerity);
+      assert.ok(typeof data.latest.sincerity.optimism === 'number');
+      assert.ok(Array.isArray(data.latest.bullets.proud));
+      assert.ok(data.latest.bullets.awkward.analyst);
+      assert.ok(Array.isArray(data.radar));
+      assert.ok(data.tone_shift_text);
+    });
+
+    test('GET /api/companies/:symbol/moat returns 5-pillar score and pricing power', async () => {
+      const res = await fetch(`${baseUrl}/api/companies/MSFT/moat`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.symbol, 'MSFT');
+      assert.ok(data.stars >= 1 && data.stars <= 5);
+      assert.equal(data.pillars.length, 5);
+      assert.ok(data.pricing_power_score >= 0 && data.pricing_power_score <= 100);
+      assert.ok(data.justification.includes('Microsoft'));
+      assert.ok(data.primary_moat_type);
+    });
+
+    test('GET /api/duel compares two companies across 15 criteria', async () => {
+      const res = await fetch(`${baseUrl}/api/duel?symbol_a=RMS.PA&symbol_b=MC.PA`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.symbol_a, 'RMS.PA');
+      assert.equal(data.symbol_b, 'MC.PA');
+      assert.equal(data.rows.length, 15);
+      assert.equal(data.wins_a + data.wins_b + data.ties, 15);
+      assert.ok(['a', 'b', 'tie'].includes(data.overall_winner));
+      assert.ok(data.verdict);
+      assert.ok(data.profiles.defensive.symbol);
+      assert.ok(data.radar_a.length >= 5);
+    });
+
+    test('GET /api/duel rejects identical symbols', async () => {
+      const res = await fetch(`${baseUrl}/api/duel?symbol_a=AAPL&symbol_b=AAPL`);
+      assert.equal(res.status, 400);
+    });
+
+    test('POST /api/screen includes moat fields and honors min_moat_stars', async () => {
+      const res = await fetch(`${baseUrl}/api/screen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page: 1, page_size: 50, min_moat_stars: 4 })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.ok(data.items.length > 0);
+      for (const item of data.items) {
+        assert.ok(item.moat_stars >= 4);
+        assert.ok(item.moat_label);
+      }
+    });
+  });
 });

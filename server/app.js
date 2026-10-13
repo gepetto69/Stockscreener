@@ -10,6 +10,7 @@ const portfolioService = require('./services/portfolioService');
 const newsService = require('./services/newsService');
 const securityAnalysisService = require('./services/securityAnalysisService');
 const valuationService = require('./services/valuationService');
+const qualitativeIntelligenceService = require('./services/qualitativeIntelligenceService');
 
 const app = express();
 
@@ -252,6 +253,68 @@ api.get('/companies/:symbol/copilot/einstein', (req, res) => {
     res.json(ranking);
   } catch (err) {
     console.error('Error in /api/companies/:symbol/copilot/einstein:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 2 — Earnings Call Copilot (Clarissa)
+api.get('/companies/:symbol/earnings-call', (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const company = store.getCompanyBySymbol(symbol);
+    if (!company) {
+      return res.status(404).json({ detail: `Company with symbol '${symbol}' not found` });
+    }
+    res.json(qualitativeIntelligenceService.getEarningsCallAudit(company));
+  } catch (err) {
+    console.error('Error in /api/companies/:symbol/earnings-call:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 2 — Economic Moat & Pricing Power
+api.get('/companies/:symbol/moat', (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const company = store.getCompanyBySymbol(symbol);
+    if (!company) {
+      return res.status(404).json({ detail: `Company with symbol '${symbol}' not found` });
+    }
+    res.json(qualitativeIntelligenceService.getMoatAnalysis(company));
+  } catch (err) {
+    console.error('Error in /api/companies/:symbol/moat:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 2 — Head-to-Head Duel
+api.get('/duel/universe', (req, res) => {
+  try {
+    res.json(qualitativeIntelligenceService.listUniverseLite(store.getAllCompanies()));
+  } catch (err) {
+    console.error('Error in /api/duel/universe:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.get('/duel', (req, res) => {
+  try {
+    const symbolA = String(req.query.symbol_a || '').toUpperCase();
+    const symbolB = String(req.query.symbol_b || '').toUpperCase();
+    if (!symbolA || !symbolB) {
+      return res.status(400).json({ error: 'Paramètres symbol_a et symbol_b requis.' });
+    }
+    if (symbolA === symbolB) {
+      return res.status(400).json({ error: 'Choisissez deux entreprises distinctes.' });
+    }
+    const companyA = store.getCompanyBySymbol(symbolA);
+    const companyB = store.getCompanyBySymbol(symbolB);
+    if (!companyA || !companyB) {
+      return res.status(404).json({ error: 'Une des deux entreprises est introuvable.' });
+    }
+    res.json(qualitativeIntelligenceService.compareCompanies(companyA, companyB));
+  } catch (err) {
+    console.error('Error in /api/duel:', err);
     res.status(500).json({ error: err.message });
   }
 });

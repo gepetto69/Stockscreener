@@ -387,6 +387,34 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
         </label>
       </div>
 
+      {/* 6b. Douve économique */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          Douve économique (Moat)
+        </h3>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs text-slate-300">
+            <span>Étoiles min.</span>
+            <span className="font-semibold text-amber-300">
+              {filters.min_moat_stars !== undefined ? `≥ ${filters.min_moat_stars}★` : 'Non filtré'}
+            </span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="5"
+            step="0.5"
+            value={filters.min_moat_stars ?? 1}
+            onChange={(e) => handleInputChange('min_moat_stars', Number(e.target.value) > 1 ? Number(e.target.value) : undefined)}
+            className="w-full accent-amber-500"
+          />
+          <div className="flex justify-between text-[10px] text-slate-500">
+            <span>1★ toutes</span>
+            <span>5★ infranchissable</span>
+          </div>
+        </div>
+      </div>
+
       {/* 7. Secteurs */}
       {sectorsList.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-slate-800">

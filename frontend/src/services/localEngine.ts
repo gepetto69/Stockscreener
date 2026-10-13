@@ -1,6 +1,7 @@
 // Client-side execution engine & fallback adapter
 // Allows QualityScreener PRO to run 100% autonomously in the browser without any backend
 import seedDataRaw from '../data/seedData.json';
+import { QualitativeEngine } from './qualitativeEngine';
 
 export interface SeedCompany {
   id: number;
@@ -402,6 +403,7 @@ export class LocalEngine {
 
     const qs = company.quality_score;
     const forensic = LocalEngine.getForensicAnalysis(company);
+    const moat = QualitativeEngine.getMoatAnalysis(company);
 
     return {
       id: company.id,
@@ -433,6 +435,11 @@ export class LocalEngine {
       security_summary: forensic?.summary_verdict ?? 'Non évalué',
       security_risk: forensic?.risk_level ?? 'Faible',
       security_color: forensic?.summary_color ?? 'emerald',
+      moat_stars: moat.stars,
+      moat_label: moat.moat_label,
+      moat_color: moat.moat_color,
+      primary_moat_type: moat.primary_moat_type,
+      pricing_power_score: moat.pricing_power_score,
       latest_roe: latest?.roe ?? null,
       latest_roic: latest?.roic ?? null,
       latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
@@ -538,11 +545,15 @@ export class LocalEngine {
     if (filters.exclude_beneish_manipulators) {
       records = records.filter((r) => !r.beneish_m_score?.isManipulator);
     }
+    if (filters.min_moat_stars !== undefined && filters.min_moat_stars !== null) {
+      records = records.filter((r) => r.moat_stars != null && r.moat_stars >= filters.min_moat_stars);
+    }
 
     const total = records.length;
 
     let sortCol = filters.sort_by || 'total_score';
     if (sortCol === 'quality_score') sortCol = 'total_score';
+    if (sortCol === 'moat') sortCol = 'moat_stars';
     const isAsc = filters.sort_order === 'asc';
 
     records.sort((a: any, b: any) => {
@@ -586,6 +597,11 @@ export class LocalEngine {
       security_summary: r.security_summary,
       security_risk: r.security_risk,
       security_color: r.security_color,
+      moat_stars: r.moat_stars,
+      moat_label: r.moat_label,
+      moat_color: r.moat_color,
+      primary_moat_type: r.primary_moat_type,
+      pricing_power_score: r.pricing_power_score,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -2178,5 +2194,30 @@ export class LocalEngine {
     alerts = alerts.filter((a) => a.id !== Number(alertId));
     saveStoredAlerts(alerts);
     return alerts.length < initialLen;
+  }
+
+  static getMoatAnalysis(symbol: string) {
+    const company = companyMap.get(symbol.toUpperCase());
+    if (!company) return null;
+    return QualitativeEngine.getMoatAnalysis(company);
+  }
+
+  static getEarningsCallAudit(symbol: string) {
+    const company = companyMap.get(symbol.toUpperCase());
+    if (!company) return null;
+    return QualitativeEngine.getEarningsCallAudit(company);
+  }
+
+  static listDuelUniverse() {
+    return QualitativeEngine.listUniverseLite(companies);
+  }
+
+  static compareCompanies(symbolA: string, symbolB: string) {
+    const a = companyMap.get(String(symbolA).toUpperCase());
+    const b = companyMap.get(String(symbolB).toUpperCase());
+    if (!a || !b) return null;
+    const forensicA = LocalEngine.getForensicAnalysis(a);
+    const forensicB = LocalEngine.getForensicAnalysis(b);
+    return QualitativeEngine.compareCompanies(a, b, forensicA, forensicB);
   }
 }
