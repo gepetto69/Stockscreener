@@ -1,5 +1,6 @@
 const store = require('../store');
 const SecurityAnalysisService = require('./securityAnalysisService');
+const QualitativeIntelligenceService = require('./qualitativeIntelligenceService');
 
 function round(val, decimals = 2) {
   if (val === null || val === undefined || isNaN(val)) return null;
@@ -30,6 +31,7 @@ class ScreenerService {
 
     const qs = company.quality_score;
     const forensic = SecurityAnalysisService.getForensicAnalysis(company);
+    const moat = QualitativeIntelligenceService.getMoatAnalysis(company);
 
     return {
       id: company.id,
@@ -61,6 +63,11 @@ class ScreenerService {
       security_summary: forensic.summary_verdict,
       security_risk: forensic.risk_level,
       security_color: forensic.summary_color,
+      moat_stars: moat.stars,
+      moat_label: moat.moat_label,
+      moat_color: moat.moat_color,
+      primary_moat_type: moat.primary_moat_type,
+      pricing_power_score: moat.pricing_power_score,
       latest_roe: latest?.roe ?? null,
       latest_roic: latest?.roic ?? null,
       latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
@@ -173,12 +180,16 @@ class ScreenerService {
     if (filters.exclude_beneish_manipulators) {
       records = records.filter((r) => !r.beneish_m_score?.isManipulator);
     }
+    if (filters.min_moat_stars !== undefined && filters.min_moat_stars !== null) {
+      records = records.filter((r) => r.moat_stars != null && r.moat_stars >= filters.min_moat_stars);
+    }
 
     const total = records.length;
 
     // 7. Sorting
     let sortCol = filters.sort_by || 'total_score';
     if (sortCol === 'quality_score') sortCol = 'total_score';
+    if (sortCol === 'moat') sortCol = 'moat_stars';
     const isAsc = filters.sort_order === 'asc';
 
     records.sort((a, b) => {
@@ -223,6 +234,11 @@ class ScreenerService {
       security_summary: r.security_summary,
       security_risk: r.security_risk,
       security_color: r.security_color,
+      moat_stars: r.moat_stars,
+      moat_label: r.moat_label,
+      moat_color: r.moat_color,
+      primary_moat_type: r.primary_moat_type,
+      pricing_power_score: r.pricing_power_score,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -268,6 +284,11 @@ class ScreenerService {
       security_summary: r.security_summary,
       security_risk: r.security_risk,
       security_color: r.security_color,
+      moat_stars: r.moat_stars,
+      moat_label: r.moat_label,
+      moat_color: r.moat_color,
+      primary_moat_type: r.primary_moat_type,
+      pricing_power_score: r.pricing_power_score,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -298,6 +319,10 @@ class ScreenerService {
       'Altman Zone',
       'Beneish M-Score',
       'Beneish Manipulator',
+      'Moat Stars',
+      'Moat Label',
+      'Pricing Power',
+      'Primary Moat',
       'Solvency (25)',
       'Profitability (30)',
       'Growth/Cash (25)',
@@ -330,6 +355,10 @@ class ScreenerService {
         it.altman_z_score?.zone ?? '',
         it.beneish_m_score?.score ?? '',
         it.beneish_m_score?.isManipulator ? 'OUI' : 'NON',
+        it.moat_stars ?? '',
+        it.moat_label ?? '',
+        it.pricing_power_score ?? '',
+        it.primary_moat_type ?? '',
         qs?.solvency_score ?? '',
         qs?.profitability_score ?? '',
         qs?.cash_growth_score ?? '',

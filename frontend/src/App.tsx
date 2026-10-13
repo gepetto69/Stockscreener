@@ -8,6 +8,7 @@ import { ResultsTable } from './components/ResultsTable';
 import { StockDetailModal } from './components/StockDetailModal';
 import { PortfolioManager } from './components/portfolio/PortfolioManager';
 import { WatchlistManager } from './components/WatchlistManager';
+import { DuelArena } from './components/DuelArena';
 import { AuthModal } from './components/auth/AuthModal';
 import {
   TrendingUp,
@@ -20,6 +21,7 @@ import {
   Filter,
   Briefcase,
   Star,
+  Swords,
   LogOut,
   LogIn,
   MoreVertical,
@@ -29,7 +31,9 @@ import { API_BASE } from './config/api';
 import { LocalEngine } from './services/localEngine';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'screener' | 'portfolio' | 'watchlist'>('screener');
+  const [activeTab, setActiveTab] = useState<'screener' | 'portfolio' | 'watchlist' | 'duel'>('screener');
+  const [duelSymbolA, setDuelSymbolA] = useState<string>('MSFT');
+  const [duelSymbolB, setDuelSymbolB] = useState<string>('GOOGL');
   // Immediately populate active portfolio from LocalEngine so UI is instantaneous (<1ms)
   const [activePortfolio, setActivePortfolio] = useState<PortfolioPerformance | null>(() => {
     try {
@@ -370,6 +374,20 @@ export const App: React.FC = () => {
               <span className="hidden sm:inline">Watchlist & Alertes</span>
               <span className="sm:hidden">Watchlist</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('duel')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'duel'
+                  ? 'bg-fuchsia-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-850'
+              }`}
+            >
+              <Swords className="w-3.5 h-3.5 text-fuchsia-300" />
+              <span className="hidden sm:inline">Face-à-Face</span>
+              <span className="sm:hidden">Duel</span>
+            </button>
           </nav>
 
           {/* Desktop Right Actions */}
@@ -684,9 +702,14 @@ export const App: React.FC = () => {
             onPortfolioStatusChange={setActivePortfolio}
             initialPortfolioId={activePortfolio?.id}
           />
-        ) : (
-          /* Watchlist & Alerts Manager View */
+        ) : activeTab === 'watchlist' ? (
           <WatchlistManager onOpenStockDetail={handleSelectCompany} />
+        ) : (
+          <DuelArena
+            initialSymbolA={duelSymbolA}
+            initialSymbolB={duelSymbolB}
+            onOpenStock={handleSelectCompany}
+          />
         )}
       </main>
 
@@ -694,6 +717,13 @@ export const App: React.FC = () => {
       <StockDetailModal
         company={selectedCompany}
         onClose={() => setSelectedCompany(null)}
+        onCompare={(symbol) => {
+          setDuelSymbolA(symbol);
+          const fallback = symbol === 'MSFT' ? 'GOOGL' : 'MSFT';
+          setDuelSymbolB((prev) => (prev === symbol ? fallback : prev));
+          setSelectedCompany(null);
+          setActiveTab('duel');
+        }}
       />
 
       {/* Auth Modal (Login & Signup) */}

@@ -100,6 +100,32 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
     if (comp) return LocalEngine.getEinsteinRanking(comp as any);
   }
 
+  // 7b. Phase 2 earnings-call
+  const earningsMatch = cleanPath.match(/\/companies\/([^/]+)\/earnings-call/);
+  if (earningsMatch) {
+    const sym = earningsMatch[1].toUpperCase();
+    return LocalEngine.getEarningsCallAudit(sym);
+  }
+
+  // 7c. Phase 2 moat
+  const moatMatch = cleanPath.match(/\/companies\/([^/]+)\/moat/);
+  if (moatMatch) {
+    const sym = moatMatch[1].toUpperCase();
+    return LocalEngine.getMoatAnalysis(sym);
+  }
+
+  // 7d. Phase 2 duel universe
+  if (cleanPath === '/duel/universe' || cleanPath === 'duel/universe') {
+    return LocalEngine.listDuelUniverse();
+  }
+
+  // 7e. Phase 2 duel compare
+  if (cleanPath === '/duel' || cleanPath === 'duel') {
+    const a = String(effectiveParams?.symbol_a || data?.symbol_a || '').toUpperCase();
+    const b = String(effectiveParams?.symbol_b || data?.symbol_b || '').toUpperCase();
+    return LocalEngine.compareCompanies(a, b);
+  }
+
   // 8. /companies/:symbol/news
   const newsMatch = cleanPath.match(/\/companies\/([^/]+)\/news/);
   if (newsMatch) {
@@ -108,15 +134,21 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
     return LocalEngine.getCompanyNews(sym, comp ? comp.name : sym);
   }
 
-  // 9. Reverse DCF must be matched before the generic company route,
-  // otherwise a failed request is replaced by the company profile and the sliders look frozen.
+  // Security & Reverse DCF must be matched before the generic company route,
+  // otherwise a failed request is replaced by the company profile.
+  const secMatch = cleanPath.match(/\/companies\/([^/]+)\/security/);
+  if (secMatch) {
+    const sym = secMatch[1].toUpperCase();
+    return LocalEngine.getForensicAnalysis(sym);
+  }
+
   const reverseDcfMatch = cleanPath.match(/\/companies\/([^/]+)\/valuation\/reverse-dcf/);
   if (reverseDcfMatch) {
     const sym = reverseDcfMatch[1].toUpperCase();
     return LocalEngine.getReverseDCFAnalysis(sym, { ...(effectiveParams || {}), ...(data || {}) });
   }
 
-  // 10. /companies/:symbol
+  // 9. /companies/:symbol
   const compMatch = cleanPath.match(/\/companies\/([^/]+)/);
   if (compMatch) {
     const sym = compMatch[1].toUpperCase();
@@ -173,6 +205,38 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
   if (cleanPath === '/portfolio' || cleanPath === 'portfolio') {
     const portId = effectiveParams?.portfolio_id ? Number(effectiveParams.portfolio_id) : LocalEngine.getActivePortfolioId();
     return LocalEngine.getPortfolioPerformance(portId);
+  }
+
+  // 19. /watchlist
+  if (cleanPath === '/watchlist' || cleanPath === 'watchlist') {
+    if (method.toUpperCase() === 'GET') {
+      return LocalEngine.getWatchlist();
+    }
+    if (method.toUpperCase() === 'POST') {
+      return LocalEngine.addToWatchlist(data || {});
+    }
+  }
+
+  const delWatchlistMatch = cleanPath.match(/\/watchlist\/([^/]+)/);
+  if (delWatchlistMatch && method.toUpperCase() === 'DELETE') {
+    const symOrId = delWatchlistMatch[1];
+    return LocalEngine.removeFromWatchlist(symOrId);
+  }
+
+  // 20. /alerts
+  if (cleanPath === '/alerts' || cleanPath === 'alerts') {
+    if (method.toUpperCase() === 'GET') {
+      return LocalEngine.getAlerts();
+    }
+    if (method.toUpperCase() === 'POST') {
+      return LocalEngine.createAlert(data || {});
+    }
+  }
+
+  const delAlertMatch = cleanPath.match(/\/alerts\/([^/]+)/);
+  if (delAlertMatch && method.toUpperCase() === 'DELETE') {
+    const alertId = Number(delAlertMatch[1]);
+    return LocalEngine.deleteAlert(alertId);
   }
 
   return null;

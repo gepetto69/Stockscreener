@@ -7,8 +7,12 @@ import type {
   WarrenAnalysis,
   EinsteinAnalysis,
   NewsItem,
-  ReverseDCFResult
+  ReverseDCFResult,
+  EarningsCallAudit,
+  MoatAnalysis
 } from '../types/stock';
+import { EarningsCallPanel } from './EarningsCallPanel';
+import { MoatAnalysisPanel } from './MoatAnalysisPanel';
 import axios from 'axios';
 import {
   X,
@@ -33,7 +37,8 @@ import {
   Newspaper,
   Star,
   Bell,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Swords
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -58,6 +63,7 @@ import {
 interface Props {
   company: Company | null;
   onClose: () => void;
+  onCompare?: (symbol: string) => void;
 }
 
 type TabType =
@@ -69,6 +75,8 @@ type TabType =
   | 'technical'
   | 'analysts'
   | 'news'
+  | 'earnings_call'
+  | 'moat'
   | 'full_analysis';
 
 interface TabConfig {
@@ -162,8 +170,28 @@ const TABS_CONFIG: TabConfig[] = [
     description: "Publications récentes & catalyseurs"
   },
   {
-    id: 'full_analysis',
+    id: 'earnings_call',
     pageNumber: 9,
+    label: 'Audit Earnings Call',
+    shortLabel: 'Earnings',
+    icon: '🎙️',
+    badge: 'Clarissa',
+    badgeColor: 'bg-fuchsia-950 text-fuchsia-300 border-fuchsia-800',
+    description: "Tonalité, sincérité & Q&A de la direction"
+  },
+  {
+    id: 'moat',
+    pageNumber: 10,
+    label: 'Douve & Pricing Power',
+    shortLabel: 'Moat',
+    icon: '🏰',
+    badge: '5 piliers',
+    badgeColor: 'bg-amber-950 text-amber-300 border-amber-700',
+    description: "Barrières à l'entrée et pouvoir de prix"
+  },
+  {
+    id: 'full_analysis',
+    pageNumber: 11,
     label: 'Analyse complète Warren',
     shortLabel: 'Warren IA',
     icon: '💎',
@@ -173,7 +201,7 @@ const TABS_CONFIG: TabConfig[] = [
   }
 ];
 
-export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
+export const StockDetailModal: React.FC<Props> = ({ company, onClose, onCompare }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [timeframe, setTimeframe] = useState<'1m' | '6m' | '1y'>('1y');
 
@@ -209,6 +237,10 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const [alertTargetPrice, setAlertTargetPrice] = useState<string>('');
   const [alertCondition, setAlertCondition] = useState<string>('price_below');
   const [alertFeedback, setAlertFeedback] = useState<string | null>(null);
+  const [earningsData, setEarningsData] = useState<EarningsCallAudit | null>(null);
+  const [earningsLoading, setEarningsLoading] = useState<boolean>(false);
+  const [moatData, setMoatData] = useState<MoatAnalysis | null>(null);
+  const [moatLoading, setMoatLoading] = useState<boolean>(false);
 
   // Refs for tab scrolling and content scrolling
   const contentAreaRef = React.useRef<HTMLDivElement>(null);
@@ -238,6 +270,8 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
       const found = wl.some((w: any) => w.symbol.toUpperCase() === company.symbol.toUpperCase());
       setInWatchlist(found);
       setAlertTargetPrice(company.current_price ? String(Math.round(company.current_price * 0.95)) : '');
+      setEarningsData(null);
+      setMoatData(null);
     } catch {
       // ignore
     }
@@ -460,6 +494,32 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
     if (activeTab === 'news' && newsList.length === 0 && !newsLoading) {
       handleLoadNews();
     }
+    if (activeTab === 'earnings_call') {
+      setEarningsLoading(true);
+      try {
+        const local = LocalEngine.getEarningsCallAudit(company.symbol);
+        if (local) setEarningsData(local as EarningsCallAudit);
+      } catch {
+        // ignore
+      }
+      axios.get(`${API_BASE}/companies/${company.symbol}/earnings-call`)
+        .then((res) => { if (res.data) setEarningsData(res.data); })
+        .catch(() => {})
+        .finally(() => setEarningsLoading(false));
+    }
+    if (activeTab === 'moat') {
+      setMoatLoading(true);
+      try {
+        const local = LocalEngine.getMoatAnalysis(company.symbol);
+        if (local) setMoatData(local as MoatAnalysis);
+      } catch {
+        // ignore
+      }
+      axios.get(`${API_BASE}/companies/${company.symbol}/moat`)
+        .then((res) => { if (res.data) setMoatData(res.data); })
+        .catch(() => {})
+        .finally(() => setMoatLoading(false));
+    }
   }, [activeTab, company?.symbol]);
 
   const stmts = company?.financial_statements
@@ -559,12 +619,12 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
             <span className="truncate">← Page {prevTab.pageNumber} : {prevTab.label}</span>
           </button>
         ) : (
-          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Page de garde du dossier (1/8)</div>
+          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Page de garde du dossier (1/{TABS_CONFIG.length})</div>
         )}
       </div>
 
       <div className="text-center px-4 py-1.5 rounded-full bg-slate-900 border border-slate-750 text-xs font-bold text-slate-300 shadow-inner">
-        Page <span className="text-sky-400 font-extrabold">{currentTab.pageNumber}</span> sur <span className="text-slate-400">8</span>
+        Page <span className="text-sky-400 font-extrabold">{currentTab.pageNumber}</span> sur <span className="text-slate-400">{TABS_CONFIG.length}</span>
       </div>
 
       <div className="w-full sm:w-auto">
@@ -577,7 +637,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
             <ChevronRight className="w-4 h-4 shrink-0" />
           </button>
         ) : (
-          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Dernière page du dossier (8/8)</div>
+          <div className="hidden sm:block text-xs text-slate-500 italic px-2">Dernière page du dossier ({TABS_CONFIG.length}/{TABS_CONFIG.length})</div>
         )}
       </div>
     </div>
@@ -714,6 +774,18 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                   <span>Alerte</span>
                 </button>
 
+                {onCompare && (
+                  <button
+                    type="button"
+                    onClick={() => onCompare(company.symbol)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-200 text-xs font-bold transition"
+                    title="Comparer en Face-à-Face"
+                  >
+                    <Swords className="w-3.5 h-3.5 text-indigo-300" />
+                    <span>Comparer</span>
+                  </button>
+                )}
+
                 <button
                   onClick={onClose}
                   className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition ml-1"
@@ -750,7 +822,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
               >
                 {TABS_CONFIG.map((tab) => (
                   <option key={tab.id} value={tab.id} className="bg-slate-900 text-white py-1">
-                    Page {tab.pageNumber}/8 : {tab.icon} {tab.label}
+                    Page {tab.pageNumber}/{TABS_CONFIG.length} : {tab.icon} {tab.label}
                   </option>
                 ))}
               </select>
@@ -805,7 +877,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       }`}
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>8. {tab.shortLabel}</span>
+                      <span>{tab.pageNumber}. {tab.shortLabel}</span>
                       <span className="text-[9px] px-1 py-0.2 rounded font-black bg-amber-900/80 text-amber-200 border border-amber-700">
                         IA
                       </span>
@@ -930,7 +1002,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 </div>
               </div>
 
-              {/* 📑 SOMMAIRE INTERACTIF DU DOSSIER D'ANALYSE (8 pages & 3 copilotes) */}
+              {/* 📑 SOMMAIRE INTERACTIF DU DOSSIER D'ANALYSE (9 pages & 3 copilotes) */}
               <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 sm:p-6 space-y-4 shadow-xl">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2.5">
@@ -940,7 +1012,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                         Sommaire du dossier d'analyse
                       </h3>
                       <p className="text-[11px] text-slate-400">
-                        8 pages d'expertise fondamentale & 3 copilotes IA intégrés
+                        {TABS_CONFIG.length} volets d'expertise fondamentale, forensic, reverse DCF & copilotes IA
                       </p>
                     </div>
                   </div>
@@ -963,7 +1035,7 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 group-hover:bg-sky-600 group-hover:text-white transition">
-                            Page {t.pageNumber}/8
+                            Page {t.pageNumber}/{TABS_CONFIG.length}
                           </span>
                           {t.badge && (
                             <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${t.badgeColor || 'bg-slate-800 text-slate-300 border-slate-700'}`}>
@@ -2293,7 +2365,15 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
             </div>
           )}
 
-          {/* 8. TAB: ANALYSE COMPLÈTE (Full Warren Report with Fiche Résumé, Moat, Gauges, Radar) */}
+          {activeTab === 'earnings_call' && (
+            <EarningsCallPanel data={earningsData} loading={earningsLoading} />
+          )}
+
+          {activeTab === 'moat' && (
+            <MoatAnalysisPanel data={moatData} loading={moatLoading} />
+          )}
+
+          {/* 11. TAB: ANALYSE COMPLÈTE (Full Warren Report with Fiche Résumé, Moat, Gauges, Radar) */}
           {activeTab === 'full_analysis' && (
             <div className="space-y-6">
               {warrenLoading ? (

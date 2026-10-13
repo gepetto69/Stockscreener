@@ -161,6 +161,11 @@ export interface Company {
   altman_z_score?: AltmanZScore | null;
   beneish_m_score?: BeneishMScore | null;
   accruals_quality?: AccrualsQuality | null;
+  moat_stars?: number | null;
+  moat_label?: string | null;
+  moat_color?: string | null;
+  primary_moat_type?: string | null;
+  pricing_power_score?: number | null;
   security_summary?: string;
   security_risk?: string;
   security_color?: string;
@@ -193,6 +198,7 @@ export interface FilterParams {
   min_market_cap?: number;
   min_altman_z?: number;
   exclude_beneish_manipulators?: boolean;
+  min_moat_stars?: number;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   page: number;
@@ -330,6 +336,143 @@ export interface WatchlistItem {
   beneish_manipulator?: boolean;
   created_at: string;
   updated_at?: string;
+}
+
+export interface MoatPillar {
+  key: string;
+  label: string;
+  short: string;
+  description: string;
+  score: number;
+  evidence: string;
+}
+
+export interface MoatAnalysis {
+  symbol: string;
+  name: string;
+  industry?: string;
+  sector?: string;
+  stars: number;
+  stars_rounded: number;
+  moat_label: string;
+  moat_color: string;
+  primary_moat_type: string;
+  primary_moat_key: string;
+  pricing_power_score: number;
+  pricing_power_label: string;
+  pricing_power_color: string;
+  avg_roic: number | null;
+  latest_roic: number | null;
+  roic_spread_vs_wacc: number | null;
+  years_roic_above_15: number;
+  margin_stability_index: number | null;
+  operating_margin_delta: number | null;
+  pillars: MoatPillar[];
+  justification: string;
+  history: { year: number; roic: number | null; operating_margin: number | null; net_margin: number | null }[];
+  radar: { axis: string; value: number }[];
+}
+
+export interface EarningsSincerity {
+  optimism: number;
+  hesitation: number;
+  evasiveness: number;
+  guidance_clarity: number;
+  margin_confidence: number;
+}
+
+export interface EarningsPublication {
+  fiscal_year: number;
+  is_latest: boolean;
+  headline: string;
+  kpis: Record<string, number | null>;
+  tone_label: string;
+  tone_color: string;
+  sincerity: EarningsSincerity;
+  bullets: {
+    proud: string[];
+    minimized: string[];
+    awkward: { analyst: string; answer: string; tension: string };
+  };
+  quotes: { speaker: string; text: string }[];
+  verdict: string;
+}
+
+export interface EarningsCallAudit {
+  copilot: string;
+  symbol: string;
+  company_name: string;
+  industry?: string;
+  fiscal_year: number;
+  source_note: string;
+  latest: EarningsPublication;
+  previous: EarningsPublication | null;
+  publications: EarningsPublication[];
+  tone_shift: string;
+  tone_shift_text: string;
+  radar: { axis: string; value: number }[];
+  analyzed_at: string;
+}
+
+export interface DuelRow {
+  key: string;
+  label: string;
+  higher_better: boolean;
+  a_value: number | null;
+  b_value: number | null;
+  suffix: string;
+  winner: 'a' | 'b' | 'tie';
+}
+
+export interface DuelResult {
+  copilot: string;
+  symbol_a: string;
+  symbol_b: string;
+  company_a: {
+    symbol: string;
+    name: string;
+    sector?: string;
+    industry?: string;
+    currency?: string;
+    price?: number;
+    moat_label: string;
+    moat_stars: number;
+  };
+  company_b: {
+    symbol: string;
+    name: string;
+    sector?: string;
+    industry?: string;
+    currency?: string;
+    price?: number;
+    moat_label: string;
+    moat_stars: number;
+  };
+  rows: DuelRow[];
+  wins_a: number;
+  wins_b: number;
+  ties: number;
+  score_a: number;
+  score_b: number;
+  overall_winner: 'a' | 'b' | 'tie';
+  radar_a: { axis: string; value: number }[];
+  radar_b: { axis: string; value: number }[];
+  profiles: {
+    defensive: { symbol: string; name: string; reason: string };
+    compounder: { symbol: string; name: string; reason: string };
+    growth: { symbol: string; name: string; reason: string };
+  };
+  verdict: string;
+  share_card: { title: string; subtitle: string; scoreline: string; verdict: string };
+}
+
+export interface DuelUniverseItem {
+  symbol: string;
+  name: string;
+  sector?: string;
+  industry?: string;
+  currency?: string;
+  current_price?: number;
 }
 
 export interface AlertItem {

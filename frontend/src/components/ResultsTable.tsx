@@ -143,7 +143,7 @@ export const ResultsTable: React.FC<Props> = ({
                   </div>
 
                   {/* 4-col Key Ratios Grid */}
-                  <div className="grid grid-cols-4 gap-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-center">
+                  <div className="grid grid-cols-5 gap-1 bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-center">
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-medium">Cours</div>
                       <div className="text-xs font-bold text-white mt-0.5 font-mono truncate">
@@ -158,6 +158,12 @@ export const ResultsTable: React.FC<Props> = ({
                       </div>
                     </div>
 
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase font-medium">Moat</div>
+                      <div className="text-xs font-bold text-amber-300 mt-0.5 font-mono">
+                        {c.moat_stars != null ? `${c.moat_stars.toFixed(1)}★` : '—'}
+                      </div>
+                    </div>
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-medium">Altman Z</div>
                       <div className={`text-xs font-bold mt-0.5 font-mono ${
@@ -214,6 +220,12 @@ export const ResultsTable: React.FC<Props> = ({
               <th className="py-3.5 px-3 sm:px-4 text-center">
                 <span>Sécurité (Altman/Beneish)</span>
               </th>
+              <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('moat_stars')}>
+                <div className="flex items-center">
+                  <span>Moat</span>
+                  {renderSortIndicator('moat_stars')}
+                </div>
+              </th>
               <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('current_price')}>
                 <div className="flex items-center">
                   <span>Cours</span>
@@ -264,7 +276,7 @@ export const ResultsTable: React.FC<Props> = ({
           <tbody className="divide-y divide-slate-800/60 text-sm">
             {companies.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-12 text-center text-slate-400">
+                <td colSpan={13} className="py-12 text-center text-slate-400">
                   Aucune entreprise ne correspond aux critères de qualité sélectionnés.
                 </td>
               </tr>
@@ -338,17 +350,28 @@ export const ResultsTable: React.FC<Props> = ({
                           </span>
                         ) : c.altman_z_score?.zone === 'distress' ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800" title="Altman Z-Score < 1.81 : Risque faillite">
-                            Z: {c.altman_z_score.score} (Détresse)
+                            Z: {c.altman_z_score.score != null ? c.altman_z_score.score.toFixed(1) : '—'} (Détresse)
                           </span>
                         ) : c.altman_z_score?.zone === 'safe' ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800" title={`Altman Z: ${c.altman_z_score.score} | Beneish: ${c.beneish_m_score?.score || -2.4}`}>
-                            Z: {c.altman_z_score.score} ✓ Sain
+                            Z: {c.altman_z_score.score != null ? c.altman_z_score.score.toFixed(1) : '—'} ✓ Sain
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-950 text-amber-300 border border-amber-800" title="Zone grise Altman">
-                            Z: {c.altman_z_score?.score || 2.4} Gris
+                            Z: {c.altman_z_score?.score != null ? c.altman_z_score.score.toFixed(1) : '—'} Gris
                           </span>
                         )}
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-3 sm:px-4">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black text-amber-300 font-mono">
+                          {c.moat_stars != null ? `${c.moat_stars.toFixed(1)}★` : '—'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 truncate max-w-[90px]">
+                          {c.moat_label || c.primary_moat_type || ''}
+                        </span>
                       </div>
                     </td>
 
