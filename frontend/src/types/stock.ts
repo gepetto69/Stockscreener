@@ -612,6 +612,58 @@ export interface InvestmentMemo {
   disclaimer: string;
 }
 
+export interface SwingIdea {
+  symbol: string;
+  name: string;
+  currency: string;
+  in_portfolio: boolean;
+  shares: number;
+  price: number | null;
+  value: number | null;
+  weight_pct: number | null;
+  quality: number | null;
+  piotroski: number | null;
+  mos: number | null;
+  intrinsic_value: number | null;
+  implied_growth: number | null;
+  zone: string;
+  manipulator: boolean;
+  ret_5d: number | null;
+  ret_10d: number | null;
+  range_pos: number | null;
+  high_10d: number | null;
+  low_10d: number | null;
+  atr_pct: number | null;
+  action: 'renforcer' | 'alléger' | 'sortir' | 'ouvrir' | 'attendre' | 'conserver' | 'eviter';
+  conviction: string;
+  reason: string;
+  delta_shares: number | null;
+  delta_value: number | null;
+  band_buy: number | null;
+  band_trim: number | null;
+}
+
+export interface SwingPlaybook {
+  horizon_days: number;
+  generated_at: string;
+  cash: number | null;
+  total_value: number | null;
+  cash_needed: number | null;
+  cash_shortfall: number | null;
+  protocol: { title: string; steps: string[] };
+  counts: Record<string, number>;
+  ideas: SwingIdea[];
+  orders: {
+    symbol: string;
+    name: string;
+    action: string;
+    delta_shares: number | null;
+    delta_value: number | null;
+    price: number | null;
+    reason: string;
+  }[];
+}
+
 export interface AlertItem {
   id: number;
   user_id?: number | null;

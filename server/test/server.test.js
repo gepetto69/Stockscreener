@@ -655,6 +655,32 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
       assert.ok(Math.abs(wsum - 100) < 2);
     });
 
+    test('POST /api/lab/swing returns a 10-day adjustment playbook', async () => {
+      const res = await fetch(`${baseUrl}/api/lab/swing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cash: 2500,
+          total_value: 12500,
+          positions: [
+            { symbol: 'MSFT', shares: 10, current_price: 400 },
+            { symbol: 'JNJ', shares: 12, current_price: 160 }
+          ]
+        })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.horizon_days, 10);
+      assert.ok(Array.isArray(data.ideas));
+      assert.ok(data.ideas.length >= 2);
+      assert.ok(data.protocol.steps.length >= 4);
+      const msft = data.ideas.find((r) => r.symbol === 'MSFT');
+      assert.ok(msft);
+      assert.ok(typeof msft.ret_10d === 'number' || msft.ret_10d === null);
+      assert.ok(['renforcer', 'alléger', 'sortir', 'ouvrir', 'attendre', 'conserver', 'eviter'].includes(msft.action));
+      assert.ok(typeof msft.mos === 'number');
+    });
+
     test('POST /api/screen honors min_dividend_safety', async () => {
       const res = await fetch(`${baseUrl}/api/screen`, {
         method: 'POST',
