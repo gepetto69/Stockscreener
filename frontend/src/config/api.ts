@@ -146,6 +146,13 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
   if (cleanPath === '/lab/markowitz' || cleanPath === 'lab/markowitz') {
     return LocalEngine.optimizeMarkowitz(data || {});
   }
+  if (cleanPath === '/lab/swing' || cleanPath === 'lab/swing') {
+    return LocalEngine.getTenDayPlaybook(data || {
+      positions: [],
+      cash: Number(effectiveParams?.cash || 0),
+      watchlist: []
+    });
+  }
   if (cleanPath === '/lab/dividends' || cleanPath === 'lab/dividends') {
     return LocalEngine.listDividendSafety(
       Number(effectiveParams?.min_score || 0),
