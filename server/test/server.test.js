@@ -394,6 +394,37 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
       assert.equal(data.projected_fcf.length, 10);
       assert.ok(data.sensitivity_matrix);
       assert.ok(Array.isArray(data.sensitivity_matrix.matrix));
+      assert.ok(data.intrinsic_value > 1, 'intrinsic value must use statement units aligned with market cap');
+      assert.ok(data.implied_growth_rate > -30 && data.implied_growth_rate < 80);
+      const pricedCells = data.sensitivity_matrix.matrix.flatMap((row) =>
+        data.sensitivity_matrix.terminalGrowthRange.map((tg) => row[`tg_${tg}`])
+      ).filter((v) => typeof v === 'number' && v > 0);
+      assert.ok(pricedCells.length > 0, 'sensitivity matrix should price the scenario');
+
+      const bull = await fetch(`${baseUrl}/api/companies/GLW/valuation/reverse-dcf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          discountRate: 9.0,
+          terminalGrowth: 2.5,
+          growthRate5y: 30.0
+        })
+      });
+      const bullData = await bull.json();
+      assert.ok(bullData.intrinsic_value > data.intrinsic_value, 'a higher FCF growth slider must raise intrinsic value');
+
+      const cheaperCapital = await fetch(`${baseUrl}/api/companies/GLW/valuation/reverse-dcf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          discountRate: 7.0,
+          terminalGrowth: 2.5,
+          growthRate5y: 10.0
+        })
+      });
+      const cheaperData = await cheaperCapital.json();
+      assert.ok(cheaperData.intrinsic_value > data.intrinsic_value, 'a lower WACC must raise intrinsic value');
+      assert.notEqual(cheaperData.implied_growth_rate, data.implied_growth_rate);
     });
 
     test('POST & GET & DELETE /api/watchlist manages items with persistence', async () => {

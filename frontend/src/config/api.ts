@@ -108,7 +108,15 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
     return LocalEngine.getCompanyNews(sym, comp ? comp.name : sym);
   }
 
-  // 9. /companies/:symbol
+  // 9. Reverse DCF must be matched before the generic company route,
+  // otherwise a failed request is replaced by the company profile and the sliders look frozen.
+  const reverseDcfMatch = cleanPath.match(/\/companies\/([^/]+)\/valuation\/reverse-dcf/);
+  if (reverseDcfMatch) {
+    const sym = reverseDcfMatch[1].toUpperCase();
+    return LocalEngine.getReverseDCFAnalysis(sym, { ...(effectiveParams || {}), ...(data || {}) });
+  }
+
+  // 10. /companies/:symbol
   const compMatch = cleanPath.match(/\/companies\/([^/]+)/);
   if (compMatch) {
     const sym = compMatch[1].toUpperCase();
