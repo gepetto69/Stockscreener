@@ -57,16 +57,16 @@ export const ResultsTable: React.FC<Props> = ({
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl flex flex-col overflow-hidden w-full max-w-full">
-      {/* Mobile Switcher Toolbar (Cartes vs Tableau) */}
-      <div className="sm:hidden flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-950/60 text-xs">
-        <span className="text-slate-400 font-medium">Affichage mobile</span>
-        <div className="flex items-center gap-1 bg-slate-900 border border-slate-850 p-0.5 rounded-lg">
+      {/* Compact cartes/tableau toggle — no extra "Affichage mobile" chrome */}
+      <div className="sm:hidden flex items-center justify-end px-2.5 py-1.5 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center bg-slate-900 border border-slate-800 p-0.5 rounded-lg">
           <button
             type="button"
             onClick={() => setMobileCardView(true)}
             className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold transition ${
               mobileCardView ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
+            aria-label="Affichage cartes"
           >
             <LayoutGrid className="w-3 h-3" />
             <span>Cartes</span>
@@ -77,6 +77,7 @@ export const ResultsTable: React.FC<Props> = ({
             className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold transition ${
               !mobileCardView ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
+            aria-label="Affichage tableau"
           >
             <List className="w-3 h-3" />
             <span>Tableau</span>
@@ -142,8 +143,8 @@ export const ResultsTable: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* 4-col Key Ratios Grid */}
-                  <div className="grid grid-cols-5 gap-1 bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-center">
+                  {/* 3x2 ratios — readable on 390px phones */}
+                  <div className="grid grid-cols-3 gap-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-800/60 text-center">
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-medium">Cours</div>
                       <div className="text-xs font-bold text-white mt-0.5 font-mono truncate">
@@ -162,6 +163,12 @@ export const ResultsTable: React.FC<Props> = ({
                       <div className="text-[10px] text-slate-400 uppercase font-medium">Moat</div>
                       <div className="text-xs font-bold text-amber-300 mt-0.5 font-mono">
                         {c.moat_stars != null ? `${c.moat_stars.toFixed(1)}★` : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase font-medium">Qualité</div>
+                      <div className="text-xs font-bold text-indigo-300 mt-0.5 font-mono">
+                        {qScore.toFixed(0)}
                       </div>
                     </div>
                     <div>

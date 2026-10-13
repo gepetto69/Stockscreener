@@ -90,6 +90,7 @@ export const App: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'signup'>('login');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [keyboardOpen, setKeyboardOpen] = useState<boolean>(false);
 
   // Verify auth on mount if token exists
   useEffect(() => {
@@ -106,6 +107,20 @@ export const App: React.FC = () => {
           // Keep local user or clear if invalid
         });
     }
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      setKeyboardOpen(window.innerHeight - vv.height > 140);
+    };
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    return () => {
+      vv.removeEventListener('resize', sync);
+      vv.removeEventListener('scroll', sync);
+    };
   }, []);
 
   const refreshActivePortfolio = () => {
@@ -298,27 +313,26 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen min-h-[100dvh] bg-[#090d16] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white w-full max-w-full overflow-x-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Top Navbar */}
-      <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40 w-full max-w-full">
-        <div className="max-w-[1600px] mx-auto px-2.5 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2 w-full">
+      <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40 w-full max-w-full pt-[env(safe-area-inset-top)]">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 h-12 sm:h-16 flex items-center justify-between gap-2 w-full">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 shrink">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
               <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <div className="font-extrabold text-xs sm:text-lg text-white tracking-tight flex items-center gap-1 sm:gap-1.5 truncate">
-                <span className="hidden xs:inline truncate">QualityScreener</span>
-                <span className="xs:hidden">QS</span>
+              <div className="font-extrabold text-sm sm:text-lg text-white tracking-tight flex items-center gap-1.5 truncate">
+                <span className="truncate">QualityScreener</span>
                 <span className="text-[9px] sm:text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-1 py-0.2 rounded font-mono shrink-0">PRO</span>
               </div>
-              <div className="text-[10px] sm:text-[11px] text-slate-400 truncate hidden md:block">Scanner Fondamental & Copilotes IA</div>
+              <div className="qs-desktop-copy text-[10px] sm:text-[11px] text-slate-400 truncate hidden md:block">Scanner Fondamental & Copilotes IA</div>
             </div>
           </div>
 
-          {/* Center Tabs: Screener vs Portfolio */}
-          <nav className="flex items-center p-0.5 sm:p-1 bg-slate-900 border border-slate-800 rounded-xl shrink-0">
+          {/* Desktop/tablet tabs — hidden on phones (bottom nav instead) */}
+          <nav className="qs-desktop-tabs hidden md:flex items-center p-0.5 sm:p-1 bg-slate-900 border border-slate-800 rounded-xl shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab('screener')}
@@ -329,8 +343,8 @@ export const App: React.FC = () => {
               }`}
             >
               <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Screener & Cotations</span>
-              <span className="sm:hidden">Screener</span>
+              <span className="hidden lg:inline">Screener & Cotations</span>
+              <span className="lg:hidden">Screener</span>
             </button>
 
             <button
@@ -343,19 +357,19 @@ export const App: React.FC = () => {
               }`}
             >
               <Briefcase className="w-3.5 h-3.5 text-cyan-300" />
-              <span className="hidden sm:inline">Mon Portefeuille IA</span>
-              <span className="sm:hidden">Portefeuille</span>
+              <span className="hidden lg:inline">Mon Portefeuille IA</span>
+              <span className="lg:hidden">Portefeuille</span>
 
               {/* Live P&L badge if portfolio is active */}
-              {activePortfolio && (
+              {activePortfolio && Number.isFinite(activePortfolio.total_pnl_pct) && (
                 <span
                   className={`ml-0.5 sm:ml-1 px-1 py-0.2 rounded text-[9px] sm:text-[10px] font-mono font-bold ${
-                    activePortfolio.total_pnl >= 0
+                    (activePortfolio.total_pnl ?? 0) >= 0
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                       : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                   }`}
                 >
-                  {activePortfolio.total_pnl >= 0 ? '+' : ''}
+                  {(activePortfolio.total_pnl ?? 0) >= 0 ? '+' : ''}
                   {activePortfolio.total_pnl_pct.toFixed(1)}%
                 </span>
               )}
@@ -371,8 +385,8 @@ export const App: React.FC = () => {
               }`}
             >
               <Star className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Watchlist & Alertes</span>
-              <span className="sm:hidden">Watchlist</span>
+              <span className="hidden lg:inline">Watchlist & Alertes</span>
+              <span className="lg:hidden">Watchlist</span>
             </button>
 
             <button
@@ -385,13 +399,13 @@ export const App: React.FC = () => {
               }`}
             >
               <Swords className="w-3.5 h-3.5 text-fuchsia-300" />
-              <span className="hidden sm:inline">Face-à-Face</span>
-              <span className="sm:hidden">Duel</span>
+              <span className="hidden lg:inline">Face-à-Face</span>
+              <span className="lg:hidden">Duel</span>
             </button>
           </nav>
 
           {/* Desktop Right Actions */}
-          <div className="hidden lg:flex items-center gap-2">
+          <div className="qs-desktop-actions hidden lg:flex items-center gap-2">
             <button
               onClick={handleRefreshUniverse}
               disabled={refreshing}
@@ -466,7 +480,7 @@ export const App: React.FC = () => {
           </div>
 
           {/* Mobile Right Menu Button */}
-          <div className="flex lg:hidden items-center gap-1">
+          <div className="qs-mobile-actions flex lg:hidden items-center gap-1">
             {currentUser ? (
               <button
                 type="button"
@@ -583,9 +597,9 @@ export const App: React.FC = () => {
         )}
       </header>
 
-      {/* Hero Stats Ribbon (Only on Screener tab) */}
+      {/* Hero Stats Ribbon — desktop/tablet only (too tall on phones) */}
       {activeTab === 'screener' && (
-        <div className="bg-slate-900/50 border-b border-slate-800/80 py-2.5 sm:py-4 px-2.5 sm:px-6 lg:px-8 w-full max-w-full overflow-hidden">
+        <div className="qs-hero-kpis hidden md:block bg-slate-900/50 border-b border-slate-800/80 py-2.5 sm:py-4 px-2.5 sm:px-6 lg:px-8 w-full max-w-full overflow-hidden">
           <div className="max-w-[1600px] mx-auto grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-0 rounded-xl bg-slate-950/40 sm:bg-transparent border border-slate-800/40 sm:border-0 min-w-0">
               <div className="p-1.5 sm:p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
@@ -631,19 +645,23 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="max-w-[1600px] mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6 w-full flex-1 min-w-0">
+      <main className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 w-full flex-1 min-w-0">
         {activeTab === 'screener' ? (
           <>
             {/* Mobile Filter Toggle & Search Bar */}
-            <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <div className="mb-3 sm:mb-6 flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center justify-between">
               <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="text"
-                  placeholder="Rechercher par ticker ou nom (ex: GLW, MSFT)..."
+                  type="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="Ticker ou nom (GLW, MSFT…)"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 sm:py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-base sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition shadow-inner"
                 />
               </form>
 
@@ -651,10 +669,10 @@ export const App: React.FC = () => {
                 {/* Mobile Filter Drawer Button */}
                 <button
                   onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="lg:hidden flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 text-indigo-400 border border-slate-800 px-3 py-2 rounded-xl text-xs font-semibold shadow-sm transition active:scale-95"
+                  className="lg:hidden flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 text-indigo-400 border border-slate-800 px-3 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition active:scale-95"
                 >
-                  <Filter className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>{showMobileFilters ? 'Masquer filtres' : 'Filtres & Ratios'}</span>
+                  <Filter className="w-4 h-4 text-indigo-400" />
+                  <span>{showMobileFilters ? 'Fermer' : 'Filtres'}</span>
                 </button>
 
                 <div className="flex items-center gap-1 text-xs text-slate-400">
@@ -667,16 +685,36 @@ export const App: React.FC = () => {
 
             {/* 2-Column Layout: Sidebar Filters & Results Table */}
             <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start w-full min-w-0">
-              {/* Sidebar */}
-              <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block w-full lg:w-80 shrink-0`}>
+              {/* Desktop sidebar */}
+              <div className="qs-desktop-sidebar hidden lg:block w-80 shrink-0">
                 <FilterSidebar
                   filters={filters}
                   onChange={setFilters}
                   onReset={handleResetFilters}
                   sectorsList={sectors}
-                  onCloseMobile={() => setShowMobileFilters(false)}
                 />
               </div>
+
+              {/* Phone/tablet filter sheet */}
+              {showMobileFilters && (
+                <div className="lg:hidden fixed inset-0 z-[60]">
+                  <button
+                    type="button"
+                    className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                    aria-label="Fermer les filtres"
+                    onClick={() => setShowMobileFilters(false)}
+                  />
+                  <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom)]">
+                    <FilterSidebar
+                      filters={filters}
+                      onChange={setFilters}
+                      onReset={handleResetFilters}
+                      sectorsList={sectors}
+                      onCloseMobile={() => setShowMobileFilters(false)}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Results Table container */}
               <div className="w-full min-w-0 flex-1 overflow-hidden">
@@ -734,10 +772,48 @@ export const App: React.FC = () => {
         initialMode={authModalMode}
       />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500">
+      {/* Footer — desktop only; phones use the bottom tab bar */}
+      <footer className="qs-desktop-footer hidden md:block border-t border-slate-800/80 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500">
         QualityScreener • Moteur d'Analyse Fondamentale & Solvabilité • FastAPI & React Vite
       </footer>
+
+      {/* Phone bottom navigation */}
+      <nav
+        className={`qs-bottom-nav md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-950/95 backdrop-blur-md transition-transform duration-200 ${
+          keyboardOpen ? 'translate-y-full' : 'translate-y-0'
+        }`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="grid grid-cols-4 h-[4.25rem]">
+          {(
+            [
+              { id: 'screener' as const, label: 'Screener', Icon: Search, active: 'text-indigo-300' },
+              { id: 'portfolio' as const, label: 'Portefeuille', Icon: Briefcase, active: 'text-cyan-300' },
+              { id: 'watchlist' as const, label: 'Watchlist', Icon: Star, active: 'text-amber-300' },
+              { id: 'duel' as const, label: 'Duel', Icon: Swords, active: 'text-fuchsia-300' }
+            ]
+          ).map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setShowMobileFilters(false);
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${
+                  isActive ? item.active : 'text-slate-500'
+                }`}
+              >
+                <item.Icon className={`w-5 h-5 ${isActive ? '' : 'opacity-80'}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 };

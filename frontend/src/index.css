@@ -15,7 +15,46 @@ html, body {
   background-color: #090d16;
   color: #f3f4f6;
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent iOS Safari zoom-on-focus (inputs under 16px) which breaks the layout */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Phone chrome: bottom tabs, compact header (independent of Tailwind breakpoints) */
+@media (max-width: 767px) {
+  .qs-desktop-tabs,
+  .qs-desktop-actions,
+  .qs-hero-kpis,
+  .qs-desktop-footer,
+  .qs-desktop-sidebar,
+  .qs-desktop-copy {
+    display: none !important;
+  }
+  .qs-mobile-actions {
+    display: flex !important;
+  }
+  .qs-bottom-nav {
+    display: block !important;
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+  }
+}
+
+@media (min-width: 768px) {
+  .qs-bottom-nav {
+    display: none !important;
+  }
 }
 
 #root {
