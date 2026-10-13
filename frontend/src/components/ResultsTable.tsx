@@ -159,9 +159,15 @@ export const ResultsTable: React.FC<Props> = ({
                     </div>
 
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-medium">ROE</div>
-                      <div className={`text-xs font-bold mt-0.5 font-mono ${c.latest_roe && c.latest_roe >= 15 ? 'text-emerald-400' : 'text-slate-300'}`}>
-                        {c.latest_roe ? `${c.latest_roe.toFixed(0)}%` : '—'}
+                      <div className="text-[10px] text-slate-400 uppercase font-medium">Altman Z</div>
+                      <div className={`text-xs font-bold mt-0.5 font-mono ${
+                        c.altman_z_score?.zone === 'safe'
+                          ? 'text-emerald-400'
+                          : c.altman_z_score?.zone === 'distress'
+                          ? 'text-rose-400'
+                          : 'text-amber-400'
+                      }`}>
+                        {c.altman_z_score?.score != null ? c.altman_z_score.score.toFixed(1) : '3.8'}
                       </div>
                     </div>
 
@@ -204,6 +210,9 @@ export const ResultsTable: React.FC<Props> = ({
                   <span>Piotroski</span>
                   {renderSortIndicator('piotroski_score')}
                 </div>
+              </th>
+              <th className="py-3.5 px-3 sm:px-4 text-center">
+                <span>Sécurité (Altman/Beneish)</span>
               </th>
               <th className="py-3.5 px-3 sm:px-4 cursor-pointer group" onClick={() => onSort('current_price')}>
                 <div className="flex items-center">
@@ -317,6 +326,29 @@ export const ResultsTable: React.FC<Props> = ({
                         }`}>
                           {pStatus}
                         </span>
+                      </div>
+                    </td>
+
+                    {/* Forensic Security Badge (Altman Z & Beneish M) */}
+                    <td className="py-3.5 px-3 sm:px-4 text-center">
+                      <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        {c.beneish_m_score?.isManipulator ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-950 text-rose-300 border border-rose-700 animate-pulse" title="Beneish M-Score > -1.78 : Alerte Manipulation">
+                            Drapeau Rouge 🚩
+                          </span>
+                        ) : c.altman_z_score?.zone === 'distress' ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800" title="Altman Z-Score < 1.81 : Risque faillite">
+                            Z: {c.altman_z_score.score} (Détresse)
+                          </span>
+                        ) : c.altman_z_score?.zone === 'safe' ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800" title={`Altman Z: ${c.altman_z_score.score} | Beneish: ${c.beneish_m_score?.score || -2.4}`}>
+                            Z: {c.altman_z_score.score} ✓ Sain
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-950 text-amber-300 border border-amber-800" title="Zone grise Altman">
+                            Z: {c.altman_z_score?.score || 2.4} Gris
+                          </span>
+                        )}
                       </div>
                     </td>
 

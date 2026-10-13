@@ -7,6 +7,7 @@ import { FilterSidebar } from './components/FilterSidebar';
 import { ResultsTable } from './components/ResultsTable';
 import { StockDetailModal } from './components/StockDetailModal';
 import { PortfolioManager } from './components/portfolio/PortfolioManager';
+import { WatchlistManager } from './components/WatchlistManager';
 import { AuthModal } from './components/auth/AuthModal';
 import {
   TrendingUp,
@@ -18,6 +19,7 @@ import {
   Award,
   Filter,
   Briefcase,
+  Star,
   LogOut,
   LogIn,
   MoreVertical,
@@ -27,7 +29,7 @@ import { API_BASE } from './config/api';
 import { LocalEngine } from './services/localEngine';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'screener' | 'portfolio'>('screener');
+  const [activeTab, setActiveTab] = useState<'screener' | 'portfolio' | 'watchlist'>('screener');
   // Immediately populate active portfolio from LocalEngine so UI is instantaneous (<1ms)
   const [activePortfolio, setActivePortfolio] = useState<PortfolioPerformance | null>(() => {
     try {
@@ -354,6 +356,20 @@ export const App: React.FC = () => {
                 </span>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('watchlist')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'watchlist'
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-850'
+              }`}
+            >
+              <Star className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Watchlist & Alertes</span>
+              <span className="sm:hidden">Watchlist</span>
+            </button>
           </nav>
 
           {/* Desktop Right Actions */}
@@ -661,13 +677,16 @@ export const App: React.FC = () => {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'portfolio' ? (
           /* Portfolio Manager View */
           <PortfolioManager
             onOpenStockDetail={handleSelectCompany}
             onPortfolioStatusChange={setActivePortfolio}
             initialPortfolioId={activePortfolio?.id}
           />
+        ) : (
+          /* Watchlist & Alerts Manager View */
+          <WatchlistManager onOpenStockDetail={handleSelectCompany} />
         )}
       </main>
 
