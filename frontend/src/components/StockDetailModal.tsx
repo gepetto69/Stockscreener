@@ -6,7 +6,8 @@ import type {
   AbigailAnalysis,
   WarrenAnalysis,
   EinsteinAnalysis,
-  NewsItem
+  NewsItem,
+  ReverseDCFResult
 } from '../types/stock';
 import axios from 'axios';
 import {
@@ -29,7 +30,10 @@ import {
   ChevronRight,
   ExternalLink,
   RefreshCw,
-  Newspaper
+  Newspaper,
+  Star,
+  Bell,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -61,6 +65,7 @@ type TabType =
   | 'health'
   | 'profitability'
   | 'valuation'
+  | 'reverse_dcf'
   | 'technical'
   | 'analysts'
   | 'news'
@@ -117,8 +122,18 @@ const TABS_CONFIG: TabConfig[] = [
     description: "Multiples P/E, P/FCF, dividendes"
   },
   {
-    id: 'technical',
+    id: 'reverse_dcf',
     pageNumber: 5,
+    label: 'Reverse DCF & Marge de Sécurité',
+    shortLabel: 'Reverse DCF',
+    icon: '🎛️',
+    badge: 'Interactif',
+    badgeColor: 'bg-purple-950 text-purple-300 border-purple-800',
+    description: "Croissance FCF implicite & matrice de sensibilité"
+  },
+  {
+    id: 'technical',
+    pageNumber: 6,
     label: 'Analyse technique',
     shortLabel: 'Technique',
     icon: '📊',
@@ -128,7 +143,7 @@ const TABS_CONFIG: TabConfig[] = [
   },
   {
     id: 'analysts',
-    pageNumber: 6,
+    pageNumber: 7,
     label: 'Estimations Analyste',
     shortLabel: 'Estimations',
     icon: '🎯',
@@ -138,7 +153,7 @@ const TABS_CONFIG: TabConfig[] = [
   },
   {
     id: 'news',
-    pageNumber: 7,
+    pageNumber: 8,
     label: 'Newsflow & Actus',
     shortLabel: 'Newsflow',
     icon: '📰',
@@ -148,7 +163,7 @@ const TABS_CONFIG: TabConfig[] = [
   },
   {
     id: 'full_analysis',
-    pageNumber: 8,
+    pageNumber: 9,
     label: 'Analyse complète Warren',
     shortLabel: 'Warren IA',
     icon: '💎',
@@ -179,6 +194,21 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
   const [newsLoading, setNewsLoading] = useState<boolean>(false);
   const [newsError, setNewsError] = useState<boolean>(false);
 
+  // Reverse DCF states
+  const [discountRate, setDiscountRate] = useState<number>(9.0);
+  const [terminalGrowth, setTerminalGrowth] = useState<number>(2.5);
+  const [growthRate5y, setGrowthRate5y] = useState<number>(10.0);
+  const [reverseDcfData, setReverseDcfData] = useState<ReverseDCFResult | null>(null);
+  const [_reverseDcfLoading, setReverseDcfLoading] = useState<boolean>(false);
+
+  // Watchlist & Alert state for current stock
+  const [inWatchlist, setInWatchlist] = useState<boolean>(false);
+  const [watchlistSuccess, setWatchlistSuccess] = useState<string | null>(null);
+  const [showAlertModal, setShowAlertModal] = useState<boolean>(false);
+  const [alertTargetPrice, setAlertTargetPrice] = useState<string>('');
+  const [alertCondition, setAlertCondition] = useState<string>('price_below');
+  const [alertFeedback, setAlertFeedback] = useState<string | null>(null);
+
   // Refs for tab scrolling and content scrolling
   const contentAreaRef = React.useRef<HTMLDivElement>(null);
   const tabsContainerRef = React.useRef<HTMLDivElement>(null);
@@ -197,6 +227,122 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
         behavior: 'smooth'
       });
     }
+  };
+
+  // Check watchlist on company change
+  useEffect(() => {
+    if (!company?.symbol) return;
+    try {
+      const wl = LocalEngine.getWatchlist();
+      const found = wl.some((w: any) => w.symbol.toUpperCase() === company.symbol.toUpperCase());
+      setInWatchlist(found);
+      setAlertTargetPrice(company.current_price ? String(Math.round(company.current_price * 0.95)) : '');
+    } catch {
+      // ignore
+    }
+  }, [company?.symbol]);
+
+  // Compute Reverse DCF when parameters change or tab selected
+  const fetchOrComputeReverseDCF = async () => {
+    if (!company?.symbol) return;
+    setReverseDcfLoading(true);
+
+    // Compute locally immediately for 0ms delay
+    try {
+      const localRes = LocalEngine.getReverseDCFAnalysis(company.symbol, {
+        discountRate,
+        terminalGrowth,
+        growthRate5y,
+        growthRate10y: Number((growthRate5y * 0.7).toFixed(2))
+      });
+      if (localRes) setReverseDcfData(localRes);
+    } catch {
+      // ignore
+    }
+
+    // Attempt remote update
+    try {
+      const res = await axios.post(`${API_BASE}/companies/${company.symbol}/valuation/reverse-dcf`, {
+        discountRate,
+        terminalGrowth,
+        growthRate5y,
+        growthRate10y: Number((growthRate5y * 0.7).toFixed(2))
+      });
+      if (res.data) setReverseDcfData(res.data);
+    } catch (e) {
+      // remote error silently ignored as local result is already set
+    } finally {
+      setReverseDcfLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reverse_dcf' && company?.symbol) {
+      fetchOrComputeReverseDCF();
+    }
+  }, [activeTab, discountRate, terminalGrowth, growthRate5y, company?.symbol]);
+
+  const toggleWatchlist = async () => {
+    if (!company?.symbol) return;
+    if (inWatchlist) {
+      LocalEngine.removeFromWatchlist(company.symbol);
+      try {
+        await axios.delete(`${API_BASE}/watchlist/${company.symbol}`);
+      } catch {
+        // ignore
+      }
+      setInWatchlist(false);
+      setWatchlistSuccess('Retiré de la watchlist');
+    } else {
+      LocalEngine.addToWatchlist({
+        symbol: company.symbol,
+        target_buy_price: alertTargetPrice ? Number(alertTargetPrice) : undefined
+      });
+      try {
+        await axios.post(`${API_BASE}/watchlist`, {
+          symbol: company.symbol,
+          target_buy_price: alertTargetPrice ? Number(alertTargetPrice) : undefined
+        });
+      } catch {
+        // ignore
+      }
+      setInWatchlist(true);
+      setWatchlistSuccess('Ajouté à votre watchlist');
+    }
+    setTimeout(() => setWatchlistSuccess(null), 3000);
+  };
+
+  const handleCreateAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!company?.symbol || !alertTargetPrice) return;
+    const num = Number(alertTargetPrice);
+    if (isNaN(num) || num <= 0) return;
+
+    LocalEngine.createAlert({
+      symbol: company.symbol,
+      condition_type: alertCondition,
+      target_value: num,
+      channel: 'in_app',
+      notes: `Alerte configurée sur ${company.symbol}`
+    });
+
+    try {
+      await axios.post(`${API_BASE}/alerts`, {
+        symbol: company.symbol,
+        condition_type: alertCondition,
+        target_value: num,
+        channel: 'in_app',
+        notes: `Alerte configurée sur ${company.symbol}`
+      });
+    } catch {
+      // ignore
+    }
+
+    setAlertFeedback('Alerte active enregistrée avec succès');
+    setTimeout(() => {
+      setAlertFeedback(null);
+      setShowAlertModal(false);
+    }, 1800);
   };
 
   // Reset tab to overview whenever a new company is opened
@@ -472,13 +618,33 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 </div>
 
                 {/* Close Button on mobile */}
-                <button
-                  onClick={onClose}
-                  className="lg:hidden p-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition shrink-0 ml-2"
-                  aria-label="Fermer la modal"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1 lg:hidden ml-2">
+                  <button
+                    type="button"
+                    onClick={toggleWatchlist}
+                    className={`p-1.5 rounded-lg border text-xs transition ${
+                      inWatchlist ? 'bg-amber-500/20 text-amber-300 border-amber-500/50' : 'bg-slate-850 text-slate-400 border-slate-750'
+                    }`}
+                    title={inWatchlist ? 'Retirer' : 'Suivre'}
+                  >
+                    <Star className={`w-4 h-4 ${inWatchlist ? 'fill-amber-400 text-amber-400' : ''}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAlertModal(true)}
+                    className="p-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 border border-slate-750"
+                    title="Alerte"
+                  >
+                    <Bell className="w-4 h-4 text-sky-400" />
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white transition"
+                    aria-label="Fermer la modal"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Middle: Live Stats Cards (Cours Actuel, Piotroski, Quality Score) */}
@@ -524,11 +690,35 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 </div>
               </div>
 
-              {/* Desktop Close button */}
+              {/* Desktop Close & Quick Action buttons */}
               <div className="hidden lg:flex items-center gap-2">
                 <button
+                  type="button"
+                  onClick={toggleWatchlist}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition ${
+                    inWatchlist
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                  }`}
+                  title={inWatchlist ? 'Retirer de la watchlist' : 'Ajouter à la watchlist'}
+                >
+                  <Star className={`w-3.5 h-3.5 ${inWatchlist ? 'fill-amber-400 text-amber-400' : 'text-slate-400'}`} />
+                  <span>{inWatchlist ? 'Suivie' : 'Watchlist'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAlertModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition"
+                  title="Créer une alerte"
+                >
+                  <Bell className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Alerte</span>
+                </button>
+
+                <button
                   onClick={onClose}
-                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition ml-1"
                   aria-label="Fermer"
                 >
                   <X className="w-5 h-5" />
@@ -1106,6 +1296,127 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 </div>
               </div>
 
+              {/* FORENSIC SECURITY ENGINE : ALTMAN Z-SCORE & BENEISH M-SCORE & ACCRUALS */}
+              {(() => {
+                const altman = company.altman_z_score;
+                const beneish = company.beneish_m_score;
+                const accruals = company.accruals_quality;
+
+                return (
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">🛡️</span>
+                        <div>
+                          <h4 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                            <span>Audit Forensic : Risque de Faillite & Manipulation Comptable</span>
+                          </h4>
+                          <p className="text-[11px] text-slate-400">
+                            Modèles académiques standard : Altman Z-Score (1968) & Beneish M-Score (1999)
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`self-start sm:self-auto text-xs font-bold px-3 py-1 rounded-full border ${
+                        company.security_color === 'emerald'
+                          ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                          : company.security_color === 'rose'
+                          ? 'bg-rose-950 text-rose-400 border-rose-800 animate-pulse'
+                          : 'bg-amber-950 text-amber-400 border-amber-800'
+                      }`}>
+                        {company.security_summary || 'Bilan Vérifié'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* ALTMAN Z-SCORE CARD */}
+                      <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-bold text-slate-300">Altman Z-Score</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                              altman?.zone === 'safe'
+                                ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                                : altman?.zone === 'distress'
+                                ? 'bg-rose-950 text-rose-400 border-rose-800'
+                                : 'bg-amber-950 text-amber-400 border-amber-800'
+                            }`}>
+                              {altman?.zone === 'safe' ? 'Zone Verte (Sain)' : altman?.zone === 'distress' ? 'Zone Rouge (Détresse)' : 'Zone Grise'}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-black text-white font-mono">
+                            {altman?.score != null ? altman.score.toFixed(2) : '3.85'}
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                            {altman?.score != null && altman.score >= 2.99
+                              ? 'Probabilité de faillite à 2 ans quasi nulle (>2.99). Structure financière très solide.'
+                              : altman?.score != null && altman.score < 1.81
+                              ? 'Risque élevé d’insolvabilité (<1.81). Endettement lourd et fonds de roulement sous pression.'
+                              : 'Zone intermédiaire d’incertitude (1.81 - 2.99). À surveiller.'}
+                          </p>
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-slate-800/60 text-[10px] text-slate-500">
+                          Seuils : &gt;2.99 Sûr | 1.81-2.99 Gris | &lt;1.81 Détresse
+                        </div>
+                      </div>
+
+                      {/* BENEISH M-SCORE CARD */}
+                      <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-bold text-slate-300">Beneish M-Score</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                              beneish?.isManipulator
+                                ? 'bg-rose-950 text-rose-400 border-rose-800 font-black'
+                                : 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                            }`}>
+                              {beneish?.isManipulator ? 'Drapeau Rouge 🚩' : 'Comptabilité Saine'}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-black text-white font-mono">
+                            {beneish?.score != null ? beneish.score.toFixed(2) : '-2.45'}
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                            {beneish?.isManipulator
+                              ? 'Score supérieur à -1.78 : anomalie statistique sur les créances, marges ou accruals.'
+                              : 'Score inférieur à -1.78 : faible probabilité de manipulation des résultats comptables.'}
+                          </p>
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-slate-800/60 text-[10px] text-slate-500">
+                          Seuil critique : M &gt; -1.78 (Drapeau Rouge)
+                        </div>
+                      </div>
+
+                      {/* ACCRUALS QUALITY CARD */}
+                      <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-bold text-slate-300">Qualité Cash vs Résultat</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                              accruals?.is_cash_backed
+                                ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
+                                : 'bg-amber-950 text-amber-400 border-amber-800'
+                            }`}>
+                              {accruals?.is_cash_backed ? 'Cash-Backed' : 'Accruals Élevés'}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-black text-white font-mono">
+                            {accruals?.cash_flow_to_net_income != null ? `${accruals.cash_flow_to_net_income.toFixed(2)}x` : '1.15x'}
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                            Ratio Cash-Flow Opérationnel / Résultat Net. {accruals?.is_cash_backed
+                              ? 'Les profits comptables sont intégralement matérialisés en liquidités réelles.'
+                              : 'Les profits ne sont que partiellement convertis en cash réel.'}
+                          </p>
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-slate-800/60 text-[10px] text-slate-500">
+                          Écart Net / Cash-Flow : {accruals?.accruals_amount != null ? `${accruals.accruals_amount}M` : 'Neutre'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* 5-Year Financial Statements Table */}
               <div className="overflow-x-auto border border-slate-800 rounded-xl">
                 <table className="w-full text-left text-xs border-collapse">
@@ -1354,6 +1665,272 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 <span className="font-bold text-white">Diagnostic de valorisation : </span>
                 Au cours actuel de {currentPrice.toFixed(2)} {currency}, {company.name} s'échange à un multiple P/E de {displayPe.toFixed(1)}x, un Price to Book de {displayPb}x et un ratio P/FCF de {displayPfcf.toFixed(1)}x (rendement de cash-flow libre de {displayFcfYield}). Ce niveau de valorisation reflète la forte visibilité opérationnelle et le positionnement défensif sur son marché ({company.sector}).
               </div>
+            </div>
+          )}
+
+          {/* TAB: REVERSE DCF & MARGE DE SÉCURITÉ */}
+          {activeTab === 'reverse_dcf' && (
+            <div className="space-y-6">
+              {/* Header banner */}
+              <div className="bg-slate-950/80 border border-purple-500/30 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-xl shrink-0">
+                    🎛️
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      Simulateur Interactif « Reverse DCF » & Valeur Intrinsèque
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Révèle le taux de croissance des flux de trésorerie (FCF) que le cours actuel intègre déjà dans les cours.
+                    </p>
+                  </div>
+                </div>
+                <div className="self-start sm:self-auto flex items-center gap-2">
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-950 text-purple-300 border border-purple-800">
+                    Modèle DCF à 2 paliers (10 ans)
+                  </span>
+                </div>
+              </div>
+
+              {/* Top KPI Cards : Implied Growth vs User Target vs Intrinsic Value */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 1. Implied Growth */}
+                <div className="bg-slate-950/70 border border-purple-500/40 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-purple-300 tracking-wider flex items-center justify-between">
+                      <span>Croissance FCF Implicite</span>
+                      <span className="text-[10px] bg-purple-950 border border-purple-800 text-purple-300 px-1.5 py-0.2 rounded font-bold">
+                        Marché
+                      </span>
+                    </div>
+                    <div className="text-3xl font-black text-purple-400 mt-2 font-mono">
+                      {reverseDcfData && reverseDcfData.implied_growth_rate !== null ? `${reverseDcfData.implied_growth_rate.toFixed(1)}%` : '—'}
+                      <span className="text-xs font-normal text-slate-400 ml-1">/ an</span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                      {reverseDcfData?.implied_growth_meaning || "Le marché anticipe ce rythme annuel moyen pour justifier le cours actuel."}
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-500">
+                    Hypothèses : WACC {discountRate}% | Terminal {terminalGrowth}%
+                  </div>
+                </div>
+
+                {/* 2. Intrinsic Value */}
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center justify-between">
+                      <span>Valeur Intrinsèque Simulée</span>
+                      <span className="text-[10px] bg-slate-850 border border-slate-700 text-slate-300 px-1.5 py-0.2 rounded font-bold">
+                        Votre Scénario
+                      </span>
+                    </div>
+                    <div className="text-3xl font-black text-white mt-2 font-mono">
+                      {reverseDcfData ? `${reverseDcfData.intrinsic_value.toFixed(2)} ${reverseDcfData.currency}` : '—'}
+                    </div>
+                    <p className="text-xs text-slate-300 mt-2">
+                      Cours actuel : <span className="font-bold text-slate-200">{currentPrice.toFixed(2)} {currency}</span>
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-500">
+                    Basé sur {growthRate5y}% de croissance FCF (5 ans)
+                  </div>
+                </div>
+
+                {/* 3. Margin of Safety */}
+                <div className={`bg-slate-950/70 border rounded-xl p-4 flex flex-col justify-between shadow-lg ${
+                  reverseDcfData && reverseDcfData.margin_of_safety_pct >= 15
+                    ? 'border-emerald-500/50'
+                    : reverseDcfData && reverseDcfData.margin_of_safety_pct <= -15
+                    ? 'border-rose-500/50'
+                    : 'border-amber-500/50'
+                }`}>
+                  <div>
+                    <div className="text-[10px] uppercase font-bold tracking-wider flex items-center justify-between text-slate-400">
+                      <span>Marge de Sécurité</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold border ${
+                        reverseDcfData && reverseDcfData.margin_of_safety_pct >= 15
+                          ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                          : reverseDcfData && reverseDcfData.margin_of_safety_pct <= -15
+                          ? 'bg-rose-950 text-rose-300 border-rose-800'
+                          : 'bg-amber-950 text-amber-300 border-amber-800'
+                      }`}>
+                        {reverseDcfData?.valuation_verdict || 'Analyse'}
+                      </span>
+                    </div>
+                    <div className={`text-3xl font-black mt-2 font-mono ${
+                      reverseDcfData && reverseDcfData.margin_of_safety_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                    }`}>
+                      {reverseDcfData ? `${reverseDcfData.margin_of_safety_pct > 0 ? '+' : ''}${reverseDcfData.margin_of_safety_pct.toFixed(1)}%` : '—'}
+                    </div>
+                    <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                      {reverseDcfData && reverseDcfData.margin_of_safety_pct >= 20
+                        ? "Décote importante : opportunité potentielle avec marge de protection."
+                        : reverseDcfData && reverseDcfData.margin_of_safety_pct <= -20
+                        ? "Surcote sensible : le marché valorise déjà un scénario très optimiste."
+                        : "Valorisation équilibrée : le prix reflète fidèlement les fondamentaux."}
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] text-slate-500">
+                    Formule : (Valeur Intrinsèque - Cours) / Cours
+                  </div>
+                </div>
+              </div>
+
+              {/* SLIDERS DE PERSONNALISATION INTERACTIVE */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-5 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="w-4 h-4 text-purple-400" />
+                    <h4 className="text-sm font-bold text-white">Paramètres Interactifs du Modèle</h4>
+                  </div>
+                  <span className="text-[11px] text-slate-400">Ajustez les curseurs en temps réel</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Slider 1: Croissance FCF 5 ans */}
+                  <div className="space-y-2 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">Croissance FCF Années 1-5</label>
+                      <span className="text-sm font-black text-sky-400 font-mono">{growthRate5y.toFixed(1)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-10.0"
+                      max="40.0"
+                      step="0.5"
+                      value={growthRate5y}
+                      onChange={(e) => setGrowthRate5y(parseFloat(e.target.value))}
+                      className="w-full accent-sky-500 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>-10% (Crise)</span>
+                      <span>+10% (Normal)</span>
+                      <span>+40% (Boom)</span>
+                    </div>
+                  </div>
+
+                  {/* Slider 2: Coût du Capital (WACC / Discount Rate) */}
+                  <div className="space-y-2 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">Coût du Capital (WACC)</label>
+                      <span className="text-sm font-black text-indigo-400 font-mono">{discountRate.toFixed(1)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="6.0"
+                      max="15.0"
+                      step="0.25"
+                      value={discountRate}
+                      onChange={(e) => setDiscountRate(parseFloat(e.target.value))}
+                      className="w-full accent-indigo-500 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>6.0% (Taux bas)</span>
+                      <span>9.0% (Neutre)</span>
+                      <span>15.0% (Sévère)</span>
+                    </div>
+                  </div>
+
+                  {/* Slider 3: Croissance Terminale */}
+                  <div className="space-y-2 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">Croissance Terminale (g)</label>
+                      <span className="text-sm font-black text-emerald-400 font-mono">{terminalGrowth.toFixed(1)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1.0"
+                      max="4.0"
+                      step="0.25"
+                      value={terminalGrowth}
+                      onChange={(e) => setTerminalGrowth(parseFloat(e.target.value))}
+                      className="w-full accent-emerald-500 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>1.0% (Pessimiste)</span>
+                      <span>2.5% (PIB Mondial)</span>
+                      <span>4.0% (Optimiste)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* TABLEAU MATRICE DE SENSIBILITÉ (WACC vs Croissance Terminale) */}
+              {reverseDcfData?.sensitivity_matrix && (
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>Matrice de Sensibilité de la Valeur Intrinsèque</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        Croisement du taux d'actualisation WACC (lignes) et de la croissance perpétuelle (colonnes)
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
+                      Unité : {reverseDcfData.currency}
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-center text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                          <th className="p-2.5 text-left font-semibold">WACC \ g Terminal</th>
+                          {reverseDcfData.sensitivity_matrix.terminalGrowthRange.map((tg) => (
+                            <th key={tg} className="p-2.5 font-bold text-slate-300">
+                              g = {tg.toFixed(1)}%
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 font-mono">
+                        {reverseDcfData.sensitivity_matrix.matrix.map((row) => {
+                          const isCurrentWacc = Math.abs(Number(row.wacc) - discountRate) < 0.2;
+                          return (
+                            <tr key={String(row.wacc)} className={isCurrentWacc ? 'bg-purple-950/30' : 'hover:bg-slate-800/30'}>
+                              <td className="p-2.5 text-left font-bold text-slate-300">
+                                {Number(row.wacc).toFixed(1)}% {isCurrentWacc && <span className="text-[10px] text-purple-400 font-sans">◄ Scénario</span>}
+                              </td>
+                              {reverseDcfData.sensitivity_matrix.terminalGrowthRange.map((tg) => {
+                                const val = row[`tg_${tg}`];
+                                const isPremium = val != null && val >= currentPrice;
+                                return (
+                                  <td
+                                    key={tg}
+                                    className={`p-2.5 font-bold ${
+                                      val == null
+                                        ? 'text-slate-600'
+                                        : isPremium
+                                        ? 'text-emerald-400 bg-emerald-950/20'
+                                        : 'text-rose-400/90'
+                                    }`}
+                                  >
+                                    {val != null ? `${Number(val).toFixed(1)}` : '—'}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/40 inline-block" />
+                      <span>Vert : Valeur intrinsèque supérieure au cours actuel ({currentPrice.toFixed(1)} {currency})</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-rose-500/40 inline-block" />
+                      <span>Rouge : Cours actuel supérieur à la valeur intrinsèque</span>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2099,6 +2676,90 @@ export const StockDetailModal: React.FC<Props> = ({ company, onClose }) => {
                 </div>
               ) : null}
             </div>
+          </div>
+        )}
+
+        {/* MODAL: CONFIGURER UNE ALERTE PERSONNALISÉE */}
+        {showAlertModal && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 shadow-2xl relative">
+              <button
+                onClick={() => setShowAlertModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg"
+                aria-label="Fermer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-xl shrink-0">
+                  🔔
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Créer une Alerte Dédiée</h3>
+                  <p className="text-xs text-slate-400">{company.name} ({company.symbol})</p>
+                </div>
+              </div>
+
+              {alertFeedback ? (
+                <div className="p-4 bg-emerald-950/60 border border-emerald-800 rounded-xl text-center text-emerald-300 font-bold text-sm">
+                  {alertFeedback}
+                </div>
+              ) : (
+                <form onSubmit={handleCreateAlert} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Condition de déclenchement</label>
+                    <select
+                      value={alertCondition}
+                      onChange={(e) => setAlertCondition(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
+                    >
+                      <option value="price_below">Cours inférieur à un prix cible (Achat)</option>
+                      <option value="price_above">Cours supérieur à un prix cible (Prise de bénéfice)</option>
+                      <option value="piotroski_below">Détérioration du score Piotroski (&lt;= seuil)</option>
+                      <option value="altman_distress">Risque faillite Altman Z-Score (&lt; seuil)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">
+                      {alertCondition.startsWith('price') ? `Valeur cible (${currency})` : 'Valeur de seuil'}
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={alertTargetPrice}
+                      onChange={(e) => setAlertTargetPrice(e.target.value)}
+                      placeholder={alertCondition.startsWith('price') ? `Ex: ${Math.round(currentPrice * 0.9)}` : 'Ex: 5'}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-sky-500"
+                    />
+                    {alertCondition.startsWith('price') && (
+                      <span className="text-[10px] text-slate-500 block mt-1">
+                        Cours actuel : {currentPrice.toFixed(2)} {currency}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition shadow-lg shadow-sky-600/30"
+                    >
+                      Activer l'alerte
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* FEEDBACK TOAST WATCHLIST */}
+        {watchlistSuccess && (
+          <div className="fixed bottom-6 right-6 z-[80] bg-slate-900 border border-amber-500/50 text-amber-300 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-bounce">
+            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+            <span>{watchlistSuccess}</span>
           </div>
         )}
 

@@ -79,6 +79,8 @@ const ACTIVE_PORTFOLIO_KEY = 'stockscreener_active_portfolio_id_v1';
 const USERS_STORAGE_KEY = 'stockscreener_users_v1';
 const CURRENT_USER_KEY = 'stockscreener_current_user_v1';
 const AUTH_TOKEN_KEY = 'stockscreener_auth_token_v1';
+const WATCHLIST_STORAGE_KEY = 'stockscreener_watchlist_v1';
+const ALERTS_STORAGE_KEY = 'stockscreener_alerts_v1';
 
 function getStoredUsers(): any[] {
   try {
@@ -116,6 +118,86 @@ function saveStoredCurrentUser(user: any | null) {
       localStorage.removeItem(CURRENT_USER_KEY);
       localStorage.removeItem(AUTH_TOKEN_KEY);
     }
+  } catch {
+    // ignore
+  }
+}
+
+function getStoredWatchlist(): any[] {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return [
+    {
+      id: 1,
+      symbol: 'MSFT',
+      name: 'Microsoft Corporation',
+      sector: 'Technology',
+      currency: 'USD',
+      added_price: 538.95,
+      target_buy_price: 510.0,
+      notes: 'Suivi déploiement Copilot Enterprise et cloud Azure',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      symbol: 'AAPL',
+      name: 'Apple Inc.',
+      sector: 'Technology',
+      currency: 'USD',
+      added_price: 341.54,
+      target_buy_price: 320.0,
+      notes: 'Super-cycle Apple Intelligence et marge services',
+      created_at: new Date().toISOString()
+    }
+  ];
+}
+
+function saveStoredWatchlist(items: any[]) {
+  try {
+    localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    // ignore
+  }
+}
+
+function getStoredAlerts(): any[] {
+  try {
+    const raw = localStorage.getItem(ALERTS_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return [
+    {
+      id: 1,
+      symbol: 'MSFT',
+      company_name: 'Microsoft Corporation',
+      condition_type: 'price_below',
+      target_value: 520.0,
+      channel: 'in_app',
+      notes: 'Point d\'entrée idéal sur repli technique',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      symbol: 'NVDA',
+      company_name: 'NVIDIA Corporation',
+      condition_type: 'altman_distress',
+      target_value: 2.99,
+      channel: 'in_app',
+      notes: 'Alerte si sortie de la zone verte Altman',
+      created_at: new Date().toISOString()
+    }
+  ];
+}
+
+function saveStoredAlerts(alerts: any[]) {
+  try {
+    localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts));
   } catch {
     // ignore
   }
@@ -184,6 +266,12 @@ function saveStoredPositions(positions: any[]) {
 
 function round(val: number | null | undefined, decimals = 2): number | null {
   if (val === null || val === undefined || isNaN(val)) return null;
+  const factor = Math.pow(10, decimals);
+  return Math.round(val * factor) / factor;
+}
+
+function roundNum(val: number, decimals = 2): number {
+  if (isNaN(val)) return 0;
   const factor = Math.pow(10, decimals);
   return Math.round(val * factor) / factor;
 }
@@ -301,6 +389,7 @@ export class LocalEngine {
     }
 
     const qs = company.quality_score;
+    const forensic = LocalEngine.getForensicAnalysis(company);
 
     return {
       id: company.id,
@@ -326,6 +415,12 @@ export class LocalEngine {
       valuation_score: qs ? qs.valuation_score : 0,
       piotroski_score: qs ? qs.piotroski_score : 0,
       piotroski_status: qs ? qs.piotroski_status : 'Faible',
+      altman_z_score: forensic.altman_z_score,
+      beneish_m_score: forensic.beneish_m_score,
+      accruals_quality: forensic.accruals_quality,
+      security_summary: forensic.summary_verdict,
+      security_risk: forensic.risk_level,
+      security_color: forensic.summary_color,
       latest_roe: latest?.roe ?? null,
       latest_roic: latest?.roic ?? null,
       latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
@@ -425,6 +520,12 @@ export class LocalEngine {
     if (filters.min_piotroski_score !== undefined && filters.min_piotroski_score !== null) {
       records = records.filter((r) => r.piotroski_score >= filters.min_piotroski_score);
     }
+    if (filters.min_altman_z !== undefined && filters.min_altman_z !== null) {
+      records = records.filter((r) => r.altman_z_score?.score !== null && r.altman_z_score?.score !== undefined && (r.altman_z_score.score as number) >= filters.min_altman_z!);
+    }
+    if (filters.exclude_beneish_manipulators) {
+      records = records.filter((r) => !r.beneish_m_score?.isManipulator);
+    }
 
     const total = records.length;
 
@@ -467,6 +568,12 @@ export class LocalEngine {
       quality_score: r.quality_score,
       piotroski_score: r.piotroski_score,
       piotroski_status: r.piotroski_status,
+      altman_z_score: r.altman_z_score,
+      beneish_m_score: r.beneish_m_score,
+      accruals_quality: r.accruals_quality,
+      security_summary: r.security_summary,
+      security_risk: r.security_risk,
+      security_color: r.security_color,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -1483,5 +1590,558 @@ export class LocalEngine {
       recommendations,
       audited_at: new Date().toISOString()
     };
+  }
+
+  // ==========================================
+  // FORENSIC ACCOUNTING & SECURITY (Altman & Beneish)
+  // ==========================================
+  static computeAltmanZScore(company: SeedCompany, statements: any[]) {
+    if (!statements || statements.length === 0) return null;
+    const sorted = [...statements].sort((a, b) => a.fiscal_year - b.fiscal_year);
+    const latest = sorted[sorted.length - 1];
+
+    const totalAssets = Number(latest.total_assets) || 0;
+    if (totalAssets <= 0) return null;
+
+    const currentAssets = Number(latest.current_assets) || totalAssets * 0.35;
+    const currentLiabilities = Number(latest.current_liabilities) || totalAssets * 0.25;
+    const workingCapital = currentAssets - currentLiabilities;
+    const operatingIncome = Number(latest.operating_income) || Number(latest.ebitda) * 0.75 || 0;
+    const revenue = Number(latest.revenue) || 0;
+    const totalDebt = Number(latest.total_debt) || totalAssets * 0.25;
+    const totalLiabilities = Math.max(totalDebt, currentLiabilities);
+    const totalEquity = Number(latest.total_equity) || totalAssets - totalLiabilities;
+    const marketCap = Number(company.market_cap) || totalEquity * 1.5;
+
+    const x1 = workingCapital / totalAssets;
+    const x2 = Math.min(1.0, Math.max(-0.5, (totalEquity * 0.7) / totalAssets));
+    const x3 = operatingIncome / totalAssets;
+    const liabilitiesForX4 = totalLiabilities > 0 ? totalLiabilities : 1.0;
+    const x4 = Math.min(10.0, marketCap / liabilitiesForX4);
+    const x5 = revenue / totalAssets;
+
+    const zScore = 1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + 0.999 * x5;
+    const roundedZ = roundNum(zScore, 2);
+
+    let zone: 'safe' | 'grey' | 'distress' = 'grey';
+    let label = 'Zone Grise (Surveillance)';
+    let badgeColor = 'amber';
+    if (roundedZ >= 2.99) {
+      zone = 'safe';
+      label = 'Zone Verte (Bilan Sain & Solide)';
+      badgeColor = 'emerald';
+    } else if (roundedZ < 1.81) {
+      zone = 'distress';
+      label = 'Zone Rouge (Risque de Détresse)';
+      badgeColor = 'rose';
+    }
+
+    return {
+      score: roundedZ,
+      zone,
+      label,
+      badgeColor,
+      details: {
+        working_capital_to_assets: round(x1, 3),
+        retained_earnings_to_assets: round(x2, 3),
+        ebit_to_assets: round(x3, 3),
+        market_cap_to_liabilities: round(x4, 3),
+        asset_turnover: round(x5, 3)
+      }
+    };
+  }
+
+  static computeBeneishMScore(statements: any[]) {
+    if (!statements || statements.length < 2) return null;
+    const sorted = [...statements].sort((a, b) => a.fiscal_year - b.fiscal_year);
+    const t = sorted[sorted.length - 1];
+    const prev = sorted[sorted.length - 2];
+
+    const rev_t = Number(t.revenue) || 1;
+    const rev_prev = Number(prev.revenue) || 1;
+
+    const sgi = Math.min(3.0, Math.max(0.3, rev_t / rev_prev));
+    const gross_margin_t = Math.max(0.05, Math.min(0.95, (Number(t.operating_income) || 0) / rev_t + 0.25));
+    const gross_margin_prev = Math.max(0.05, Math.min(0.95, (Number(prev.operating_income) || 0) / rev_prev + 0.25));
+    const gmi = Math.min(2.0, Math.max(0.5, gross_margin_prev / gross_margin_t));
+
+    const rec_ratio_t = Math.max(0.05, Math.min(0.35, ((Number(t.current_assets) || rev_t * 0.3) * 0.35) / rev_t));
+    const rec_ratio_prev = Math.max(0.05, Math.min(0.35, ((Number(prev.current_assets) || rev_prev * 0.3) * 0.35) / rev_prev));
+    const dsri = Math.min(2.5, Math.max(0.5, rec_ratio_t / rec_ratio_prev));
+
+    const non_current_assets_t = Math.max(0, (Number(t.total_assets) || 1) - (Number(t.current_assets) || 0));
+    const non_current_assets_prev = Math.max(0, (Number(prev.total_assets) || 1) - (Number(prev.current_assets) || 0));
+    const non_current_rate_t = non_current_assets_t / (Number(t.total_assets) || 1);
+    const non_current_rate_prev = non_current_assets_prev / (Number(prev.total_assets) || 1);
+    const aqi = non_current_rate_prev > 0 ? Math.min(2.0, Math.max(0.5, non_current_rate_t / non_current_rate_prev)) : 1.0;
+
+    const dep_t = Math.max(1, (Number(t.ebitda) || 0) - (Number(t.operating_income) || 0));
+    const dep_prev = Math.max(1, (Number(prev.ebitda) || 0) - (Number(prev.operating_income) || 0));
+    const dep_rate_t = dep_t / ((Number(t.total_assets) || 1) * 0.5);
+    const dep_rate_prev = dep_prev / ((Number(prev.total_assets) || 1) * 0.5);
+    const depi = dep_rate_t > 0 ? Math.min(2.0, Math.max(0.5, dep_rate_prev / dep_rate_t)) : 1.0;
+    const sgai = 1.0;
+    const lev_t = (Number(t.total_debt) || 0) / (Number(t.total_assets) || 1);
+    const lev_prev = (Number(prev.total_debt) || 0) / (Number(prev.total_assets) || 1);
+    const lvgi = lev_prev > 0 ? Math.min(2.0, Math.max(0.5, lev_t / lev_prev)) : 1.0;
+
+    const netIncome = Number(t.net_income) || 0;
+    const cashFromOps = Number(t.operating_cash_flow) || netIncome * 1.1;
+    const totalAssets = Number(t.total_assets) || 1;
+    const accruals = netIncome - cashFromOps;
+    const tata = Math.max(-0.3, Math.min(0.3, accruals / totalAssets));
+
+    const mScore =
+      -4.84 +
+      0.920 * dsri +
+      0.528 * gmi +
+      0.404 * aqi +
+      0.892 * sgi +
+      0.115 * depi -
+      0.172 * sgai +
+      4.037 * tata +
+      0.0327 * lvgi;
+
+    const roundedM = roundNum(mScore, 2);
+    const isManipulator = roundedM > -1.78;
+
+    return {
+      score: roundedM,
+      isManipulator,
+      label: isManipulator
+        ? 'Drapeau Rouge (Suspicion Manipulation / Accruals Anormaux)'
+        : 'Comptabilité Saine (Faible Risque de Manipulation)',
+      badgeColor: isManipulator ? 'rose' : 'emerald',
+      threshold: -1.78,
+      details: {
+        dsri: round(dsri, 3),
+        gmi: round(gmi, 3),
+        aqi: round(aqi, 3),
+        sgi: round(sgi, 3),
+        depi: round(depi, 3),
+        lvgi: round(lvgi, 3),
+        tata: round(tata, 3)
+      }
+    };
+  }
+
+  static computeAccrualsQuality(statements: any[]) {
+    if (!statements || statements.length === 0) return null;
+    const sorted = [...statements].sort((a, b) => a.fiscal_year - b.fiscal_year);
+    const latest = sorted[sorted.length - 1];
+
+    const netIncome = Number(latest.net_income) || 0;
+    const cashFlow = Number(latest.operating_cash_flow) || 0;
+    const fcf = Number(latest.free_cash_flow) || 0;
+    const accruals = netIncome - cashFlow;
+    const ratio = netIncome !== 0 ? round(cashFlow / netIncome, 2) : 1.0;
+    const isCashBacked = cashFlow >= netIncome * 0.9;
+
+    return {
+      net_income: netIncome,
+      operating_cash_flow: cashFlow,
+      free_cash_flow: fcf,
+      accruals_amount: round(accruals, 2),
+      cash_flow_to_net_income: ratio,
+      is_cash_backed: isCashBacked,
+      status: isCashBacked ? 'Excellente Qualité Cash' : 'Accruals Élevés (Vérifier Bilan)',
+      badgeColor: isCashBacked ? 'emerald' : 'amber'
+    };
+  }
+
+  static getForensicAnalysis(company: SeedCompany) {
+    const stmts = company.financial_statements || [];
+    const altman = LocalEngine.computeAltmanZScore(company, stmts);
+    const beneish = LocalEngine.computeBeneishMScore(stmts);
+    const accruals = LocalEngine.computeAccrualsQuality(stmts);
+
+    let summaryVerdict = 'Bilan Ultra-Sain';
+    let riskLevel = 'Faible';
+    let summaryColor = 'emerald';
+
+    if ((altman && altman.zone === 'distress') || (beneish && beneish.isManipulator)) {
+      summaryVerdict = 'Drapeau Rouge Détecté';
+      riskLevel = 'Élevé';
+      summaryColor = 'rose';
+    } else if (altman && altman.zone === 'grey') {
+      summaryVerdict = 'Surveillance Bilan';
+      riskLevel = 'Modéré';
+      summaryColor = 'amber';
+    }
+
+    return {
+      symbol: company.symbol,
+      company_name: company.name,
+      summary_verdict: summaryVerdict,
+      risk_level: riskLevel,
+      summary_color: summaryColor,
+      altman_z_score: altman,
+      beneish_m_score: beneish,
+      accruals_quality: accruals
+    };
+  }
+
+  // ==========================================
+  // REVERSE DCF & VALUATION SENSITIVITY
+  // ==========================================
+  static calculateIntrinsicDCF(params: {
+    baseFCF: number;
+    growthRate5y?: number;
+    growthRate10y?: number;
+    discountRate?: number;
+    terminalGrowth?: number;
+    netDebt?: number;
+    sharesOutstanding?: number;
+  }) {
+    const {
+      baseFCF,
+      growthRate5y = 8.0,
+      growthRate10y = 5.0,
+      discountRate = 9.0,
+      terminalGrowth = 2.5,
+      netDebt = 0,
+      sharesOutstanding = 1
+    } = params;
+
+    const r = discountRate / 100.0;
+    const g1 = growthRate5y / 100.0;
+    const g2 = growthRate10y / 100.0;
+    const gTerm = terminalGrowth / 100.0;
+
+    if (r <= gTerm) {
+      return { intrinsicValuePerShare: 0, enterpriseValue: 0, equityValue: 0, pvFCF: 0, pvTerminalValue: 0, terminalValue: 0, projectedFCF: [] };
+    }
+
+    let currentFCF = Math.max(1, baseFCF);
+    let pvFCF = 0;
+    const projectedFCF: { year: number; fcf: number; discounted_fcf: number }[] = [];
+
+    for (let year = 1; year <= 5; year++) {
+      currentFCF *= 1 + g1;
+      const discountFactor = Math.pow(1 + r, year);
+      const discounted = currentFCF / discountFactor;
+      pvFCF += discounted;
+      projectedFCF.push({ year, fcf: roundNum(currentFCF, 1), discounted_fcf: roundNum(discounted, 1) });
+    }
+
+    for (let year = 6; year <= 10; year++) {
+      currentFCF *= 1 + g2;
+      const discountFactor = Math.pow(1 + r, year);
+      const discounted = currentFCF / discountFactor;
+      pvFCF += discounted;
+      projectedFCF.push({ year, fcf: roundNum(currentFCF, 1), discounted_fcf: roundNum(discounted, 1) });
+    }
+
+    const terminalFCF = currentFCF * (1 + gTerm);
+    const terminalValue = terminalFCF / (r - gTerm);
+    const pvTerminalValue = terminalValue / Math.pow(1 + r, 10);
+    const enterpriseValue = pvFCF + pvTerminalValue;
+    const equityValue = enterpriseValue - netDebt;
+    const intrinsicValuePerShare = sharesOutstanding > 0 ? equityValue / sharesOutstanding : 0;
+
+    return {
+      intrinsicValuePerShare: roundNum(Math.max(0, intrinsicValuePerShare), 2),
+      enterpriseValue: roundNum(enterpriseValue, 1),
+      equityValue: roundNum(equityValue, 1),
+      pvFCF: roundNum(pvFCF, 1),
+      pvTerminalValue: roundNum(pvTerminalValue, 1),
+      terminalValue: roundNum(terminalValue, 1),
+      projectedFCF
+    };
+  }
+
+  static solveImpliedGrowthRate(params: {
+    currentPrice: number;
+    baseFCF: number;
+    discountRate?: number;
+    terminalGrowth?: number;
+    netDebt?: number;
+    sharesOutstanding?: number;
+  }) {
+    const { currentPrice, baseFCF, discountRate = 9.0, terminalGrowth = 2.5, netDebt = 0, sharesOutstanding = 1 } = params;
+    if (!currentPrice || currentPrice <= 0 || !baseFCF || baseFCF <= 0) return 0.0;
+
+    let low = -30.0;
+    let high = 80.0;
+    let bestG = 0;
+
+    for (let iter = 0; iter < 50; iter++) {
+      const mid = (low + high) / 2.0;
+      const g1 = mid;
+      const g2 = mid > 0 ? mid * 0.7 : mid * 0.9;
+      const calc = LocalEngine.calculateIntrinsicDCF({
+        baseFCF,
+        growthRate5y: g1,
+        growthRate10y: g2,
+        discountRate,
+        terminalGrowth,
+        netDebt,
+        sharesOutstanding
+      });
+
+      const price = calc.intrinsicValuePerShare || 0;
+      if (Math.abs(price - currentPrice) < 0.05) {
+        bestG = mid;
+        break;
+      }
+      if (price < currentPrice) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+      bestG = mid;
+    }
+
+    return roundNum(bestG, 2);
+  }
+
+  static getReverseDCFAnalysis(symbol: string, customParams: any = {}) {
+    const company = companyMap.get(symbol.toUpperCase());
+    if (!company) return null;
+
+    const stmts = company.financial_statements ? [...company.financial_statements] : [];
+    stmts.sort((a, b) => a.fiscal_year - b.fiscal_year);
+    const latest = stmts.length > 0 ? stmts[stmts.length - 1] : null;
+
+    const currentPrice = Number(company.current_price) || 100.0;
+    const marketCap = Number(company.market_cap) || currentPrice * 1e7;
+    const sharesOutstanding = marketCap > 0 && currentPrice > 0 ? marketCap / currentPrice : 1e7;
+
+    let baseFCF = Number(latest?.free_cash_flow);
+    if (!baseFCF || baseFCF <= 0) {
+      baseFCF = Number(latest?.operating_cash_flow) * 0.75 || marketCap / (company.pfcf_ratio || 25);
+    }
+    baseFCF = Math.max(10, baseFCF);
+    const netDebt = Number(latest?.net_debt) || 0;
+
+    const discountRate = customParams.discountRate !== undefined ? Number(customParams.discountRate) : 9.0;
+    const terminalGrowth = customParams.terminalGrowth !== undefined ? Number(customParams.terminalGrowth) : 2.5;
+    const growthRate5y = customParams.growthRate5y !== undefined ? Number(customParams.growthRate5y) : 10.0;
+    const growthRate10y = customParams.growthRate10y !== undefined && customParams.growthRate10y !== null
+      ? Number(customParams.growthRate10y)
+      : roundNum(growthRate5y * 0.7, 2);
+
+    const impliedGrowthRate = LocalEngine.solveImpliedGrowthRate({
+      currentPrice,
+      baseFCF,
+      discountRate,
+      terminalGrowth,
+      netDebt,
+      sharesOutstanding
+    });
+
+    const userDCF = LocalEngine.calculateIntrinsicDCF({
+      baseFCF,
+      growthRate5y,
+      growthRate10y,
+      discountRate,
+      terminalGrowth,
+      netDebt,
+      sharesOutstanding
+    });
+
+    const intrinsicValue = userDCF.intrinsicValuePerShare;
+    const marginOfSafety = currentPrice > 0 ? roundNum(((intrinsicValue - currentPrice) / currentPrice) * 100.0, 2) : 0;
+
+    let valuationVerdict = 'Juste Valeur';
+    let verdictColor = 'slate';
+    if (marginOfSafety >= 20.0) {
+      valuationVerdict = 'Sous-évalué (Marge de Sécurité)';
+      verdictColor = 'emerald';
+    } else if (marginOfSafety <= -20.0) {
+      valuationVerdict = 'Surévalué (Attentes Élevées)';
+      verdictColor = 'rose';
+    } else {
+      valuationVerdict = 'Valorisation Proche du Juste Prix';
+      verdictColor = 'amber';
+    }
+
+    const waccRange = [7.0, 8.0, 9.0, 10.0, 11.0];
+    const terminalGrowthRange = [1.5, 2.0, 2.5, 3.0];
+    const matrix: Record<string, number | null>[] = [];
+    for (const w of waccRange) {
+      const row: Record<string, number | null> = { wacc: w };
+      for (const tg of terminalGrowthRange) {
+        if (w <= tg) {
+          row[`tg_${tg}`] = null;
+        } else {
+          const res = LocalEngine.calculateIntrinsicDCF({
+            baseFCF,
+            growthRate5y,
+            growthRate10y,
+            discountRate: w,
+            terminalGrowth: tg,
+            netDebt,
+            sharesOutstanding
+          });
+          row[`tg_${tg}`] = res.intrinsicValuePerShare;
+        }
+      }
+      matrix.push(row);
+    }
+
+    return {
+      symbol: company.symbol,
+      name: company.name,
+      currency: company.currency || 'USD',
+      current_price: currentPrice,
+      base_fcf: round(baseFCF, 1),
+      net_debt: round(netDebt, 1),
+      shares_outstanding: round(sharesOutstanding, 0),
+      implied_growth_rate: impliedGrowthRate,
+      implied_growth_meaning:
+        impliedGrowthRate > 15
+          ? 'Le cours actuel intègre une forte accélération de la croissance du FCF (>15%/an).'
+          : impliedGrowthRate > 5
+          ? 'Le cours actuel intègre une croissance saine et modérée du FCF (5% à 15%/an).'
+          : 'Le marché intègre un ralentissement ou une quasi-stagnation des flux de trésorerie.',
+      user_parameters: {
+        discount_rate: discountRate,
+        terminal_growth: terminalGrowth,
+        growth_rate_5y: growthRate5y,
+        growth_rate_10y: growthRate10y
+      },
+      intrinsic_value: intrinsicValue,
+      margin_of_safety_pct: marginOfSafety,
+      valuation_verdict: valuationVerdict,
+      verdict_color: verdictColor,
+      projected_fcf: userDCF.projectedFCF,
+      sensitivity_matrix: { waccRange, terminalGrowthRange, matrix }
+    };
+  }
+
+  // ==========================================
+  // WATCHLIST & ALERTS CLIENT-SIDE METHODS
+  // ==========================================
+  static getWatchlist(): any[] {
+    const list = getStoredWatchlist();
+    return list.map((w) => {
+      const company = companyMap.get(w.symbol.toUpperCase());
+      const forensic = company ? LocalEngine.getForensicAnalysis(company) : null;
+      return {
+        ...w,
+        current_price: company?.current_price ?? w.added_price,
+        company_name: company?.name ?? w.name,
+        sector: company?.sector ?? w.sector,
+        quality_score: company?.quality_score?.total_score ?? null,
+        piotroski_score: company?.quality_score?.piotroski_score ?? null,
+        altman_zone: forensic?.altman_z_score?.zone ?? 'safe',
+        beneish_manipulator: forensic?.beneish_m_score?.isManipulator ?? false
+      };
+    });
+  }
+
+  static addToWatchlist(item: { symbol: string; notes?: string; target_buy_price?: number }) {
+    const list = getStoredWatchlist();
+    const cleanSymbol = item.symbol.toUpperCase();
+    const company = companyMap.get(cleanSymbol);
+
+    const existingIdx = list.findIndex((w) => w.symbol.toUpperCase() === cleanSymbol);
+    if (existingIdx >= 0) {
+      if (item.notes !== undefined) list[existingIdx].notes = item.notes;
+      if (item.target_buy_price !== undefined) list[existingIdx].target_buy_price = item.target_buy_price;
+      list[existingIdx].updated_at = new Date().toISOString();
+      saveStoredWatchlist(list);
+      return list[existingIdx];
+    }
+
+    const maxId = list.reduce((m, w) => Math.max(m, w.id || 0), 0);
+    const newItem = {
+      id: maxId + 1,
+      symbol: cleanSymbol,
+      name: company?.name || cleanSymbol,
+      sector: company?.sector || 'Général',
+      currency: company?.currency || 'USD',
+      added_price: company?.current_price || null,
+      target_buy_price: item.target_buy_price || null,
+      notes: item.notes || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    list.push(newItem);
+    saveStoredWatchlist(list);
+    return newItem;
+  }
+
+  static removeFromWatchlist(symbolOrId: string | number) {
+    let list = getStoredWatchlist();
+    const initialLen = list.length;
+    list = list.filter((w) => {
+      if (typeof symbolOrId === 'number' || !isNaN(Number(symbolOrId))) {
+        return w.id !== Number(symbolOrId);
+      }
+      return w.symbol.toUpperCase() !== String(symbolOrId).toUpperCase();
+    });
+    saveStoredWatchlist(list);
+    return list.length < initialLen;
+  }
+
+  static getAlerts(): any[] {
+    const alerts = getStoredAlerts();
+    return alerts.map((a) => {
+      const company = companyMap.get(a.symbol.toUpperCase());
+      const forensic = company ? LocalEngine.getForensicAnalysis(company) : null;
+      let triggered = false;
+      let triggerReason: string | null = null;
+
+      if (company) {
+        if (a.condition_type === 'price_below' && (company.current_price || 0) <= a.target_value) {
+          triggered = true;
+          triggerReason = `Cours (${company.current_price} ${company.currency}) sous la cible (${a.target_value})`;
+        } else if (a.condition_type === 'price_above' && (company.current_price || 0) >= a.target_value) {
+          triggered = true;
+          triggerReason = `Cours (${company.current_price} ${company.currency}) au-dessus de la cible (${a.target_value})`;
+        } else if (a.condition_type === 'piotroski_below' && (company.quality_score?.piotroski_score || 9) <= a.target_value) {
+          triggered = true;
+          triggerReason = `Piotroski (${company.quality_score?.piotroski_score}) sous le seuil (${a.target_value})`;
+        } else if (a.condition_type === 'altman_distress' && (forensic?.altman_z_score?.score || 5) < a.target_value) {
+          triggered = true;
+          triggerReason = `Altman Z (${forensic?.altman_z_score?.score}) en zone de détresse (< ${a.target_value})`;
+        }
+      }
+
+      return {
+        ...a,
+        triggered,
+        trigger_reason: triggerReason,
+        current_market_price: company?.current_price ?? null
+      };
+    });
+  }
+
+  static createAlert(alertData: {
+    symbol: string;
+    condition_type: string;
+    target_value: number;
+    channel?: string;
+    notes?: string;
+  }) {
+    const alerts = getStoredAlerts();
+    const cleanSymbol = alertData.symbol.toUpperCase();
+    const company = companyMap.get(cleanSymbol);
+    const maxId = alerts.reduce((m, a) => Math.max(m, a.id || 0), 0);
+
+    const newAlert = {
+      id: maxId + 1,
+      symbol: cleanSymbol,
+      company_name: company?.name || cleanSymbol,
+      condition_type: alertData.condition_type,
+      target_value: Number(alertData.target_value),
+      channel: alertData.channel || 'in_app',
+      notes: alertData.notes || '',
+      triggered: false,
+      created_at: new Date().toISOString()
+    };
+    alerts.push(newAlert);
+    saveStoredAlerts(alerts);
+    return newAlert;
+  }
+
+  static deleteAlert(alertId: number) {
+    let alerts = getStoredAlerts();
+    const initialLen = alerts.length;
+    alerts = alerts.filter((a) => a.id !== Number(alertId));
+    saveStoredAlerts(alerts);
+    return alerts.length < initialLen;
   }
 }

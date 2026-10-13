@@ -352,7 +352,42 @@ export const FilterSidebar: React.FC<Props> = ({ filters, onChange, onReset, sec
         </div>
       </div>
 
-      {/* 6. Secteurs */}
+      {/* 6. Sécurité & Risque Forensic (Altman & Beneish) */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          Sécurité & Forensic (Altman/Beneish)
+        </h3>
+
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs text-slate-300">
+            <span>Altman Z-Score Min</span>
+            <span className="font-semibold text-slate-200">
+              {filters.min_altman_z !== undefined ? `≥ ${filters.min_altman_z}` : 'Non filtré'}
+            </span>
+          </div>
+          <input
+            type="number"
+            step="0.1"
+            placeholder="Ex: 2.99 (Zone Verte)"
+            value={filters.min_altman_z ?? ''}
+            onChange={(e) => handleInputChange('min_altman_z', e.target.value ? Number(e.target.value) : undefined)}
+            className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={!!filters.exclude_beneish_manipulators}
+            onChange={(e) => handleInputChange('exclude_beneish_manipulators', e.target.checked)}
+            className="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700 focus:ring-0"
+          />
+          <span>Exclure drapeaux rouges Beneish (M-Score &gt; -1.78)</span>
+        </label>
+      </div>
+
+      {/* 7. Secteurs */}
       {sectorsList.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-slate-800">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Secteurs</span>

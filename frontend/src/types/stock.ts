@@ -158,6 +158,12 @@ export interface Company {
   quality_score?: QualityScore;
   piotroski_score?: number;
   piotroski_status?: string;
+  altman_z_score?: AltmanZScore | null;
+  beneish_m_score?: BeneishMScore | null;
+  accruals_quality?: AccrualsQuality | null;
+  security_summary?: string;
+  security_risk?: string;
+  security_color?: string;
   latest_roe?: number | null;
   latest_roic?: number | null;
   latest_debt_to_ebitda?: number | null;
@@ -185,6 +191,8 @@ export interface FilterParams {
   max_pe?: number;
   max_pfcf?: number;
   min_market_cap?: number;
+  min_altman_z?: number;
+  exclude_beneish_manipulators?: boolean;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   page: number;
@@ -209,4 +217,132 @@ export interface ScreenerResponse {
   page: number;
   page_size: number;
   items: Company[];
+}
+
+export interface AltmanDetails {
+  working_capital_to_assets: number | null;
+  retained_earnings_to_assets: number | null;
+  ebit_to_assets: number | null;
+  market_cap_to_liabilities: number | null;
+  asset_turnover: number | null;
+}
+
+export interface AltmanZScore {
+  score: number | null;
+  zone: 'safe' | 'grey' | 'distress';
+  label: string;
+  badgeColor: string;
+  details: AltmanDetails;
+}
+
+export interface BeneishDetails {
+  dsri: number | null;
+  gmi: number | null;
+  aqi: number | null;
+  sgi: number | null;
+  depi: number | null;
+  lvgi: number | null;
+  tata: number | null;
+}
+
+export interface BeneishMScore {
+  score: number | null;
+  isManipulator: boolean;
+  label: string;
+  badgeColor: string;
+  threshold: number;
+  details: BeneishDetails;
+}
+
+export interface AccrualsQuality {
+  net_income: number | null;
+  operating_cash_flow: number | null;
+  free_cash_flow: number | null;
+  accruals_amount: number | null;
+  cash_flow_to_net_income: number | null;
+  is_cash_backed: boolean;
+  status: string;
+  badgeColor: string;
+}
+
+export interface ForensicAnalysis {
+  symbol: string;
+  company_name: string;
+  summary_verdict: string;
+  risk_level: string;
+  summary_color: string;
+  altman_z_score: AltmanZScore | null;
+  beneish_m_score: BeneishMScore | null;
+  accruals_quality: AccrualsQuality | null;
+}
+
+export interface ProjectedFCF {
+  year: number;
+  fcf: number;
+  discounted_fcf: number;
+}
+
+export interface SensitivityMatrix {
+  waccRange: number[];
+  terminalGrowthRange: number[];
+  matrix: Record<string, number | null>[];
+}
+
+export interface ReverseDCFResult {
+  symbol: string;
+  name: string;
+  currency: string;
+  current_price: number;
+  base_fcf: number | null;
+  net_debt: number | null;
+  shares_outstanding: number | null;
+  implied_growth_rate: number | null;
+  implied_growth_meaning: string;
+  user_parameters: {
+    discount_rate: number;
+    terminal_growth: number;
+    growth_rate_5y: number;
+    growth_rate_10y: number;
+  };
+  intrinsic_value: number;
+  margin_of_safety_pct: number;
+  valuation_verdict: string;
+  verdict_color: string;
+  projected_fcf: ProjectedFCF[];
+  sensitivity_matrix: SensitivityMatrix;
+}
+
+export interface WatchlistItem {
+  id: number;
+  user_id?: number | null;
+  symbol: string;
+  name?: string;
+  company_name?: string;
+  sector?: string;
+  currency?: string;
+  current_price?: number;
+  added_price?: number;
+  target_buy_price?: number | null;
+  notes?: string;
+  quality_score?: number | null;
+  piotroski_score?: number | null;
+  altman_zone?: 'safe' | 'grey' | 'distress';
+  beneish_manipulator?: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AlertItem {
+  id: number;
+  user_id?: number | null;
+  symbol: string;
+  company_name?: string;
+  condition_type: 'price_below' | 'price_above' | 'piotroski_below' | 'altman_distress';
+  target_value: number;
+  channel: 'in_app' | 'webhook' | 'email';
+  notes?: string;
+  triggered?: boolean;
+  trigger_reason?: string | null;
+  current_market_price?: number | null;
+  created_at: string;
 }

@@ -357,4 +357,108 @@ describe('Stockscreener PRO Node.js API Test Suite', () => {
       assert.equal(meRes.status, 401);
     });
   });
+
+  describe('Phase 1 Innovation Suite: Forensic Accounting, Reverse DCF & Watchlist/Alerts', () => {
+    test('GET /api/companies/:symbol/security returns Altman Z, Beneish M & Accruals analysis', async () => {
+      const res = await fetch(`${baseUrl}/api/companies/GLW/security`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.symbol, 'GLW');
+      assert.ok(data.altman_z_score);
+      assert.ok(typeof data.altman_z_score.score === 'number');
+      assert.ok(['safe', 'grey', 'distress'].includes(data.altman_z_score.zone));
+      assert.ok(data.beneish_m_score);
+      assert.ok(typeof data.beneish_m_score.score === 'number');
+      assert.ok(typeof data.beneish_m_score.isManipulator === 'boolean');
+      assert.ok(data.accruals_quality);
+      assert.ok(typeof data.accruals_quality.is_cash_backed === 'boolean');
+    });
+
+    test('POST /api/companies/:symbol/valuation/reverse-dcf solves implied growth rate and sensitivity matrix', async () => {
+      const res = await fetch(`${baseUrl}/api/companies/GLW/valuation/reverse-dcf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          discountRate: 9.0,
+          terminalGrowth: 2.5,
+          growthRate5y: 10.0
+        })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.symbol, 'GLW');
+      assert.ok(typeof data.implied_growth_rate === 'number');
+      assert.ok(typeof data.intrinsic_value === 'number');
+      assert.ok(typeof data.margin_of_safety_pct === 'number');
+      assert.ok(Array.isArray(data.projected_fcf));
+      assert.equal(data.projected_fcf.length, 10);
+      assert.ok(data.sensitivity_matrix);
+      assert.ok(Array.isArray(data.sensitivity_matrix.matrix));
+    });
+
+    test('POST & GET & DELETE /api/watchlist manages items with persistence', async () => {
+      // Add
+      const addRes = await fetch(`${baseUrl}/api/watchlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: 'MSFT',
+          target_buy_price: 520.0,
+          notes: 'Test watchlist addition'
+        })
+      });
+      assert.equal(addRes.status, 201);
+      const added = await addRes.json();
+      assert.equal(added.symbol, 'MSFT');
+      assert.equal(added.target_buy_price, 520.0);
+
+      // List
+      const listRes = await fetch(`${baseUrl}/api/watchlist`);
+      assert.equal(listRes.status, 200);
+      const list = await listRes.json();
+      assert.ok(Array.isArray(list));
+      const found = list.find(w => w.symbol === 'MSFT');
+      assert.ok(found);
+      assert.ok(found.current_price);
+      assert.ok(found.altman_zone);
+
+      // Remove
+      const delRes = await fetch(`${baseUrl}/api/watchlist/MSFT`, {
+        method: 'DELETE'
+      });
+      assert.equal(delRes.status, 200);
+    });
+
+    test('POST & GET & DELETE /api/alerts manages and evaluates conditions', async () => {
+      // Create alert
+      const createRes = await fetch(`${baseUrl}/api/alerts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: 'AAPL',
+          condition_type: 'price_above',
+          target_value: 100.0,
+          notes: 'Trigger test'
+        })
+      });
+      assert.equal(createRes.status, 201);
+      const alert = await createRes.json();
+      assert.equal(alert.symbol, 'AAPL');
+
+      // Get alerts and check real-time evaluation (AAPL is > 100 so should be triggered)
+      const listRes = await fetch(`${baseUrl}/api/alerts`);
+      assert.equal(listRes.status, 200);
+      const alerts = await listRes.json();
+      const myAlert = alerts.find(a => a.id === alert.id);
+      assert.ok(myAlert);
+      assert.equal(myAlert.triggered, true);
+      assert.ok(myAlert.trigger_reason.includes('au-dessus de la cible'));
+
+      // Delete alert
+      const delRes = await fetch(`${baseUrl}/api/alerts/${alert.id}`, {
+        method: 'DELETE'
+      });
+      assert.equal(delRes.status, 200);
+    });
+  });
 });

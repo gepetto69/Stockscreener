@@ -1,4 +1,5 @@
 const store = require('../store');
+const SecurityAnalysisService = require('./securityAnalysisService');
 
 function round(val, decimals = 2) {
   if (val === null || val === undefined || isNaN(val)) return null;
@@ -28,6 +29,7 @@ class ScreenerService {
     }
 
     const qs = company.quality_score;
+    const forensic = SecurityAnalysisService.getForensicAnalysis(company);
 
     return {
       id: company.id,
@@ -53,6 +55,12 @@ class ScreenerService {
       valuation_score: qs ? qs.valuation_score : 0,
       piotroski_score: qs ? qs.piotroski_score : 0,
       piotroski_status: qs ? qs.piotroski_status : 'Faible',
+      altman_z_score: forensic.altman_z_score,
+      beneish_m_score: forensic.beneish_m_score,
+      accruals_quality: forensic.accruals_quality,
+      security_summary: forensic.summary_verdict,
+      security_risk: forensic.risk_level,
+      security_color: forensic.summary_color,
       latest_roe: latest?.roe ?? null,
       latest_roic: latest?.roic ?? null,
       latest_debt_to_ebitda: latest?.net_debt_to_ebitda ?? null,
@@ -159,6 +167,12 @@ class ScreenerService {
     if (filters.min_piotroski_score !== undefined && filters.min_piotroski_score !== null) {
       records = records.filter((r) => r.piotroski_score >= filters.min_piotroski_score);
     }
+    if (filters.min_altman_z !== undefined && filters.min_altman_z !== null) {
+      records = records.filter((r) => r.altman_z_score?.score !== null && r.altman_z_score?.score >= filters.min_altman_z);
+    }
+    if (filters.exclude_beneish_manipulators) {
+      records = records.filter((r) => !r.beneish_m_score?.isManipulator);
+    }
 
     const total = records.length;
 
@@ -203,6 +217,12 @@ class ScreenerService {
       quality_score: r.quality_score,
       piotroski_score: r.piotroski_score,
       piotroski_status: r.piotroski_status,
+      altman_z_score: r.altman_z_score,
+      beneish_m_score: r.beneish_m_score,
+      accruals_quality: r.accruals_quality,
+      security_summary: r.security_summary,
+      security_risk: r.security_risk,
+      security_color: r.security_color,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -242,6 +262,12 @@ class ScreenerService {
       quality_score: r.quality_score,
       piotroski_score: r.piotroski_score,
       piotroski_status: r.piotroski_status,
+      altman_z_score: r.altman_z_score,
+      beneish_m_score: r.beneish_m_score,
+      accruals_quality: r.accruals_quality,
+      security_summary: r.security_summary,
+      security_risk: r.security_risk,
+      security_color: r.security_color,
       latest_roe: r.latest_roe,
       latest_roic: r.latest_roic,
       latest_debt_to_ebitda: r.latest_debt_to_ebitda,
@@ -268,6 +294,10 @@ class ScreenerService {
       'Quality Score',
       'Piotroski Score (0-9)',
       'Piotroski Status',
+      'Altman Z-Score',
+      'Altman Zone',
+      'Beneish M-Score',
+      'Beneish Manipulator',
       'Solvency (25)',
       'Profitability (30)',
       'Growth/Cash (25)',
@@ -296,6 +326,10 @@ class ScreenerService {
         qs?.total_score ?? '',
         qs?.piotroski_score ?? it.piotroski_score ?? '',
         qs?.piotroski_status ?? it.piotroski_status ?? '',
+        it.altman_z_score?.score ?? '',
+        it.altman_z_score?.zone ?? '',
+        it.beneish_m_score?.score ?? '',
+        it.beneish_m_score?.isManipulator ? 'OUI' : 'NON',
         qs?.solvency_score ?? '',
         qs?.profitability_score ?? '',
         qs?.cash_growth_score ?? '',

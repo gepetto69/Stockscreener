@@ -14,6 +14,8 @@ class DataStore {
     this.portfolios = [];
     this.portfolioPositions = [];
     this.users = [];
+    this.watchlists = [];
+    this.alerts = [];
     this.sessions = new Map(); // token -> userId
     this.companyMap = new Map();
     this.initialized = false;
@@ -107,6 +109,8 @@ class DataStore {
         this.portfolios = userData.portfolios || [];
         this.portfolioPositions = userData.portfolio_positions || [];
         this.users = userData.users || [];
+        this.watchlists = userData.watchlists || [];
+        this.alerts = userData.alerts || [];
       } catch (e) {
         console.warn('Failed to parse user_portfolios.json, falling back to seed:', e.message);
         this.portfolios = seed.portfolios || [];
@@ -127,7 +131,9 @@ class DataStore {
       const data = {
         portfolios: this.portfolios,
         portfolio_positions: this.portfolioPositions,
-        users: this.users
+        users: this.users,
+        watchlists: this.watchlists,
+        alerts: this.alerts
       };
       fs.writeFileSync(USER_DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
     } catch (e) {
@@ -438,6 +444,133 @@ class DataStore {
     this.portfolioPositions = this.portfolioPositions.filter((p) => p.id !== posId);
     this.saveUserData();
     return { pos, proceeds };
+  }
+
+  // Watchlist & Alerts methods
+  getWatchlist(userId = null) {
+    this.init();
+    if (userId) {
+      return this.watchlists.filter((w) => w.user_id === Number(userId));
+    }
+    // Return all or public/default watchlists
+    return this.watchlists;
+  }
+
+  addToWatchlist(userId = null, { symbol, notes = '', target_buy_price = null }) {
+    this.init();
+    if (!symbol) throw new Error('Symbole boursier requis');
+    const cleanSymbol = symbol.toUpperCase();
+    const company = this.getCompanyBySymbol(cleanSymbol);
+    const uId = userId ? Number(userId) : null;
+
+    const existing = this.watchlists.find(
+      (w) => w.symbol.toUpperCase() === cleanSymbol && (w.user_id === uId || (!w.user_id && !uId))
+    );
+
+    if (existing) {
+      if (notes) existing.notes = notes;
+      if (target_buy_price !== null) existing.target_buy_price = Number(target_buy_price);
+      existing.updated_at = new Date().toISOString();
+      this.saveUserData();
+      return existing;
+    }
+
+    const maxId = this.watchlists.reduce((max, w) => Math.max(max, w.id || 0), 0);
+    const item = {
+      id: maxId + 1,
+      user_id: uId,
+      symbol: cleanSymbol,
+      name: company?.name || cleanSymbol,
+      sector: company?.sector || 'Général',
+      currency: company?.currency || 'USD',
+      added_price: company?.current_price || null,
+      target_buy_price: target_buy_price !== null ? Number(target_buy_price) : null,
+      notes: notes || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    this.watchlists.push(item);
+    this.saveUserData();
+    return item;
+  }
+
+  removeFromWatchlist(userId = null, symbolOrId) {
+    this.init();
+    const uId = userId ? Number(userId) : null;
+    const initialLen = this.watchlists.length;
+
+    this.watchlists = this.watchlists.filter((w) => {
+      const matchUser = uId ? w.user_id === uId : true;
+      if (!matchUser) return true;
+      if (typeof symbolOrId === 'number' || !isNaN(Number(symbolOrId))) {
+        return w.id !== Number(symbolOrId);
+      }
+      return w.symbol.toUpperCase() !== String(symbolOrId).toUpperCase();
+    });
+
+    const removed = this.watchlists.length < initialLen;
+    if (removed) {
+      this.saveUserData();
+    }
+    return removed;
+  }
+
+  getAlerts(userId = null) {
+    this.init();
+    if (userId) {
+      return this.alerts.filter((a) => a.user_id === Number(userId));
+    }
+    return this.alerts;
+  }
+
+  createAlert(userId = null, alertData) {
+    this.init();
+    const { symbol, condition_type, target_value, notes = '', channel = 'in_app' } = alertData;
+    if (!symbol || !condition_type || target_value === undefined) {
+      throw new Error('Paramètres d\'alerte incomplets (symbol, condition_type, target_value requis)');
+    }
+
+    const cleanSymbol = symbol.toUpperCase();
+    const company = this.getCompanyBySymbol(cleanSymbol);
+    const maxId = this.alerts.reduce((max, a) => Math.max(max, a.id || 0), 0);
+
+    const newAlert = {
+      id: maxId + 1,
+      user_id: userId ? Number(userId) : null,
+      symbol: cleanSymbol,
+      company_name: company?.name || cleanSymbol,
+      condition_type, // 'price_below', 'price_above', 'piotroski_below', 'altman_distress'
+      target_value: Number(target_value),
+      channel, // 'in_app', 'webhook', 'email'
+      notes,
+      triggered: false,
+      triggered_at: null,
+      created_at: new Date().toISOString()
+    };
+
+    this.alerts.push(newAlert);
+    this.saveUserData();
+    return newAlert;
+  }
+
+  deleteAlert(userId = null, alertId) {
+    this.init();
+    const uId = userId ? Number(userId) : null;
+    const aId = Number(alertId);
+    const initialLen = this.alerts.length;
+
+    this.alerts = this.alerts.filter((a) => {
+      const matchUser = uId ? a.user_id === uId : true;
+      if (!matchUser) return true;
+      return a.id !== aId;
+    });
+
+    const removed = this.alerts.length < initialLen;
+    if (removed) {
+      this.saveUserData();
+    }
+    return removed;
   }
 
   updateCompanyPrice(symbol, price) {

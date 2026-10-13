@@ -8,6 +8,8 @@ const screenerService = require('./services/screenerService');
 const copilotService = require('./services/copilotService');
 const portfolioService = require('./services/portfolioService');
 const newsService = require('./services/newsService');
+const securityAnalysisService = require('./services/securityAnalysisService');
+const valuationService = require('./services/valuationService');
 
 const app = express();
 
@@ -154,6 +156,54 @@ api.get('/companies/:symbol', (req, res) => {
     res.json(detail);
   } catch (err) {
     console.error('Error in /api/companies/:symbol:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Security & Forensic Analysis (Altman Z, Beneish M, Accruals)
+api.get('/companies/:symbol/security', (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const company = store.getCompanyBySymbol(symbol);
+    if (!company) {
+      return res.status(404).json({ detail: `Company with symbol '${symbol}' not found` });
+    }
+    const forensic = securityAnalysisService.getForensicAnalysis(company);
+    res.json(forensic);
+  } catch (err) {
+    console.error('Error in /api/companies/:symbol/security:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reverse DCF & Valuation Sensitivity
+api.post('/companies/:symbol/valuation/reverse-dcf', (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const company = store.getCompanyBySymbol(symbol);
+    if (!company) {
+      return res.status(404).json({ detail: `Company with symbol '${symbol}' not found` });
+    }
+    const customParams = req.body || {};
+    const valuation = valuationService.getReverseDCFAnalysis(company, customParams);
+    res.json(valuation);
+  } catch (err) {
+    console.error('Error in /api/companies/:symbol/valuation/reverse-dcf:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+api.get('/companies/:symbol/valuation/reverse-dcf', (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const company = store.getCompanyBySymbol(symbol);
+    if (!company) {
+      return res.status(404).json({ detail: `Company with symbol '${symbol}' not found` });
+    }
+    const valuation = valuationService.getReverseDCFAnalysis(company, req.query || {});
+    res.json(valuation);
+  } catch (err) {
+    console.error('Error in /api/companies/:symbol/valuation/reverse-dcf (GET):', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -387,6 +437,140 @@ api.post('/portfolio/analyze', (req, res) => {
     res.json(audit);
   } catch (err) {
     console.error('Error in /api/portfolio/analyze:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// WATCHLIST & ALERTS ENDPOINTS
+// ==========================================
+
+// Get user watchlist
+api.get('/watchlist', (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    const items = store.getWatchlist(authUser ? authUser.id : null);
+    // Enrich with current market data & security status
+    const enriched = items.map((w) => {
+      const company = store.getCompanyBySymbol(w.symbol);
+      const forensic = company ? securityAnalysisService.getForensicAnalysis(company) : null;
+      return {
+        ...w,
+        current_price: company?.current_price ?? w.added_price,
+        company_name: company?.name ?? w.name,
+        sector: company?.sector ?? w.sector,
+        quality_score: company?.quality_score?.total_score ?? null,
+        piotroski_score: company?.quality_score?.piotroski_score ?? null,
+        altman_zone: forensic?.altman_z_score?.zone ?? 'safe',
+        beneish_manipulator: forensic?.beneish_m_score?.isManipulator ?? false
+      };
+    });
+    res.json(enriched);
+  } catch (err) {
+    console.error('Error in GET /api/watchlist:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add to watchlist
+api.post('/watchlist', (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    const { symbol, notes, target_buy_price } = req.body || {};
+    if (!symbol) {
+      return res.status(400).json({ error: 'Symbole boursier requis' });
+    }
+    const item = store.addToWatchlist(authUser ? authUser.id : null, { symbol, notes, target_buy_price });
+    res.status(201).json(item);
+  } catch (err) {
+    console.error('Error in POST /api/watchlist:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete from watchlist
+api.delete('/watchlist/:symbol_or_id', (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    const symbolOrId = req.params.symbol_or_id;
+    const removed = store.removeFromWatchlist(authUser ? authUser.id : null, symbolOrId);
+    if (!removed) {
+      return res.status(404).json({ error: 'Élément non trouvé dans la watchlist' });
+    }
+    res.json({ status: 'success', message: 'Supprimé de la watchlist' });
+  } catch (err) {
+    console.error('Error in DELETE /api/watchlist:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get user alerts
+api.get('/alerts', (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    const alerts = store.getAlerts(authUser ? authUser.id : null);
+    // Evaluate triggers in real time based on latest market prices & security scores
+    const evaluated = alerts.map((a) => {
+      const company = store.getCompanyBySymbol(a.symbol);
+      const forensic = company ? securityAnalysisService.getForensicAnalysis(company) : null;
+      let triggered = false;
+      let triggerReason = null;
+
+      if (company) {
+        if (a.condition_type === 'price_below' && company.current_price <= a.target_value) {
+          triggered = true;
+          triggerReason = `Cours actuel (${company.current_price} ${company.currency}) sous la cible (${a.target_value})`;
+        } else if (a.condition_type === 'price_above' && company.current_price >= a.target_value) {
+          triggered = true;
+          triggerReason = `Cours actuel (${company.current_price} ${company.currency}) au-dessus de la cible (${a.target_value})`;
+        } else if (a.condition_type === 'piotroski_below' && (company.quality_score?.piotroski_score || 9) <= a.target_value) {
+          triggered = true;
+          triggerReason = `Score Piotroski (${company.quality_score?.piotroski_score}) inférieur au seuil d'alerte (${a.target_value})`;
+        } else if (a.condition_type === 'altman_distress' && (forensic?.altman_z_score?.score || 5) < a.target_value) {
+          triggered = true;
+          triggerReason = `Altman Z-Score (${forensic?.altman_z_score?.score}) en zone de détresse (< ${a.target_value})`;
+        }
+      }
+
+      return {
+        ...a,
+        triggered,
+        trigger_reason: triggerReason,
+        current_market_price: company?.current_price ?? null
+      };
+    });
+    res.json(evaluated);
+  } catch (err) {
+    console.error('Error in GET /api/alerts:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create alert
+api.post('/alerts', (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    const alertData = req.body || {};
+    const alert = store.createAlert(authUser ? authUser.id : null, alertData);
+    res.status(201).json(alert);
+  } catch (err) {
+    console.error('Error in POST /api/alerts:', err);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete alert
+api.delete('/alerts/:id', (req, res) => {
+  try {
+    const authUser = getAuthUser(req);
+    const alertId = req.params.id;
+    const removed = store.deleteAlert(authUser ? authUser.id : null, alertId);
+    if (!removed) {
+      return res.status(404).json({ error: 'Alerte non trouvée' });
+    }
+    res.json({ status: 'success', message: 'Alerte supprimée avec succès' });
+  } catch (err) {
+    console.error('Error in DELETE /api/alerts:', err);
     res.status(500).json({ error: err.message });
   }
 });
