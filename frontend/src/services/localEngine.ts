@@ -16,6 +16,8 @@ export interface SeedCompany {
   business_model?: string;
   market_cap?: number;
   current_price?: number;
+  previous_close?: number;
+  quote_as_of?: string;
   pe_ratio?: number;
   pfcf_ratio?: number;
   dividend_yield?: number;
@@ -74,6 +76,8 @@ for (const c of companies) {
 }
 
 // Portfolio & Auth LocalStorage Persistence
+const LIVE_QUOTES_KEY = 'stockscreener_live_quotes_v1';
+let liveQuotesFetchedAt: string | null = null;
 const PORTFOLIO_STORAGE_KEY = 'stockscreener_portfolios_v1';
 const POSITIONS_STORAGE_KEY = 'stockscreener_positions_v1';
 const ACTIVE_PORTFOLIO_KEY = 'stockscreener_active_portfolio_id_v1';
@@ -1171,12 +1175,12 @@ export class LocalEngine {
       totalPositionsCost += cost;
 
       let dayChange = 0.0;
-      if (company && company.stock_prices && company.stock_prices.length >= 2) {
-        const prices = company.stock_prices;
-        const prevClose = prices[prices.length - 2].close;
-        if (prevClose && prevClose > 0) {
-          dayChange = (curPrice - prevClose) * pos.shares;
-        }
+      const prevClose = company?.previous_close
+        || (company?.stock_prices && company.stock_prices.length >= 2
+          ? company.stock_prices[company.stock_prices.length - 2].close
+          : null);
+      if (prevClose && prevClose > 0) {
+        dayChange = (curPrice - prevClose) * pos.shares;
       }
       dailyPnl += dayChange;
 
@@ -2196,6 +2200,50 @@ export class LocalEngine {
     return alerts.length < initialLen;
   }
 
+  static applyLiveQuotes(quotes: Record<string, { price: number; previousClose?: number | null; asOf?: string }>, fetchedAt?: string) {
+    let updated = 0;
+    for (const [rawSymbol, quote] of Object.entries(quotes || {})) {
+      const company = companyMap.get(rawSymbol.toUpperCase());
+      const price = Number(quote?.price);
+      if (!company || !Number.isFinite(price) || price <= 0) continue;
+      company.current_price = price;
+      if (quote.previousClose != null && Number(quote.previousClose) > 0) {
+        company.previous_close = Number(quote.previousClose);
+      }
+      company.quote_as_of = quote.asOf || fetchedAt || new Date().toISOString();
+      const prices = Array.isArray(company.stock_prices) ? company.stock_prices : [];
+      const day = String(company.quote_as_of).slice(0, 10);
+      const last = prices[prices.length - 1];
+      if (last && String(last.date).slice(0, 10) === day) {
+        last.close = price;
+      } else {
+        prices.push({ company_id: company.id, date: day, close: price });
+        company.stock_prices = prices;
+      }
+      updated += 1;
+    }
+    try {
+      localStorage.setItem(LIVE_QUOTES_KEY, JSON.stringify({
+        fetched_at: fetchedAt || new Date().toISOString(),
+        quotes
+      }));
+    } catch {
+      // ignore quota
+    }
+    liveQuotesFetchedAt = fetchedAt || new Date().toISOString();
+    return updated;
+  }
+
+  static hasFreshQuotes(maxAgeMs = 15 * 60 * 1000) {
+    if (!liveQuotesFetchedAt) return false;
+    const ts = Date.parse(liveQuotesFetchedAt);
+    return Number.isFinite(ts) && Date.now() - ts < maxAgeMs;
+  }
+
+  static getQuotesFetchedAt() {
+    return liveQuotesFetchedAt;
+  }
+
   static getMoatAnalysis(symbol: string) {
     const company = companyMap.get(symbol.toUpperCase());
     if (!company) return null;
@@ -2220,4 +2268,16 @@ export class LocalEngine {
     const forensicB = LocalEngine.getForensicAnalysis(b);
     return QualitativeEngine.compareCompanies(a, b, forensicA, forensicB);
   }
+}
+
+try {
+  const raw = localStorage.getItem(LIVE_QUOTES_KEY);
+  if (raw) {
+    const parsed = JSON.parse(raw);
+    if (parsed?.quotes) {
+      LocalEngine.applyLiveQuotes(parsed.quotes, parsed.fetched_at);
+    }
+  }
+} catch {
+  // ignore corrupt cache
 }

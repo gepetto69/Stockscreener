@@ -3,6 +3,7 @@ import type {
   PortfolioPerformance,
   PositionCreatePayload
 } from '../../types/portfolio';
+import { LocalEngine } from '../../services/localEngine';
 import {
   Brain,
   Plus,
@@ -109,6 +110,11 @@ export const PortfolioDashboard: React.FC<Props> = ({
           </div>
           <p className="text-[11px] sm:text-xs text-slate-400">
             Portefeuille actif constitué le {new Date(portfolio.created_at).toLocaleDateString()} • {portfolio.positions_count} positions ouvertes
+            {LocalEngine.getQuotesFetchedAt() && (
+              <span className="text-emerald-400/90">
+                {' '}• Cours live {new Date(LocalEngine.getQuotesFetchedAt() as string).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </p>
         </div>
 
@@ -175,7 +181,7 @@ export const PortfolioDashboard: React.FC<Props> = ({
 
         {/* Daily P&L */}
         <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">P&L Journée (Est.)</div>
+          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">P&L Journée</div>
           <div className={`text-lg sm:text-xl font-bold font-mono mt-1 ${isDailyProfitable ? 'text-emerald-400' : 'text-rose-400'}`}>
             {isDailyProfitable ? '+' : ''}{(portfolio.daily_pnl ?? 0).toFixed(2)} {portfolio.currency === 'EUR' ? '€' : '$'}
           </div>

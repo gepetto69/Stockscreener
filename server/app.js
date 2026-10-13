@@ -11,6 +11,7 @@ const newsService = require('./services/newsService');
 const securityAnalysisService = require('./services/securityAnalysisService');
 const valuationService = require('./services/valuationService');
 const qualitativeIntelligenceService = require('./services/qualitativeIntelligenceService');
+const quoteService = require('./services/quoteService');
 
 const app = express();
 
@@ -334,38 +335,36 @@ api.get('/companies/:symbol/news', async (req, res) => {
   }
 });
 
+// Live Yahoo quotes for the curated universe
+api.get('/quotes', async (req, res) => {
+  try {
+    const result = await quoteService.refreshUniverseQuotes();
+    res.json({
+      status: 'success',
+      source: result.updated > 0 ? 'yahoo' : 'seed',
+      fetched_at: result.fetched_at,
+      companies_updated: result.updated,
+      quotes: result.quotes
+    });
+  } catch (err) {
+    console.error('Error in /api/quotes:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Pipeline Refresh (trigger live quote refresh)
 api.post('/pipeline/refresh', async (req, res) => {
   try {
-    const companies = store.getAllCompanies();
-    let updatedCount = 0;
-
-    // Refresh quotes for curated universe via Yahoo Finance
-    const refreshPromises = companies.slice(0, 10).map(async (c) => {
-      try {
-        const r = await fetch(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(c.symbol)}?interval=1d&range=1d`,
-          { headers: { 'User-Agent': 'Mozilla/5.0' } }
-        );
-        if (r.ok) {
-          const d = await r.json();
-          const livePrice = d?.chart?.result?.[0]?.meta?.regularMarketPrice;
-          if (livePrice && livePrice > 0) {
-            store.updateCompanyPrice(c.symbol, livePrice);
-            updatedCount++;
-          }
-        }
-      } catch {
-        // Ignore single symbol failure
-      }
-    });
-
-    await Promise.allSettled(refreshPromises);
-
+    const result = await quoteService.refreshUniverseQuotes();
     res.json({
       status: 'success',
-      message: 'Stock universe & quality scores successfully refreshed with live market quotes',
-      companies_updated: updatedCount || companies.length
+      message: result.updated
+        ? 'Cours Yahoo mis à jour'
+        : 'Yahoo injoignable, cours inchangés',
+      source: result.updated > 0 ? 'yahoo' : 'seed',
+      fetched_at: result.fetched_at,
+      companies_updated: result.updated,
+      quotes: result.quotes
     });
   } catch (err) {
     console.error('Error in /api/pipeline/refresh:', err);

@@ -574,14 +574,38 @@ class DataStore {
   }
 
   updateCompanyPrice(symbol, price) {
+    return this.updateCompanyQuote(symbol, { price });
+  }
+
+  updateCompanyQuote(symbol, quote) {
     this.init();
     const c = this.getCompanyBySymbol(symbol);
-    if (c) {
-      c.current_price = Number(price);
-      c.updated_at = new Date().toISOString();
-      return true;
+    const price = Number(quote?.price);
+    if (!c || !Number.isFinite(price) || price <= 0) return false;
+
+    c.current_price = price;
+    if (quote?.previousClose != null && Number(quote.previousClose) > 0) {
+      c.previous_close = Number(quote.previousClose);
     }
-    return false;
+    c.quote_as_of = quote?.asOf || new Date().toISOString();
+    c.updated_at = c.quote_as_of;
+
+    const prices = Array.isArray(c.stock_prices) ? c.stock_prices : [];
+    const day = String(c.quote_as_of).slice(0, 10);
+    const last = prices[prices.length - 1];
+    if (last && String(last.date).slice(0, 10) === day) {
+      last.close = price;
+      if (quote?.previousClose != null) last.open = last.open ?? quote.previousClose;
+    } else {
+      prices.push({
+        company_id: c.id,
+        date: day,
+        close: price,
+        open: quote?.previousClose ?? price
+      });
+      c.stock_prices = prices;
+    }
+    return true;
   }
 }
 

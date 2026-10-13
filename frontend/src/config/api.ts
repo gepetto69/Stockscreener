@@ -71,9 +71,14 @@ function handleLocally(method: string, urlPath: string, data?: any, params?: any
     return res.items;
   }
 
-  // 4. /pipeline/refresh
-  if (cleanPath === '/pipeline/refresh' || cleanPath === 'pipeline/refresh') {
-    return { status: 'success', message: 'Calculs locaux à jour', companies_updated: 24 };
+  // Live quotes must not be faked: a dummy 200 prevents Yahoo from running.
+  if (
+    cleanPath === '/pipeline/refresh' ||
+    cleanPath === 'pipeline/refresh' ||
+    cleanPath === '/quotes' ||
+    cleanPath === 'quotes'
+  ) {
+    return null;
   }
 
   // 5. /companies/:symbol/copilot/abigail
