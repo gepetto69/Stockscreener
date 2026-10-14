@@ -19,7 +19,7 @@ import {
   Bar
 } from 'recharts';
 import { FlaskConical, Loader2, Activity, Landmark, PieChart, Check, Mail, Printer } from 'lucide-react';
-import { buildNewsletterHtml, collectNewsletterData, openNewsletterPdf, sendNewsletterEmail } from '../services/newsletterEngine';
+import { buildNewsletterHtml, collectNewsletterData, isGenericNews, openNewsletterPdf, sendNewsletterEmail } from '../services/newsletterEngine';
 
 interface Props {
   portfolio: PortfolioPerformance | null;
@@ -210,15 +210,18 @@ export const LabArena: React.FC<Props> = ({ portfolio, userEmail, onOpenStock, o
     setNewsletterMessage(null);
     try {
       const base = collectNewsletterData();
-      const newsBySymbol: Record<string, any[]> = { ...base.newsBySymbol };
-      const symbols = Object.keys(newsBySymbol);
+      const newsBySymbol: Record<string, any[]> = {};
+      const symbols = (base.briefs || []).map((b: any) => b?.symbol).filter(Boolean);
       await Promise.all(
-        symbols.map(async (sym) => {
+        symbols.map(async (sym: string) => {
           try {
-            const res = await axios.get(`${API_BASE}/companies/${sym}/news`, { params: { limit: 3 } });
-            if (Array.isArray(res.data) && res.data.length) newsBySymbol[sym] = res.data;
+            const res = await axios.get(`${API_BASE}/companies/${sym}/news`, { params: { limit: 4 } });
+            if (Array.isArray(res.data)) {
+              const real = res.data.filter((n: any) => !isGenericNews(n));
+              if (real.length) newsBySymbol[sym] = real;
+            }
           } catch {
-            // curated already filled
+            // pas de fil live : l'analyse IA suffit
           }
         })
       );
@@ -387,7 +390,7 @@ export const LabArena: React.FC<Props> = ({ portfolio, userEmail, onOpenStock, o
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
             <div className="text-sm font-bold text-white">Newsletter portefeuilles</div>
             <p className="text-xs text-slate-400">
-              Revue PDF + email HTML depuis <span className="text-cyan-300">info@qualityscreenerpro.com</span> : allocation, P&amp;L, ordres 10 jours et actualités de vos lignes.
+              Revue PDF + email depuis <span className="text-cyan-300">info@qualityscreenerpro.com</span> : pour chaque titre, note IA (qualité, Piotroski, moat, MOS) et décision acheter / alléger / conserver.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
