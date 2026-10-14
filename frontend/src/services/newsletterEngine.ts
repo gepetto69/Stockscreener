@@ -8,11 +8,137 @@ function esc(s: any) {
     .replace(/>/g, '&gt;');
 }
 
+function fmt(n: any, d = 1) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return 'n.d.';
+  return v.toFixed(d);
+}
+
+function isGenericNews(item: any) {
+  const t = `${item?.title || ''} ${item?.summary || ''}`;
+  return /Forte accélération des investissements d'infrastructures|Pourquoi le Moat de .+ renforce sa position dominante|Objectif de cours rehaussé pour/.test(t);
+}
+
+function stanceFromIdea(idea: any, mos: number | null, forensic: any, quality: number) {
+  const action = idea?.action;
+  const manipulator = forensic?.beneish_m_score?.isManipulator;
+  const distress = forensic?.altman_z_score?.zone === 'distress';
+  if (manipulator || distress || action === 'sortir') {
+    return { key: 'vendre', label: 'Vendre / sortir', color: '#b91c1c', why: idea?.reason || 'Drapeau forensique : on ne conserve pas.' };
+  }
+  if (action === 'alléger' || (mos != null && mos < 0 && (idea?.ret_10d || 0) > 3)) {
+    return { key: 'alleger', label: 'Alléger', color: '#b45309', why: idea?.reason || 'Le cours a déjà payé une large part de la croissance.' };
+  }
+  if (action === 'renforcer' || action === 'ouvrir' || (mos != null && mos >= 15 && quality >= 70)) {
+    return { key: 'acheter', label: 'Acheter / renforcer', color: '#047857', why: idea?.reason || 'Marge de sécurité et qualité suffisantes pour ajouter.' };
+  }
+  return { key: 'conserver', label: 'Conserver', color: '#334155', why: idea?.reason || 'Noyau de qualité dans ses bandes : on ne touche à rien.' };
+}
+
+export function buildHoldingBrief(symbol: string, playbook?: any) {
+  const rec = LocalEngine.getCompanyDetail(symbol);
+  if (!rec) return null;
+  const warren = LocalEngine.getWarrenAnalysis(rec as any);
+  const abigail = LocalEngine.getAbigailAnalysis(rec as any);
+  const forensic = LocalEngine.getForensicAnalysis(rec as any);
+  const moat = LocalEngine.getMoatAnalysis(symbol);
+  const dcf = LocalEngine.getReverseDCFAnalysis(symbol);
+  const einstein = LocalEngine.getEinsteinRanking(rec as any);
+  const stmts = [...(rec.financial_statements || [])].sort((a: any, b: any) => a.fiscal_year - b.fiscal_year);
+  const latest = stmts.length ? stmts[stmts.length - 1] : null;
+  const qs = rec.quality_score || {};
+  const quality = Number(qs.total_score);
+  const piotroski = qs.piotroski_score;
+  const mos = dcf?.margin_of_safety_pct ?? dcf?.margin_of_safety ?? null;
+  const idea = (playbook?.ideas || []).find((r: any) => String(r.symbol).toUpperCase() === symbol);
+  const stance = stanceFromIdea(idea, mos, forensic, quality);
+  const summary = String(rec.business_summary || rec.description || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280);
+
+  const paragraphs: string[] = [];
+  paragraphs.push(
+    `${rec.name} (${symbol}) — ${rec.industry || rec.sector || 'secteur n.d.'}. ` +
+      `Cours ${fmt(rec.current_price, 2)} ${rec.currency || ''} · P/E ${fmt(rec.pe_ratio, 1)}x` +
+      (rec.pfcf_ratio ? ` · P/FCF ${fmt(rec.pfcf_ratio, 1)}x` : '') +
+      `. Note qualité transmise à l’IA : ${Number.isFinite(quality) ? `${fmt(quality, 1)}/100` : 'n.d.'}` +
+      (piotroski != null ? ` · Piotroski ${piotroski}/9 (${qs.piotroski_status || ''})` : '') +
+      `. Warren cote le moat ${warren?.moat_score || '—'}/5 (${warren?.moat_label || 'n.d.'}), sentiment ${warren?.sentiment_label || 'n.d.'}.`
+  );
+
+  if (summary) paragraphs.push(summary);
+
+  paragraphs.push(
+    `Abigail (bilan) : verdict « ${abigail?.verdict || 'n.d.'} ». ${abigail?.summary_text || ''}`.trim()
+  );
+
+  const altman = forensic?.altman_z_score;
+  const beneish = forensic?.beneish_m_score;
+  paragraphs.push(
+    `Forensique : Altman Z ${altman?.score != null ? fmt(altman.score, 2) : 'n.d.'} (${altman?.zone || 'n.d.'})` +
+      (beneish ? ` · Beneish M ${fmt(beneish.score, 2)}${beneish.isManipulator ? ' — drapeau manipulateur' : ' — pas de drapeau'}` : '') +
+      `. ROE ${fmt(latest?.roe, 1)}% · ROIC ${fmt(latest?.roic, 1)}% · marge op. ${fmt(latest?.operating_margin, 1)}%` +
+      (latest?.free_cash_flow ? ` · FCF ${fmt(latest.free_cash_flow, 0)}` : '') +
+      '.'
+  );
+
+  if (moat) {
+    paragraphs.push(moat.justification || `${rec.name} : douve ${moat.stars}/5 (${moat.moat_label}).`);
+  }
+
+  if (dcf) {
+    paragraphs.push(
+      `Reverse DCF : valeur intrinsèque ${fmt(dcf.intrinsic_value ?? dcf.intrinsicValue, 2)} vs cours ${fmt(rec.current_price, 2)}` +
+        (mos != null ? ` → MOS ${fmt(mos, 1)}% (${dcf.valuation_verdict || ''})` : '') +
+        (dcf.implied_growth_rate != null ? ` · croissance implicite ${fmt(dcf.implied_growth_rate, 1)}%/an` : '') +
+        '.'
+    );
+  }
+
+  if (einstein?.target_rank) {
+    paragraphs.push(
+      `Einstein : ${rec.name} est #${einstein.target_rank}/${einstein.total_evaluated} dans ${einstein.sector || 'son secteur'}. ${einstein.verdict || ''}`
+    );
+  }
+
+  const genericThesis = /Leader sectoriel incontournable/;
+  if (warren?.thesis_one_liner && !genericThesis.test(warren.thesis_one_liner)) {
+    paragraphs.push(`Thèse Warren : ${warren.thesis_one_liner}`);
+  }
+  if (warren?.strengths?.length && warren.strengths[0] !== 'Bilan robuste avec levier sous contrôle') {
+    paragraphs.push(`Points forts : ${warren.strengths.slice(0, 3).join(' · ')}.`);
+  }
+  if (warren?.risks?.length) {
+    const uniqueRisks = warren.risks.filter((r) => !/^Sensibilité aux cycles|^Pression concurrentielle/.test(r) || /P\/E|multiple|Multiple/i.test(r));
+    if (uniqueRisks.length) paragraphs.push(`Risques : ${uniqueRisks.slice(0, 3).join(' · ')}.`);
+  }
+
+  paragraphs.push(
+    `Décision de l’expert (horizon 10 jours + fondamental) : ${stance.label}. ${stance.why}` +
+      (idea?.ret_10d != null ? ` Variation 10 séances : ${fmt(idea.ret_10d, 2)}%.` : '')
+  );
+
+  return {
+    symbol,
+    name: rec.name,
+    quality: Number.isFinite(quality) ? Number(quality.toFixed(1)) : null,
+    piotroski: piotroski ?? null,
+    warren_moat: warren?.moat_score ?? null,
+    warren_moat_label: warren?.moat_label ?? null,
+    abigail_verdict: abigail?.verdict ?? null,
+    mos: mos != null ? Number(Number(mos).toFixed(1)) : null,
+    stance,
+    paragraphs: paragraphs.filter(Boolean)
+  };
+}
+
 export function buildNewsletterHtml(opts: {
   userName?: string;
   portfolios: any[];
   playbook?: any;
   newsBySymbol?: Record<string, any[]>;
+  briefs?: any[];
 } = {}) {
   const when = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -24,6 +150,7 @@ export function buildNewsletterHtml(opts: {
   const portfolios = opts.portfolios || [];
   const playbook = opts.playbook;
   const newsBySymbol = opts.newsBySymbol || {};
+  const briefs = opts.briefs || [];
   const nPos = portfolios.reduce((s, p) => s + (p.positions?.length || 0), 0);
   const totalVal = portfolios.reduce((s, p) => s + Number(p.total_value || 0), 0);
   const nOrders = (playbook?.orders || []).length;
@@ -84,10 +211,31 @@ export function buildNewsletterHtml(opts: {
     )
     .join('');
 
+  const briefBlocks = briefs
+    .map((b) => {
+      const paras = (b.paragraphs || []).map((p) => `<p style="font-size:14px;line-height:1.55;margin:0 0 10px;color:#1e293b">${esc(p)}</p>`).join('');
+      return `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px 16px 8px;margin:16px 0">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between">
+          <h3 style="font-size:16px;margin:0">${esc(b.symbol)} · ${esc(b.name)}</h3>
+          <span style="background:${b.stance?.color || '#334155'};color:#fff;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 8px;border-radius:6px">${esc(b.stance?.label)}</span>
+        </div>
+        <p style="font-size:12px;color:#475569;margin:8px 0 12px">
+          Cotation IA : qualité <strong>${b.quality != null ? esc(b.quality) + '/100' : 'n.d.'}</strong>
+          ${b.piotroski != null ? ` · Piotroski <strong>${esc(b.piotroski)}/9</strong>` : ''}
+          ${b.warren_moat != null ? ` · moat Warren <strong>${esc(b.warren_moat)}/5 ${esc(b.warren_moat_label || '')}</strong>` : ''}
+          ${b.abigail_verdict ? ` · bilan Abigail <strong>${esc(b.abigail_verdict)}</strong>` : ''}
+          ${b.mos != null ? ` · MOS DCF <strong>${esc(b.mos)}%</strong>` : ''}
+        </p>
+        ${paras}
+      </div>`;
+    })
+    .join('');
+
   const newsBlocks = Object.entries(newsBySymbol)
     .map(([sym, items]) => {
-      const lis = (items || [])
-        .slice(0, 3)
+      const real = (items || []).filter((n) => !isGenericNews(n)).slice(0, 3);
+      if (!real.length) return '';
+      const lis = real
         .map(
           (n) => `<li style="margin:0 0 10px">
             <a href="${esc(n.link)}" style="color:#1d4ed8;font-weight:600;text-decoration:none">${esc(n.title)}</a>
@@ -100,13 +248,21 @@ export function buildNewsletterHtml(opts: {
     })
     .join('');
 
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><title>Revue QualityScreener</title></head>
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Revue QualityScreener</title>
+  <style>
+    @media print { body { background:#fff !important; } a { color:inherit !important; text-decoration:none; } .no-print { display:none !important; } }
+  </style>
+  </head>
   <body style="margin:0;background:#f1f5f9;font-family:Georgia,serif;color:#0f172a">
     <div style="max-width:720px;margin:0 auto;background:#fff;padding:32px 28px">
+      <p class="no-print" style="margin:0 0 16px">
+        <button type="button" onclick="window.print()" style="background:#0f172a;color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:13px">Enregistrer en PDF / Imprimer</button>
+      </p>
       <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6366f1;font-weight:700">QualityScreener PRO</div>
-      <h1 style="font-size:26px;margin:8px 0 4px">Revue de portefeuille & ajustement 10 jours</h1>
+      <h1 style="font-size:26px;margin:8px 0 4px">Revue de portefeuille & expert IA</h1>
       <p style="color:#64748b;margin:0 0 20px">${esc(when)} · Bonjour ${esc(name)}</p>
-      <p style="font-size:15px;line-height:1.55">Voici la photographie de vos portefeuilles, les ordres d’ajustement 10 jours (renforcer / alléger autour de la valeur intrinsèque) et les actualités à surveiller sur vos lignes. Document éducatif, pas un conseil en investissement personnalisé.</p>
+      <p style="font-size:15px;line-height:1.55">Pour chaque ligne : la note transmise aux copilotes (qualité, Piotroski, moat Warren, bilan Abigail, MOS Reverse DCF) et la décision d’expert — acheter, alléger/vendre ou conserver. Document éducatif, pas un conseil en investissement personnalisé.</p>
       <table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13px">
         <tr>
           <td style="padding:12px;background:#eef2ff;border-radius:8px">
@@ -135,8 +291,13 @@ export function buildNewsletterHtml(opts: {
               <th style="text-align:left;padding:8px">Pourquoi</th></tr></thead><tbody>${orders}</tbody></table>`
           : '<p style="color:#64748b">Aucun ordre : le noyau est dans ses bandes. On ne touche à rien cette revue.</p>'
       }
-      <h2 style="font-size:16px;margin:28px 0 8px">Actualités sur vos titres</h2>
-      ${newsBlocks || '<p style="color:#64748b">Pas d’actualité chargée pour cette revue.</p>'}
+      <h2 style="font-size:16px;margin:28px 0 8px">Analyse poussée par l’expert IA</h2>
+      ${briefBlocks || '<p style="color:#64748b">Aucune ligne à analyser.</p>'}
+      ${
+        newsBlocks
+          ? `<h2 style="font-size:16px;margin:28px 0 8px">Fil d’actualités (sources live)</h2>${newsBlocks}`
+          : ''
+      }
       <p style="margin-top:32px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px">
         Envoyé depuis info@qualityscreenerpro.com · QualityScreener PRO<br/>
         Ceci n’est pas un conseil en investissement. Vérifiez toujours les cours live et votre situation fiscale avant d’exécuter un ordre.
@@ -164,29 +325,58 @@ export function collectNewsletterData() {
     total_value: active?.total_value || 0,
     watchlist
   });
-  const newsBySymbol: Record<string, any[]> = {};
   const symbols = new Set<string>();
   for (const p of portfolios) {
     for (const pos of p.positions || []) symbols.add(pos.symbol);
   }
-  for (const s of symbols) {
-    const rec = LocalEngine.getCompanyDetail(s);
-    newsBySymbol[s] = LocalEngine.getCompanyNews(s, rec?.name || s, 3);
-  }
+  const briefs = [...symbols].map((s) => buildHoldingBrief(s, playbook)).filter(Boolean);
+  const newsBySymbol: Record<string, any[]> = {};
   return {
     userName: user?.name || user?.email?.split('@')[0],
     userEmail: user?.email || '',
     portfolios,
     playbook,
+    briefs,
     newsBySymbol
   };
 }
 
+function printViaIframe(html: string) {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('title', 'Revue QualityScreener');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) {
+    iframe.remove();
+    return;
+  }
+  doc.open();
+  doc.write(html);
+  doc.close();
+  const run = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      // ignore
+    }
+    setTimeout(() => iframe.remove(), 1500);
+  };
+  iframe.onload = run;
+  setTimeout(run, 400);
+}
+
 export function openNewsletterPdf(html: string) {
-  const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1200');
-  if (!w) return;
-  w.document.write(html.replace('</body>', '<script>window.onload=()=>window.print()</script></body>'));
-  w.document.close();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+  if (!w) {
+    URL.revokeObjectURL(url);
+    printViaIframe(html);
+    return;
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 180000);
 }
 
 export async function sendNewsletterEmail(to: string, html: string, subject: string) {
@@ -213,3 +403,5 @@ export async function sendNewsletterEmail(to: string, html: string, subject: str
   }
   return data;
 }
+
+export { isGenericNews };
